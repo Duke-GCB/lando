@@ -1,9 +1,25 @@
 from time import sleep
 
+from credentials import credentials
 
-def image_list():
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneauth1 import loading
+from keystoneclient.v3 import client
+
+import glanceclient
+
+def get_keystone():
+    auth = v3.Password(**credentials)
+    sess = session.Session(auth=auth)
+    keystone = client.Client(session=sess, interface='public')
+    return keystone
+
+
+def image_list(glance):
     print 'listing images'
-    return ['ubuntu']
+    for image in glance.images.list():
+        yield image
 
 
 def launch_instance(image):
@@ -16,13 +32,21 @@ def terminate_instance(instance):
     pass
 
 
+def get_glance():
+    loader = loading.get_plugin_loader('password')
+    auth = loader.load_from_options(**credentials)
+    sess = session.Session(auth=auth)
+    glance = glanceclient.Client('2', session=sess)
+    return glance
+
+
 def main():
-    images = image_list()
-    if len(images) == 0:
-        return
-    image = images[0]
+    glance = get_glance()
+    image = None
+    for i in image_list(glance):
+        if 'ubuntu-trusty' in i['name']:
+            image = i
     instance = launch_instance(image)
-    sleep(5)
     terminate_instance(instance)
 
 
