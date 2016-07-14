@@ -68,6 +68,10 @@ def image_list(glance):
         print image
 
 
+def server_name():
+    return '{}-{}'.format(SERVER_NAME, PUBLIC_KEY_NAME)
+
+
 def launch_instance():
     # http://docs.openstack.org/user-guide/sdk_compute_apis.html
     nova = get_nova()
@@ -76,7 +80,7 @@ def launch_instance():
     net = nova.networks.find(label=NETWORK_NAME)
 
     nics = [{'net-id': net.id}]
-    instance = nova.servers.create(name=SERVER_NAME, image=image, flavor=flavor, key_name=PUBLIC_KEY_NAME, nics=nics)
+    instance = nova.servers.create(name=server_name(), image=image, flavor=flavor, key_name=PUBLIC_KEY_NAME, nics=nics)
     # Creates a floating IP in the ext
     floating_ip =  nova.floating_ips.create(FLOATING_IP_POOL_NAME)
     sleep(5)
@@ -88,14 +92,14 @@ def launch_instance():
 
 def terminate_instance():
     nova = get_nova()
-    print 'terminating instance {}'.format(SERVER_NAME)
-    s = nova.servers.find(name=SERVER_NAME)
+    print 'terminating instance {}'.format(server_name())
+    s = nova.servers.find(name=server_name())
     nova.servers.delete(s)
 
 
 def main():
     launch_instance()
-    raw_input("Press Enter to terminate {}...".format(SERVER_NAME))
+    raw_input("Press Enter to terminate {}...".format(server_name()))
     terminate_instance()
 
 
