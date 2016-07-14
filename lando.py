@@ -7,14 +7,13 @@
 
 SERVER_NAME='lando-test'
 IMAGE_NAME='ubuntu-trusty'
-PUBLIC_KEY_NAME='dcl9'
 NETWORK_NAME='selfservice'
 FLAVOR_NAME='m1.small'
 FLOATING_IP_POOL_NAME='ext-net'
 
 from time import sleep
 
-from credentials import credentials
+from credentials import credentials, PUBLIC_KEY_NAME
 
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
