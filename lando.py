@@ -83,7 +83,7 @@ def launch_instance():
     sleep(5)
     instance.add_floating_ip(floating_ip)
     print 'launched instance {} with key {}'.format(instance.name, PUBLIC_KEY_NAME)
-    print 'Try to ssh ubuntu@{}'.format(floating_ip.ip)
+    print 'Wait a couple minutes, then try to ssh ubuntu@{}'.format(floating_ip.ip)
     return instance
 
 
