@@ -29,6 +29,7 @@ pathlib2==2.1.0
 pbr==1.10.0
 pexpect==4.2.0
 pickleshare==0.7.2
+pika==0.10.0
 positional==1.1.1
 prettytable==0.7.2
 prompt-toolkit==1.0.3
