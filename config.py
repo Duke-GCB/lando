@@ -1,3 +1,6 @@
+"""
+Reads configuration settings from a YAML file for use with lando.py and lando_client.py.
+"""
 import yaml
 
 WORK_QUEUE_CONFIG_NAME = ''
@@ -45,6 +48,10 @@ class Config(object):
             return None
 
     def make_worker_config_yml(self):
+        """
+        Create a worker config file that can be sent to a worker VM so they can talk to the work queue.
+        :return: str: worker config file
+        """
         work_queue = self.work_queue_config()
         data = {
             'work_queue': {
@@ -95,6 +102,10 @@ class CloudSettings(object):
         self.password = data['password']
 
     def credentials(self):
+        """
+        Make credentials for connecting to the cloud.
+        :return: dict: cloud credentials read from config file
+        """
         return {
           'auth_url': self.auth_url,
           'username': self.username,

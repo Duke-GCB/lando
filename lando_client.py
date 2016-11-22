@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+Client to send messages to queue that will be processed by lando.py.
+Usage: python lando_client.py <config_filename> <command> <parameter>
+Example to run a job: python lando_client.py workerconfig.yml start_worker cwljob.yml
+"""
 import sys
 from workqueue import WorkQueueClient
 from lando_server import ServerCommands
