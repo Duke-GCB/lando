@@ -58,6 +58,7 @@ class Server(object):
         Busy loop that will call commands as messages come in.
         :return:
         """
+        self.show_message("Listening for messages...")
         self.processor.process_messages_loop()
 
     def show_message(self, message):

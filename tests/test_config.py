@@ -14,12 +14,12 @@ class TestConfigLoading(TestCase):
         self.assertEqual('tobol', work_queue.worker_password)
         self.assertEqual('task-queue', work_queue.queue_name)
 
-        self.assertMultiLineEqual("""host: 10.109.253.2
-queue_name: task-queue
-worker_password: tobol
-worker_username: lobot
+        self.assertMultiLineEqual("""work_queue:
+  host: 10.109.253.2
+  password: tobol
+  queue_name: task-queue
+  username: lobot
 """, config.make_worker_config_yml())
-
         vm_settings = config.vm_settings()
         self.assertEqual('xenial_docker_cwlrunner', vm_settings.worker_image_name)
         self.assertEqual('jpb67', vm_settings.ssh_key_name)
