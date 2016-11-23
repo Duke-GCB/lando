@@ -175,3 +175,4 @@ class WorkQueueProcessor(object):
             func(message.payload)
         else:
             logging.error("Unknown command: {}".format(message.command))
+

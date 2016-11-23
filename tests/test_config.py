@@ -58,3 +58,4 @@ class TestConfigLoading(TestCase):
         self.assertEqual(None, vm_settings)
         cloud_settings = config.cloud_settings()
         self.assertEqual(None, cloud_settings)
+

@@ -3,3 +3,4 @@ work_queue:
   worker_username: lobot
   worker_password: tobol
   queue_name: task-queue
+
