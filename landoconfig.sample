@@ -1,10 +1,10 @@
 work_queue:
-  host: <AMPQ_HOST>
-  username: <AMPQ_USER>
-  password: <AMPQ_PASSWORD>
-  worker_username: <WORKER_AMPQ_USERNAME>
-  worker_password: <WORKER_AMPQ_PASSWORD>
-  queue_name: <AMPQ_QUEUE_NAME>
+  host: <AMQP_HOST>
+  username: <AMQP_USER>
+  password: <AMQP_PASSWORD>
+  worker_username: <WORKER_AMQP_USERNAME>
+  worker_password: <WORKER_AMQP_PASSWORD>
+  queue_name: <AMQP_QUEUE_NAME>
 
 vm_settings:
   worker_image_name: <WORKER_IMAGE_NAME>

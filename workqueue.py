@@ -1,5 +1,5 @@
 """
-Code for processing/sending messages from/to a queue(AMPQ)
+Code for processing/sending messages from/to a queue(AMQP)
 """
 import logging
 import pika
@@ -23,7 +23,7 @@ class WorkQueueConnection(object):
 
     def connect(self):
         """
-        Create internal connection to AMPQ service.
+        Create internal connection to AMQP service.
         """
         logging.info("Connecting to {} with user {}.".format(self.host, self.username))
         credentials = pika.PlainCredentials(self.username, self.password)
@@ -32,7 +32,7 @@ class WorkQueueConnection(object):
 
     def close(self):
         """
-        Close internal connection to AMPQ if connected.
+        Close internal connection to AMQP if connected.
         """
         if self.connection:
             logging.info("Closing connection to {}.".format(self.host))

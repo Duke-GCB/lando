@@ -23,7 +23,7 @@ class Server(object):
     def __init__(self, config):
         """
         Setup cloud service and work queue based on config.
-        :param config: config.Config: settings used to connect to AMPQ and cloud provider
+        :param config: config.Config: settings used to connect to AMQP and cloud provider
         """
         self.cloud_service = CloudService(config)
         self.processor = WorkQueueProcessor(config)

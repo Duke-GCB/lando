@@ -66,7 +66,7 @@ class Config(object):
 
 class WorkQueue(object):
     """
-    Settings for the AMPQ used to control the lando Server
+    Settings for the AMQP used to control the lando Server
     """
     def __init__(self, data):
         self.host = data['host']

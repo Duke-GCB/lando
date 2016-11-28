@@ -43,7 +43,7 @@ class BootScript(object):
     def _add_worker_config(self):
         """
         Add heredoc to create $WORKER_CONFIG file.
-        This file is used to talk to the work queue(AMPQ).
+        This file is used to talk to the work queue(AMQP).
         """
         self.content += "# Setup config file for lando_client.py\n"
         self.content += "WORKER_CONFIG=/tmp/workerconfig.$$.yml\n"
