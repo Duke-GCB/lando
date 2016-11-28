@@ -12,7 +12,7 @@ class BootScript(object):
     def __init__(self, yaml_str, worker_config_yml, server_name):
         """
         Fills in content property with script based on passed in settings.
-        :param yaml_str: dict: contains url to clone, working directory, name of workflow to run and input yaml
+        :param yaml_str: str: contains url to clone, working directory, name of workflow to run and input yaml
         :param worker_config_yml: str: text in yaml format to be stored in the worker config file
         :param server_name: str: openstack name of this VM so we can ask to have it terminated when done
         """
