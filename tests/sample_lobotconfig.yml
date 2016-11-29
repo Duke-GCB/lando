@@ -1,0 +1,6 @@
+work_queue:
+  host: 10.109.253.2
+  worker_username: lobot
+  worker_password: tobol
+  queue_name: task-queue
+
