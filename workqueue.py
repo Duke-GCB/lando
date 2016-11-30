@@ -49,6 +49,18 @@ class WorkQueueConnection(object):
         channel.queue_declare(queue=queue_name, durable=True)
         return channel
 
+    def delete_queue(self, queue_name):
+        """
+        Delete a queue with the specified name.
+        :param queue_name:
+        :return:
+        """
+        self.connect()
+        channel = self.connection.channel()
+        channel.queue_delete(queue=queue_name)
+        self.close()
+
+
     def send_durable_message(self, queue_name, body):
         """
         Connect to queue_name, post a durable message with body, disconnect from queue_name.
@@ -97,13 +109,13 @@ class WorkQueueClient(object):
     """
     Sends messages to the WorkQueueProcessor via a intermediate AMQP queue.
     """
-    def __init__(self, config):
+    def __init__(self, config, queue_name):
         """
         Creates connection with host, username, and password from config.
         :param config: config.Config: contains work queue configuration
         """
         self.connection = WorkQueueConnection(config)
-        self.queue_name = config.work_queue_config().queue_name
+        self.queue_name = queue_name
 
     def send(self, command, payload):
         """
@@ -116,20 +128,36 @@ class WorkQueueClient(object):
         self.connection.send_durable_message(self.queue_name, pickle.dumps(request))
         logging.info("Sent {} message.".format(request.command, self.queue_name))
 
+    def delete_queue(self):
+        self.connection.delete_queue(self.queue_name)
+
 
 class WorkQueueProcessor(object):
     """
     Processes incoming WorkRequest messages from the queue.
     Call add_command to specify operations to run for each WorkRequest.command.
     """
-    def __init__(self, config):
+    def __init__(self, config, queue_name):
         """
         Creates connection with host, username, and password from config.
         :param config: config.Config: contains work queue configuration
         """
         self.connection = WorkQueueConnection(config)
-        self.queue_name = config.work_queue_config().queue_name
+        self.queue_name = queue_name
         self.command_name_to_func = {}
+
+    def add_command_by_method_name(self, command, obj):
+        """
+        Lookup method named command in obj and call that method when the command is received.
+        Raises ValueError if obj doesn't have a method named command
+        :param command: str: name of the comand to wait for
+        :param obj: object: must have a member function with the exact name of the command
+        """
+        func = getattr(obj, command)
+        if func and callable(func):
+            self.add_command(command, func)
+        else:
+            raise ValueError("Object missing {} method.".format(command))
 
     def add_command(self, command, func):
         """

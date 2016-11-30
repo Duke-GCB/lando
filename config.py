@@ -40,6 +40,9 @@ class Config(object):
         """
         return self._optional_get('cloud_settings', CloudSettings)
 
+    def job_api_settings(self):
+        return self._optional_get('job_api', JobApiSettings)
+
     def _optional_get(self, name, constructor):
         data = self.data.get(name, None)
         if data:
@@ -58,7 +61,6 @@ class Config(object):
                 'host': work_queue.host,
                 'username': work_queue.worker_username,
                 'password': work_queue.worker_password,
-                'queue_name': work_queue.queue_name,
             }
         }
         return yaml.safe_dump(data, default_flow_style=False)
@@ -74,7 +76,6 @@ class WorkQueue(object):
         self.password = data.get('password')
         self.worker_username = data.get('worker_username')
         self.worker_password = data.get('worker_password')
-        self.queue_name = data['queue_name']
 
 
 class VMSettings(object):
@@ -114,3 +115,12 @@ class CloudSettings(object):
           'project_domain_name': self.project_domain_name,
           'password': self.password,
         }
+
+
+class JobApiSettings(object):
+    def __init__(self, data):
+        self.url = data['url']
+        self.username = data['username']
+        self.password = data['password']
+
+

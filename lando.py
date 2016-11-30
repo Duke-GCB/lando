@@ -3,63 +3,81 @@
 Server that starts/terminates VMs based on messages received from a queue.
 """
 from __future__ import print_function
-from workqueue import WorkQueueProcessor
 from bootscript import BootScript
 from cloudservice import CloudService
 from config import Config
 import uuid
 from datetime import datetime
+from jobapi import JobApi, JobStates, StagingTypes
+from message_router import MessageRouter, LandoWorkerClient
+import time
+import lando_worker
 
 CONFIG_FILE_NAME = 'landoconfig.yml'
+LANDO_QUEUE_NAME = 'lando'
 
 
-class ServerCommands:
-    START_WORKER = 'start_worker'
-    TERMINATE_WORKER = 'terminate_worker'
-    SHUTDOWN_SERVER = 'shutdown_server'
-
-
-class Server(object):
+class Lando(object):
     def __init__(self, config):
         """
         Setup cloud service and work queue based on config.
         :param config: config.Config: settings used to connect to AMQP and cloud provider
         """
+        self.config = config
         self.cloud_service = CloudService(config)
-        self.processor = WorkQueueProcessor(config)
-        self.processor.add_command(ServerCommands.START_WORKER, self.start_worker)
-        self.processor.add_command(ServerCommands.TERMINATE_WORKER, self.terminate_worker)
-        self.processor.add_command(ServerCommands.SHUTDOWN_SERVER, self.processor.shutdown)
         self.worker_config_yml = config.make_worker_config_yml()
 
-    def start_worker(self, payload):
-        """
-        Called when we receive the ServerCommands.START_WORKER message.
-        Creates a new VM that runs a bash script that will run the cwl workflow specified in payload.
-        :param payload: yaml settings for running a workflow
-        """
-        server_name = str(uuid.uuid4())
-        self.show_message("Starting VM {}".format(server_name))
-        boot_script = BootScript(yaml_str=payload, worker_config_yml=self.worker_config_yml, server_name=server_name)
-        instance, ip_address = self.cloud_service.launch_instance(server_name, boot_script.content)
-        self.show_message("Started VM {} with ip:{}".format(server_name, ip_address))
+    def make_worker_client(self, vm_instance_name):
+        return LandoWorkerClient(self.config, queue_name=vm_instance_name)
 
-    def terminate_worker(self, server_name):
-        """
-        Called when we receive the ServerCommands.TERMINATE_WORKER message.
-        Terminates the VM for the specified server name.
-        :param server_name: str: name of the server to terminate
-        """
-        self.cloud_service.terminate_instance(server_name)
-        self.show_message("Terminated VM {}.".format(server_name))
+    def start_job(self, job_id):
+        #vm_instance_name = str(uuid.uuid4())
+        vm_instance_name = 'worker_1'
+        self.show_message("Starting vm {}".format(job_id))
 
-    def run(self):
-        """
-        Busy loop that will call commands as messages come in.
-        :return:
-        """
-        self.show_message("Listening for messages...")
-        self.processor.process_messages_loop()
+        job_api = JobApi(config=self.config, job_id=job_id)
+        job_api.set_job_state(JobStates.CREATE_VM)
+        time.sleep(2)
+        job_api.set_vm_instance_name(vm_instance_name)
+
+        worker = self.make_worker_client(vm_instance_name)
+        worker.stage_job(job_id, job_api.get_job_fields(StagingTypes.INPUT))
+        job_api.set_job_state(JobStates.STAGING)
+        self.show_message("Sent message to {} to stage data".format(vm_instance_name))
+
+    def cancel_job(self, job_id):
+        self.show_message("Cancel job {}".format(job_id))
+
+    def stage_job_complete(self, payload):
+        self.show_message("Staging complete {}".format(payload))
+        worker = self.make_worker_client(payload.vm_instance_name)
+        job_api = JobApi(config=self.config, job_id=payload.job_id)
+        worker.run_job(payload.job_id, 'somefile.cwl', job_api.get_job_fields())
+        job_api.set_job_state(JobStates.RUNNING)
+
+    def stage_job_error(self, payload):
+        self.show_message("Staging error {}".format(payload))
+
+    def run_job_complete(self, payload):
+        self.show_message("Run complete {}".format(payload))
+        worker = self.make_worker_client(payload.vm_instance_name)
+        job_api = JobApi(config=self.config, job_id=payload.job_id)
+        worker.store_job_output(payload.job_id, job_api.get_job_fields(StagingTypes.OUTPUT))
+        job_api.set_job_state(JobStates.STORING_JOB_OUTPUT)
+
+    def run_job_error(self, payload):
+        self.show_message("Run job error {}".format(payload))
+
+    def store_job_output_complete(self, payload):
+        self.show_message("Store output complete {}".format(payload))
+        self.show_message("KILL VM")
+        job_api = JobApi(config=self.config, job_id=payload.job_id)
+        job_api.set_job_state(JobStates.FINISHED)
+        worker = self.make_worker_client(payload.vm_instance_name)
+        worker.delete_queue()
+
+    def store_job_output_error(self, payload):
+        self.show_message("store job output error {}".format(payload))
 
     def show_message(self, message):
         """
@@ -68,6 +86,9 @@ class Server(object):
         """
         print("{}: {}.".format(datetime.now(), message))
 
+
 if __name__ == "__main__":
-    server = Server(Config(CONFIG_FILE_NAME))
-    server.run()
+    config = Config(CONFIG_FILE_NAME)
+    lando = Lando(config)
+    lando.show_message("Listening for messages...")
+    MessageRouter.run_lando_router(config, lando, 'lando')
