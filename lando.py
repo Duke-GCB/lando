@@ -31,11 +31,15 @@ class Lando(object):
 
     def start_job(self, job_id):
         vm_instance_name = str(uuid.uuid4())
-        #vm_instance_name = 'worker_1'
         self.show_message("Starting vm {}".format(job_id))
 
         job_api = JobApi(config=self.config, job_id=job_id)
         job_api.set_job_state(JobStates.CREATE_VM)
+
+        boot_script = BootScript(worker_config_yml=self.worker_config_yml,
+                                 server_name=vm_instance_name)
+        instance, ip_address = self.cloud_service.launch_instance(vm_instance_name, boot_script.content)
+        self.show_message("Started vm {} with ip {}".format(job_id, ip_address))
         job_api.set_vm_instance_name(vm_instance_name)
 
         worker = self.make_worker_client(vm_instance_name)
@@ -71,7 +75,7 @@ class Lando(object):
 
     def store_job_output_complete(self, payload):
         self.show_message("Store output complete {}".format(payload))
-        self.show_message("KILL VM")
+        self.cloud_service.terminate_instance(payload.vm_instance_name)
         job_api = JobApi(config=self.config, job_id=payload.job_id)
         job_api.set_job_state(JobStates.FINISHED)
         worker = self.make_worker_client(payload.vm_instance_name)
