@@ -1,10 +1,8 @@
 from __future__ import print_function
 import os
-import argparse
-import yaml
 import requests
 import logging
-from ddsc.config import create_config
+import ddsc.config
 from ddsc.core.remotestore import RemoteStore, RemoteFile
 from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
@@ -14,32 +12,6 @@ from ddsc.core.localstore import LocalFile
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
-class StagingData(object):
-    def __init__(self, infile):
-        data = yaml.load(infile)
-        self.downloads = []
-        for download_item in data['download']:
-            self.downloads.append(self.make_download(download_item))
-        self.uploads = []
-        for upload_item in data['upload']:
-            self.uploads.append(self.make_upload(upload_item))
-
-    @staticmethod
-    def make_download(item):
-        type = item['type']
-        if type == 'DukeDS':
-            return DownloadDukeDSFile(item)
-        if type == 'url':
-            return DownloadURLFile(item)
-        raise ValueError("Invalid download item {}".format(item))
-
-    @staticmethod
-    def make_upload(item):
-        type = item['type']
-        if type == 'DukeDS':
-            return UploadDukeDSFile(item)
-        raise ValueError("Invalid upload item {}".format(item))
-
 
 def create_parent_directory(path):
     parent_directory = os.path.dirname(path)
@@ -48,18 +20,24 @@ def create_parent_directory(path):
 
 
 class Context(object):
-    def __init__(self):
+    def __init__(self, credentials):
+        self.dds_app_credentials = credentials.dds_app_credentials
+        self.dds_user_credentials = credentials.dds_user_credentials
         self.duke_ds = None
+        self.current_app_cred = None
+        self.current_user_cred = None
 
-    def get_duke_data_service(self):
-        if not self.duke_ds:
-            self.duke_ds = DukeDataService()
-        return self.duke_ds
+    def get_duke_data_service(self, agent_id, user_id):
+        config = ddsc.config.Config()
+        config.values[ddsc.config.Config.URL] = self.dds_app_credentials[agent_id].api_root
+        config.values[ddsc.config.Config.AGENT_KEY] = self.dds_app_credentials[agent_id].agent_key
+        config.values[ddsc.config.Config.USER_KEY] = self.dds_user_credentials[user_id].token
+        return DukeDataService(config)
 
 
 class DukeDataService(object):
-    def __init__(self):
-        self.config = create_config()
+    def __init__(self, config):
+        self.config = config
         self.remote_store = RemoteStore(self.config)
         self.data_service = self.remote_store.data_service
 
@@ -116,21 +94,24 @@ class DukeDataService(object):
 
 
 class DownloadDukeDSFile(object):
-    def __init__(self, data):
-        self.file_id = data['file_id']
-        self.dest = data['dest']
+    def __init__(self, file_id, dest, agent_id, user_id):
+        self.file_id = file_id
+        self.dest = dest
+        self.agent_id = agent_id
+        self.user_id = user_id
 
     def run(self, context):
         create_parent_directory(self.dest)
-        duke_data_service = context.get_duke_data_service()
+        duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
+
         duke_data_service.download_file(self.file_id, self.dest)
         print("Downloaded {}".format(self.dest))
 
 
 class DownloadURLFile(object):
-    def __init__(self, data):
-        self.url = data['url']
-        self.dest = data['dest']
+    def __init__(self, url, dest):
+        self.url = url
+        self.dest = dest
 
     def run(self, context):
         create_parent_directory(self.dest)
@@ -143,53 +124,14 @@ class DownloadURLFile(object):
 
 
 class UploadDukeDSFile(object):
-    def __init__(self, data):
-        self.project_id = data['project_id']
-        self.src = data['src']
-        self.dest = data['dest']
+    def __init__(self, project_id, src, dest, agent_id, user_id):
+        self.project_id = project_id
+        self.src = src
+        self.dest = dest
+        self.agent_id = agent_id
+        self.user_id = user_id
 
     def run(self, context):
-        config = create_config()
-        duke_data_service = context.get_duke_data_service()
+        duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
         duke_data_service.upload_file(self.project_id, self.src, self.dest)
         print("Uploaded {}".format(self.dest))
-
-
-class ArgParser(object):
-    def __init__(self, download_func, upload_func):
-        self.parser = argparse.ArgumentParser()
-        self.subparsers = self.parser.add_subparsers()
-        self._add_cmd(name="download",
-                      description="Download data files before running a workflow",
-                      func=download_func)
-        self._add_cmd(name="upload",
-                      description="Save output data files after running a workflow",
-                      func=upload_func)
-
-    def _add_cmd(self, name, description, func):
-        subparser = self.subparsers.add_parser(name, description=description)
-        subparser.add_argument("file", type=argparse.FileType('r'))
-        subparser.set_defaults(func=func)
-
-    def parse_and_run(self):
-        args = self.parser.parse_args()
-        if hasattr(args, 'func'):
-            args.func(StagingData(args.file))
-        else:
-            self.parser.print_help()
-
-
-def download(staging_data):
-    context = Context()
-    for item in staging_data.downloads:
-        item.run(context)
-
-def upload(staging_data):
-    context = Context()
-    for item in staging_data.uploads:
-        item.run(context)
-
-
-if __name__ == "__main__":
-    arg_parser = ArgParser(download_func=download, upload_func=upload)
-    arg_parser.parse_and_run()

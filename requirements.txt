@@ -4,6 +4,7 @@ Babel==2.3.4
 backports.shutil-get-terminal-size==1.0.0
 cliff==2.1.0
 cmd2==0.6.8
+cwlref-runner==1.0
 debtcollector==1.6.0
 decorator==4.0.10
 funcsigs==1.0.2

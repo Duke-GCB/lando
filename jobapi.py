@@ -38,6 +38,20 @@ class BespinApi(object):
     def _make_url(self, suffix):
         return '{}/{}'.format(self.settings.url, suffix)
 
+    def get_dds_user_credentials(self, user_id):
+        path = 'dds-user-credentials/?user={}'.format(user_id)
+        url = self._make_url(path)
+        resp = requests.get(url, auth=self.auth())
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_dds_app_credentials(self):
+        path = 'dds-app-credentials/'
+        url = self._make_url(path)
+        resp = requests.get(url, auth=self.auth())
+        resp.raise_for_status()
+        return resp.json()
+
 
 class JobApi(object):
     def __init__(self, config, job_id):
@@ -55,6 +69,15 @@ class JobApi(object):
     def get_job_state(self):
         return self.job_info['state']
 
+    def get_user_id(self):
+        return self.job_info['user_id']
+
+    def get_workflow_url(self):
+        return self.job_info['workflow_version']['url']
+
+    def get_workflow_object_name(self):
+        return self.job_info['workflow_version']['object_name']
+
     def set_job_state(self, state):
         self.set_job({'state': state})
 
@@ -69,6 +92,17 @@ class JobApi(object):
         fields = self.api.get_job_fields(self.job_id, staging)
         return [JobField(field) for field in fields]
 
+    def get_credentials(self, user_id):
+        credentials = Credentials()
+
+        for user_credential_data in self.api.get_dds_user_credentials(user_id):
+            credentials.add_user_credential(DDSUserCredential(user_credential_data))
+
+        for app_credential_data in self.api.get_dds_app_credentials():
+            credentials.add_app_credential(DDSAppCredential(app_credential_data))
+
+        return credentials
+
 
 class JobField(object):
     def __init__(self, dict):
@@ -78,12 +112,59 @@ class JobField(object):
         self.type = dict['type']
         self.value = dict['value']
         self.staging = dict['staging']
-        self.dds_files = dict['dds_files']
-        #'id', 'job', 'name', 'type', 'value', 'staging', 'dds_file'
+        temp_dds_file = dict['dds_file']
+        if temp_dds_file:
+            self.dds_file = DukeDSFile(temp_dds_file)
+        else:
+            self.dds_file = None
 
     def __str__(self):
         return 'Field name:{} job:{} name:{} type:{} value:{} staging:{}'.format(
             self.id, self.job, self.name, self.type, self.value, self.staging)
+
+
+class DukeDSFile(object):
+    def __init__(self, data):
+        self.id = data['id']
+        self.project_id = data['project_id']
+        self.file_id = data['file_id']
+        self.path = data['path']
+        self.agent_id = data['dds_app_credentials']
+        self.user_id = data['dds_user_credentials']
+
+
+class Credentials(object):
+    def __init__(self):
+        self.dds_app_credentials = {}
+        self.dds_user_credentials = {}
+
+    def add_app_credential(self, app_credential):
+        self.dds_app_credentials[app_credential.id] = app_credential
+
+    def add_user_credential(self, user_credential):
+        self.dds_user_credentials[user_credential.id] = user_credential
+
+
+class DDSAppCredential(object):
+    def __init__(self, data):
+        self.id = data['id']
+        self.name = data['name']
+        self.agent_key = data['agent_key']
+        self.api_root = data['api_root']
+
+    def __str__(self):
+        return "{} : {}".format(self.api_root, self.agent_key)
+
+
+class DDSUserCredential(object):
+    def __init__(self, data):
+        self.id = data['id']
+        self.user = data['user']
+        self.token = data['token']
+
+    def __str__(self):
+        return self.token
+
 
 class JobStates(object):
     NEW = 'N'

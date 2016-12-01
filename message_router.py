@@ -63,7 +63,6 @@ class MessageRouter(object):
         router.run()
 
 
-
 class LandoClient(object):
     """
     Allows clients of lando to queue messages for lando.
@@ -72,7 +71,6 @@ class LandoClient(object):
     2) Clients who send job progress notifcations (lando_worker.py).
     """
     def __init__(self, config, queue_name):
-        print("HERE1 {}".format(queue_name))
         self.work_queue_client = WorkQueueClient(config, queue_name)
 
     def send(self, message, payload):
@@ -141,14 +139,14 @@ class LandoWorkerClient(object):
     def __init__(self, config, queue_name):
         self.work_queue_client = WorkQueueClient(config, queue_name)
 
-    def stage_job(self, job_id, fields):
-        self.send(JobCommands.STAGE_JOB, StageJobPayload(job_id, fields))
+    def stage_job(self, credentials, job_id, fields):
+        self.send(JobCommands.STAGE_JOB, StageJobPayload(credentials, job_id, fields))
 
-    def run_job(self, job_id, cwl_file_url, fields):
-        self.send(JobCommands.RUN_JOB, RunJobPayload(job_id, cwl_file_url, fields))
+    def run_job(self, job_id, cwl_file_url, workflow_object_name, fields):
+        self.send(JobCommands.RUN_JOB, RunJobPayload(job_id, cwl_file_url, workflow_object_name, fields))
 
-    def store_job_output(self, job_id, fields):
-        self.send(JobCommands.STORE_JOB_OUTPUT, StoreJobOutputPayload(job_id, fields))
+    def store_job_output(self, credentials, job_id, fields):
+        self.send(JobCommands.STORE_JOB_OUTPUT, StoreJobOutputPayload(credentials, job_id, fields))
 
     def cancel_job(self, job_id):
         self.send(JobCommands.CANCEL_JOB, job_id)
@@ -161,19 +159,22 @@ class LandoWorkerClient(object):
 
 
 class StageJobPayload(object):
-    def __init__(self, job_id, fields):
+    def __init__(self, credentials, job_id, fields):
+        self.credentials = credentials
         self.job_id = job_id
         self.fields = fields
 
 
 class RunJobPayload(object):
-    def __init__(self, job_id, cwl_file_url, fields):
+    def __init__(self, job_id, cwl_file_url, workflow_object_name, fields):
         self.job_id = job_id
         self.cwl_file_url = cwl_file_url
+        self.workflow_object_name = workflow_object_name
         self.fields = fields
 
 
 class StoreJobOutputPayload(object):
-    def __init__(self, job_id, fields):
+    def __init__(self, credentials, job_id, fields):
+        self.credentials = credentials
         self.job_id = job_id
         self.fields = fields
