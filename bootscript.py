@@ -38,7 +38,7 @@ class BootScript(object):
         This file is used to talk to the work queue(AMQP).
         """
         self.content += "# Setup config file for lando_client.py\n"
-        self.content += "WORKER_CONFIG=/tmp/workerconfig.$$.yml\n"
+        self.content += "WORKER_CONFIG=/lando/workerconfig.yml\n"
         self.content += self._file_with_content_str(self.workerconfig_filename, self.workerconfig)
 
     def _add_run_lando_client(self):
@@ -51,7 +51,7 @@ class BootScript(object):
         """
         Return a string that calls lando_worker.sh with all necessary arguments.
         """
-        command_str = "cd /lando && python lando_client.py {}\n"
+        command_str = "cd /lando && python lando_worker.py {}\n"
         return command_str.format(self.server_name)
 
     @staticmethod
