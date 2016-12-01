@@ -44,7 +44,7 @@ class RunWorkflow(object):
         if workflow_object_name:
             workflow_file += workflow_object_name
 
-        command = ["cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
+        command = ["sudo", "cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         while True:
             line = p.stderr.readline()
