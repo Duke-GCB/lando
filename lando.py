@@ -29,7 +29,7 @@ class Lando(object):
         return LandoWorkerClient(self.config, queue_name=vm_instance_name)
 
     def start_job(self, job_id):
-        vm_instance_name = 'job{}_{}'.format(uuid.uuid4())
+        vm_instance_name = 'job{}_{}'.format(job_id, uuid.uuid4())
         self.show_message("Starting vm {}".format(job_id))
 
         job_api = JobApi(config=self.config, job_id=job_id)
