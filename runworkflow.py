@@ -30,7 +30,8 @@ class RunWorkflow(object):
         local_output_directory = os.path.join(self.working_directory, self.output_directory)
 
         #command = ["sudo", "cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
-        command = ["cwl-runner", "--outdir", local_output_directory,
+        #command = ["cwl-runner", "--outdir", local_output_directory,
+        command = ["sudo", "cwl-runner", "--debug", "--outdir", local_output_directory,
                    workflow_file, workflow_input_filename]
         print(command)
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
