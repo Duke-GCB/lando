@@ -5,46 +5,36 @@ import urllib
 from subprocess import PIPE, Popen
 
 
-def make_input_file_yaml(fields):
-    data = {}
-    for field in fields:
-        if field.type == 'dds_file':
-            if field.staging == 'I':
-                data[field.name] = {
-                    'class': 'File',
-                    'path': field.dds_file.path,
-                }
-            else:
-                data[field.name] = field.dds_file.path
-        else:
-            value = field.value
-            if field.type == 'integer':
-                value = int(value)
-            data[field.name] = value
-    return yaml.safe_dump(data, default_flow_style=False)
-
 class RunWorkflow(object):
-    def __init__(self, job_id, working_directory):
+    def __init__(self, job_id, working_directory, output_directory):
         self.job_id = job_id
         self.working_directory = working_directory
+        self.output_directory = output_directory
 
     def run(self, fields):
         self.write_workflow_input_file(fields)
 
-    def write_workflow_input_file(self, fields):
+    def write_workflow_input_file(self, input_json):
         filename = os.path.join(self.working_directory, 'workflow.yml')
         with open(filename, 'w') as outfile:
-            outfile.write(make_input_file_yaml(fields))
+            outfile.write(input_json)
         return filename
 
-    def run_workflow(self, cwl_file_url, workflow_object_name, fields):
-        workflow_input_filename = self.write_workflow_input_file(fields)
+    def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
+        workflow_input_filename = self.write_workflow_input_file(input_json)
         workflow_file = os.path.join(self.working_directory, 'workflow.cwl')
         urllib.urlretrieve(cwl_file_url, workflow_file)
         if workflow_object_name:
             workflow_file += workflow_object_name
 
-        command = ["sudo", "cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
+        local_output_directory = os.path.join(self.working_directory, self.output_directory)
+
+        #command = ["sudo", "cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
+        command = ["cwl-runner", "--outdir", local_output_directory,
+                   "--tmp-outdir-prefix=/Users/jpb67/Documents/work/lando/tmp",
+                   "--tmpdir-prefix=/Users/jpb67/Documents/work/lando/tmp",
+                   workflow_file, workflow_input_filename]
+        print(command)
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         while True:
             line = p.stderr.readline()

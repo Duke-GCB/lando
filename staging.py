@@ -29,7 +29,6 @@ class Context(object):
 
     def get_duke_data_service(self, agent_id, user_id):
         config = ddsc.config.Config()
-        config.values[ddsc.config.Config.URL] = self.dds_app_credentials[agent_id].api_root
         config.values[ddsc.config.Config.AGENT_KEY] = self.dds_app_credentials[agent_id].agent_key
         config.values[ddsc.config.Config.USER_KEY] = self.dds_user_credentials[user_id].token
         return DukeDataService(config)
@@ -92,6 +91,9 @@ class DukeDataService(object):
         file_id, file_kind = self.find_child(parent_id, parent_kind, filename)
         return file_id
 
+    def create_top_level_folder(self, project_id, folder_name):
+        self.data_service.create_folder(folder_name, KindType.project_str, project_id)
+
 
 class DownloadDukeDSFile(object):
     def __init__(self, file_id, dest, agent_id, user_id):
@@ -105,25 +107,33 @@ class DownloadDukeDSFile(object):
         duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
 
         duke_data_service.download_file(self.file_id, self.dest)
-        print("Downloaded {}".format(self.dest))
 
 
 class DownloadURLFile(object):
-    def __init__(self, url, dest):
+    def __init__(self, url, destination_path):
         self.url = url
-        self.dest = dest
+        self.destination_path = destination_path
 
     def run(self, context):
-        create_parent_directory(self.dest)
+        create_parent_directory(self.destination_path)
         r = requests.get(self.url, stream=True)
-        with open(self.dest, 'wb') as f:
+        with open(self.destination_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=DOWNLOAD_URL_CHUNK_SIZE):
                 if chunk:
                     f.write(chunk)
-        print("Downloaded {}".format(self.dest))
 
 
 class UploadDukeDSFile(object):
+    def __init__(self, project_id, src, dest):
+        self.project_id = project_id
+        self.src = src
+        self.dest = dest
+
+    def run(self, duke_data_service):
+        duke_data_service.upload_file(self.project_id, self.src, self.dest)
+
+
+class UploadDukeDSFolder(object):
     def __init__(self, project_id, src, dest, agent_id, user_id):
         self.project_id = project_id
         self.src = src
@@ -133,5 +143,8 @@ class UploadDukeDSFile(object):
 
     def run(self, context):
         duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
-        duke_data_service.upload_file(self.project_id, self.src, self.dest)
-        print("Uploaded {}".format(self.dest))
+        duke_data_service.create_top_level_folder(self.project_id, self.dest)
+        for filename in os.listdir(self.src):
+            path = os.path.join(self.src, filename)
+            upload_file = UploadDukeDSFile(self.project_id, path, os.path.join(self.dest, filename))
+            upload_file.run(duke_data_service)

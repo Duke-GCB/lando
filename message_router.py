@@ -139,14 +139,14 @@ class LandoWorkerClient(object):
     def __init__(self, config, queue_name):
         self.work_queue_client = WorkQueueClient(config, queue_name)
 
-    def stage_job(self, credentials, job_id, fields):
-        self.send(JobCommands.STAGE_JOB, StageJobPayload(credentials, job_id, fields))
+    def stage_job(self, credentials, job_id, input_files):
+        self.send(JobCommands.STAGE_JOB, StageJobPayload(credentials, job_id, input_files))
 
-    def run_job(self, job_id, cwl_file_url, workflow_object_name, fields):
-        self.send(JobCommands.RUN_JOB, RunJobPayload(job_id, cwl_file_url, workflow_object_name, fields))
+    def run_job(self, job_id, workflow):
+        self.send(JobCommands.RUN_JOB, RunJobPayload(job_id, workflow))
 
-    def store_job_output(self, credentials, job_id, fields):
-        self.send(JobCommands.STORE_JOB_OUTPUT, StoreJobOutputPayload(credentials, job_id, fields))
+    def store_job_output(self, credentials, job_id, output_directory):
+        self.send(JobCommands.STORE_JOB_OUTPUT, StoreJobOutputPayload(credentials, job_id, output_directory))
 
     def cancel_job(self, job_id):
         self.send(JobCommands.CANCEL_JOB, job_id)
@@ -159,22 +159,26 @@ class LandoWorkerClient(object):
 
 
 class StageJobPayload(object):
-    def __init__(self, credentials, job_id, fields):
+    def __init__(self, credentials, job_id, input_files):
         self.credentials = credentials
         self.job_id = job_id
-        self.fields = fields
+        self.input_files = input_files
 
 
 class RunJobPayload(object):
-    def __init__(self, job_id, cwl_file_url, workflow_object_name, fields):
+    def __init__(self, job_id, workflow):
         self.job_id = job_id
-        self.cwl_file_url = cwl_file_url
-        self.workflow_object_name = workflow_object_name
-        self.fields = fields
+        self.cwl_file_url = workflow.url
+        self.workflow_object_name = workflow.object_name
+        self.input_json = workflow.input_json
+        self.output_directory = workflow.output_directory
 
 
 class StoreJobOutputPayload(object):
-    def __init__(self, credentials, job_id, fields):
+    def __init__(self, credentials, job_id, output_directory):
         self.credentials = credentials
         self.job_id = job_id
-        self.fields = fields
+        self.dir_name = output_directory.dir_name
+        self.project_id = output_directory.project_id
+        self.dds_app_credentials = output_directory.dds_app_credentials
+        self.dds_user_credentials = output_directory.dds_user_credentials

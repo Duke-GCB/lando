@@ -16,30 +16,31 @@ from runworkflow import RunWorkflow
 
 
 CONFIG_FILE_NAME = 'workerconfig.yml'
-WORKING_DIR = 'data'
+WORKING_DIR_FORMAT = 'data_for_job_{}'
 
 
 def stage_files(working_directory, payload):
     staging_context = staging.Context(payload.credentials)
-    for field in payload.fields:
-        if field.type == 'dds_file':
-            dds_file = field.dds_file
-            destination_path = os.path.join(working_directory, dds_file.path)
+    for input_file in payload.input_files:
+        for dds_file in input_file.dds_files:
+            destination_path = os.path.join(working_directory, dds_file.destination_path)
             download_file = staging.DownloadDukeDSFile(dds_file.file_id, destination_path,
                                                        dds_file.agent_id, dds_file.user_id)
+            download_file.run(staging_context)
+        for url_file in input_file.url_files:
+            destination_path = os.path.join(working_directory, url_file.destination_path)
+            download_file = staging.DownloadURLFile(url_file.url, destination_path)
             download_file.run(staging_context)
 
 
 def save_output(working_directory, payload):
     print("Uploading files.")
     staging_context = staging.Context(payload.credentials)
-    for field in payload.fields:
-        if field.type == 'dds_file':
-            dds_file = field.dds_file
-            source_path = os.path.join(working_directory, dds_file.path)
-            download_file = staging.UploadDukeDSFile(dds_file.project_id, source_path, dds_file.path,
-                                                     dds_file.agent_id, dds_file.user_id)
-            download_file.run(staging_context)
+    source_directory = os.path.join(working_directory, payload.dir_name)
+    upload_folder = staging.UploadDukeDSFolder(payload.project_id, source_directory, payload.dir_name,
+                                               agent_id=payload.dds_app_credentials,
+                                               user_id=payload.dds_user_credentials)
+    upload_folder.run(staging_context)
     print("Uploading complete.")
 
 
@@ -52,24 +53,26 @@ class LandoWorker(object):
     def stage_job(self, payload):
         job_id = payload.job_id
         print("Downloading files for job {}".format(job_id))
-        stage_files(WORKING_DIR, payload)
+        stage_files(self.get_working_directory(job_id), payload)
         self.client.job_step_complete(JobCommands.STAGE_JOB_COMPLETE, job_id, self.vm_instance_name)
         print("Downloading files COMPLETE for job {}".format(job_id))
 
     def run_job(self, payload):
         job_id = payload.job_id
-        run_workflow = RunWorkflow(job_id, WORKING_DIR)
-        run_workflow.run_workflow(payload.cwl_file_url, payload.workflow_object_name, payload.fields)
+        run_workflow = RunWorkflow(job_id, self.get_working_directory(job_id), payload.output_directory)
+        run_workflow.run_workflow(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
         self.client.job_step_complete(JobCommands.RUN_JOB_COMPLETE, job_id, self.vm_instance_name)
 
     def store_job_output(self, payload):
         job_id = payload.job_id
-        save_output(WORKING_DIR, payload)
+        save_output(self.get_working_directory(job_id), payload)
         self.client.job_step_complete(JobCommands.STORE_JOB_OUTPUT_COMPLETE, job_id, self.vm_instance_name)
 
     def cancel_job(self, job_id):
         pass
 
+    def get_working_directory(self, job_id):
+        return WORKING_DIR_FORMAT.format(job_id)
 
 if __name__ == "__main__":
     vm_instance_name = sys.argv[1]

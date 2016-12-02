@@ -26,10 +26,8 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
-    def get_job_fields(self, job_id, staging_filter):
-        path = 'job-params/?job={}'.format(job_id)
-        if staging_filter:
-            path += '&staging={}'.format(staging_filter)
+    def get_input_files(self, job_id):
+        path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
         resp = requests.get(url, auth=self.auth())
         resp.raise_for_status()
@@ -57,26 +55,9 @@ class JobApi(object):
     def __init__(self, config, job_id):
         self.api = BespinApi(config)
         self.job_id = job_id
-        self.job_info = None
-        self.refresh_info()
 
-    def refresh_info(self):
-        self.job_info = self.api.get_job(self.job_id)
-
-    def get_vm_flavor(self):
-        return self.job_info['vm_flavor']
-
-    def get_job_state(self):
-        return self.job_info['state']
-
-    def get_user_id(self):
-        return self.job_info['user_id']
-
-    def get_workflow_url(self):
-        return self.job_info['workflow_version']['url']
-
-    def get_workflow_object_name(self):
-        return self.job_info['workflow_version']['object_name']
+    def get_job(self):
+        return Job(self.api.get_job(self.job_id))
 
     def set_job_state(self, state):
         self.set_job({'state': state})
@@ -86,13 +67,14 @@ class JobApi(object):
 
     def set_job(self, params):
         self.api.put_job(self.job_id, params)
-        self.refresh_info()
 
-    def get_job_fields(self, staging=None):
-        fields = self.api.get_job_fields(self.job_id, staging)
-        return [JobField(field) for field in fields]
+    def get_input_files(self):
+        fields = self.api.get_input_files(self.job_id)
+        return [InputFile(field) for field in fields]
 
-    def get_credentials(self, user_id):
+    def get_credentials(self):
+        job = self.get_job()
+        user_id = job.user_id
         credentials = Credentials()
 
         for user_credential_data in self.api.get_dds_user_credentials(user_id):
@@ -104,34 +86,59 @@ class JobApi(object):
         return credentials
 
 
-class JobField(object):
-    def __init__(self, dict):
-        self.id = dict['id']
-        self.job = dict['job']
-        self.name = dict['name']
-        self.type = dict['type']
-        self.value = dict['value']
-        self.staging = dict['staging']
-        temp_dds_file = dict['dds_file']
-        if temp_dds_file:
-            self.dds_file = DukeDSFile(temp_dds_file)
-        else:
-            self.dds_file = None
+class Job(object):
+    def __init__(self, data):
+        self.id = data['id']
+        self.user_id = data['user_id']
+        self.state = data['state']
+        self.vm_flavor = data['vm_flavor']
+        self.vm_instance_name = data['vm_instance_name']
+        self.workflow = Workflow(data)
+        self.output_directory = OutputDirectory(data)
+
+
+class Workflow(object):
+    def __init__(self, data):
+        self.input_json = data['workflow_input_json']
+        workflow_version = data['workflow_version']
+        self.url = workflow_version['url']
+        self.object_name = workflow_version['object_name']
+        self.output_directory = data['output_dir']['dir_name']
+
+
+class OutputDirectory(object):
+    def __init__(self, data):
+        output_dir = data['output_dir']
+        self.dir_name = output_dir['dir_name']
+        self.project_id = output_dir['project_id']
+        self.dds_app_credentials = output_dir['dds_app_credentials']
+        self.dds_user_credentials = output_dir['dds_user_credentials']
+
+
+class InputFile(object):
+    def __init__(self, data):
+        self.file_type = data['file_type']
+        self.workflow_name = data['workflow_name']
+        self.dds_files = [DukeDSFile(field) for field in data['dds_files']]
+        self.url_files = [URLFile(field) for field in data['url_files']]
 
     def __str__(self):
-        return 'Field name:{} job:{} name:{} type:{} value:{} staging:{}'.format(
-            self.id, self.job, self.name, self.type, self.value, self.staging)
+        return 'Input file "{}" ({})'.format(self.workflow_name, self.file_type)
 
 
 class DukeDSFile(object):
     def __init__(self, data):
-        self.id = data['id']
-        self.project_id = data['project_id']
         self.file_id = data['file_id']
-        self.path = data['path']
+        self.destination_path = data['destination_path']
         self.agent_id = data['dds_app_credentials']
         self.user_id = data['dds_user_credentials']
 
+
+class URLFile(object):
+    def __init__(self, data):
+        self.url = data['url']
+        self.destination_path = data['destination_path']
+        
 
 class Credentials(object):
     def __init__(self):
@@ -178,12 +185,7 @@ class JobStates(object):
     CANCELED = 'C'
 
 
-class StagingTypes(object):
-    INPUT = 'I'
-    OUTPUT = 'O'
-    PARAM = 'P'
-
-
+"""
 class LandoJobRunner(object):
     def __init__(self, config, job_id):
         self.config = config
@@ -213,7 +215,8 @@ class LandoJobRunner(object):
     def _start_staging(self, server_name):
         print("Queue staging job for worker name {}".format(server_name))
         print("Staging fields:")
-        for field in self.job_api.get_job_fields(StagingTypes.INPUT):
+        input_files = self.job_api.get_input_files()
+        for field in :
             print(field)
         self.job_api.set_job_state(JobStates.STAGING)
 
@@ -264,3 +267,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+"""
