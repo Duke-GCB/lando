@@ -1,0 +1,10 @@
+[Unit]
+Description=Lando Worker Service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/lando/worker.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,7 @@
 """
 Creates a bash script to be run on a new vm.
-This allows passing arguments and running a program.
+This allows setting up a config file to be used by worker.sh(lando_worker.py).
+worker.sh is expected to be setup as a service. (systemd example lando.service)
 """
 import yaml
 
@@ -24,7 +25,6 @@ class BootScript(object):
     def _build_content(self):
         self._add_shebang_str()
         self._add_worker_config()
-        self._add_run_lando_client()
 
     def _add_shebang_str(self):
         """
@@ -46,13 +46,6 @@ class BootScript(object):
         Runs lando_worker.sh which calls cwl-runner
         """
         self.content += self.make_base_script_str()
-
-    def make_base_script_str(self):
-        """
-        Return a string that calls lando_worker.sh with all necessary arguments.
-        """
-        command_str = "cd /lando && python lando_worker.py {}\n"
-        return command_str.format(self.server_name)
 
     @staticmethod
     def _file_with_content_str(filename, content):
