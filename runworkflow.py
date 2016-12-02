@@ -31,8 +31,6 @@ class RunWorkflow(object):
 
         #command = ["sudo", "cwl-runner", "--outdir", self.working_directory, workflow_file, workflow_input_filename]
         command = ["cwl-runner", "--outdir", local_output_directory,
-                   "--tmp-outdir-prefix=/Users/jpb67/Documents/work/lando/tmp",
-                   "--tmpdir-prefix=/Users/jpb67/Documents/work/lando/tmp",
                    workflow_file, workflow_input_filename]
         print(command)
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
