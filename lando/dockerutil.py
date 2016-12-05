@@ -4,11 +4,12 @@ Utility only used to perform integration tests against docker images.
 from docker import Client
 
 DOCKER_BASE_URL = 'unix://var/run/docker.sock'
+DOCKER_VERSION = '1.21'
 
 
 class DockerRun(object):
     def __init__(self, image_name, environment, ports):
-        self.cli = Client(base_url=DOCKER_BASE_URL)
+        self.cli = Client(base_url=DOCKER_BASE_URL, version=DOCKER_VERSION)
         self.image_name = image_name
         self.container_id = None
         self.environment = environment
