@@ -21,3 +21,8 @@ cloud_settings:
   project_domain_name: <OPENSTACK_PROJECT_DOMAIN_NAME>
   password: <OPENSTACK_PASSWORD>
 
+job_api:
+  url: http://localhost:8000/api/
+  username: jpb67
+  password: john1234
+

@@ -6,6 +6,7 @@ from keystoneauth1 import loading
 from novaclient import client as nvclient
 from time import sleep
 import logging
+import uuid
 
 WAIT_BEFORE_ATTACHING_IP = 5
 
@@ -33,6 +34,9 @@ class NovaClient(object):
         auth = loader.load_from_options(**credentials)
         sess = session.Session(auth=auth)
         return sess
+
+    def make_vm_name(self, job_id):
+        return 'job{}_{}'.format(self.job_id, uuid.uuid4())
 
     def launch_instance(self, vm_settings, server_name, script_contents):
         """
@@ -104,3 +108,18 @@ class CloudService(object):
         """
         logging.info('terminating instance {}'.format(server_name))
         self.nova_client.terminate_instance(server_name)
+
+
+class FakeCloudService(object):
+    def __init__(self, config):
+        self.config = config
+
+    def launch_instance(self, server_name, script_contents):
+        print("Pretend we create vm: {}".format(server_name))
+        return None, '127.0.0.1'
+
+    def terminate_instance(self, server_name):
+        print("Pretend we terminate: {}".format(server_name))
+
+    def make_vm_name(self, job_id):
+        return 'local_worker'

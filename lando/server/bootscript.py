@@ -1,24 +1,22 @@
 """
 Creates a bash script to be run on a new vm.
-This allows setting up a config file to be used by worker.sh(lando_worker.py).
-worker.sh is expected to be setup as a service. (systemd example lando.service)
+This script writes out the worker config file for use by the lando_worker program.
+lando_worker is expected to be setup as a service. (systemd example: sample_files/lando.service)
 """
-import yaml
 
 
 class BootScript(object):
     """
     Creates a bash script that will start a lando_worker.
     """
-    def __init__(self, worker_config_yml, server_name):
+    def __init__(self, worker_config_yml):
         """
-        Fills in content property with script based on passed in settings.
-        :param worker_config_yml: str: text in yaml format to be stored in the worker config file
-        :param server_name: str: our name that should be sent with every message we send
+        Creates a bash script that will create the worker config file to be used by lando_worker.
+        Property content contains the script contents.
+        :param worker_config_text: str: contents of the worker config file
         """
         self.workerconfig = worker_config_yml
         self.workerconfig_filename = '$WORKER_CONFIG'
-        self.server_name = server_name
         self.content = ""
         self._build_content()
 
@@ -40,12 +38,6 @@ class BootScript(object):
         self.content += "# Setup config file for lando_client.py\n"
         self.content += "WORKER_CONFIG=/lando/workerconfig.yml\n"
         self.content += self._file_with_content_str(self.workerconfig_filename, self.workerconfig)
-
-    def _add_run_lando_client(self):
-        """
-        Runs lando_worker.sh which calls cwl-runner
-        """
-        self.content += self.make_base_script_str()
 
     @staticmethod
     def _file_with_content_str(filename, content):

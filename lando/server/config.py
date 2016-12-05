@@ -6,7 +6,7 @@ import yaml
 WORK_QUEUE_CONFIG_NAME = ''
 
 
-class Config(object):
+class ServerConfig(object):
     """
     Configuration for either Server or Client.
     For worker vm_settings and cloud_settings will return None.
@@ -50,10 +50,11 @@ class Config(object):
         else:
             return None
 
-    def make_worker_config_yml(self):
+    def make_worker_config_yml(self, queue_name):
         """
-        Create a worker config file that can be sent to a worker VM so they can talk to the work queue.
-        :return: str: worker config file
+        Create a worker config file that can be sent to a worker VM so they can respond to messages on queue_name.
+        :param queue_name: str: name of the queue the worker will listen on.
+        :return: str: worker config file data
         """
         work_queue = self.work_queue_config()
         data = {
@@ -61,6 +62,7 @@ class Config(object):
                 'host': work_queue.host,
                 'username': work_queue.worker_username,
                 'password': work_queue.worker_password,
+                'queue_name': queue_name
             }
         }
         return yaml.safe_dump(data, default_flow_style=False)
@@ -76,6 +78,7 @@ class WorkQueue(object):
         self.password = data.get('password')
         self.worker_username = data.get('worker_username')
         self.worker_password = data.get('worker_password')
+        self.listen_queue = data.get('listen_queue')
 
 
 class VMSettings(object):

@@ -1,6 +1,5 @@
 from __future__ import print_function
 import requests
-from config import Config
 from requests.auth import HTTPBasicAuth
 
 
@@ -183,88 +182,3 @@ class JobStates(object):
     FINISHED = 'F'
     ERRORED = 'E'
     CANCELED = 'C'
-
-
-"""
-class LandoJobRunner(object):
-    def __init__(self, config, job_id):
-        self.config = config
-        self.job_id = job_id
-        self.job_api = JobApi(config=self.config, job_id=job_id)
-
-    def start_job(self):
-        self._print_state()
-        server_name = self._start_vm()
-        self._print_state()
-        self._start_staging(server_name)
-        self._print_state()
-        return server_name
-
-    def _print_state(self):
-        print("Job state {}".format(self.job_api.get_job_state()))
-
-    def _start_vm(self):
-        flavor = self.job_api.get_vm_flavor()
-        name = "lobot_X2"
-        self.job_api.set_job_state(JobStates.CREATE_VM)
-        # slow create VM
-        self.job_api.set_vm_instance_name(name)
-        print("Started vm {} with {}".format(name, flavor))
-        return name
-
-    def _start_staging(self, server_name):
-        print("Queue staging job for worker name {}".format(server_name))
-        print("Staging fields:")
-        input_files = self.job_api.get_input_files()
-        for field in :
-            print(field)
-        self.job_api.set_job_state(JobStates.STAGING)
-
-    def run_job(self, server_name):
-        print("All fields:")
-        for field in self.job_api.get_job_fields():
-            print(field)
-        self.job_api.set_job_state(JobStates.RUNNING)
-        print("Queue run job for worker name {}".format(server_name))
-        self._print_state()
-
-    def store_job_output(self, server_name):
-        print("Store job output fields:")
-        for field in self.job_api.get_job_fields(StagingTypes.OUTPUT):
-            print(field)
-        print("Queue archive job for worker name {}".format(server_name))
-        self.job_api.set_job_state(JobStates.STORING_JOB_OUTPUT)
-        self._print_state()
-
-    def terminate_job(self, server_name):
-        self.job_api.set_job_state(JobStates.TERMINATE_VM)
-        self._print_state()
-        print("Terminate {}".format(server_name))
-        self.job_api.set_job_state(JobStates.FINISHED)
-        self._print_state()
-
-
-def main():
-    config = Config('landoconfig.yml')
-    job_id = 1
-    job_runner = LandoJobRunner(config, job_id=job_id)
-    job_runner.job_api.set_job_state(JobStates.NEW)
-    print("Lando receives start job")
-    server_name = job_runner.start_job()
-    print("")
-    print("Lando receives staging complete")
-    job_runner = LandoJobRunner(config, job_id=job_id)
-    job_runner.run_job(server_name)
-    print("")
-    print("Lando receives job running complete")
-    job_runner = LandoJobRunner(config, job_id=job_id)
-    job_runner.store_job_output(server_name)
-    print("")
-    print("Lando receives archiving complete")
-    job_runner = LandoJobRunner(config, job_id=job_id)
-    job_runner.terminate_job(server_name)
-
-
-if __name__ == '__main__':
-    main()
-"""

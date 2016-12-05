@@ -4,6 +4,15 @@ Code for processing/sending messages from/to a queue(AMQP)
 import logging
 import pika
 import pickle
+from pika.connection import LOGGER as pika_logger
+
+
+# Disable bogus "Normal shutdown logging.
+# fix from https://github.com/pika/pika/issues/719
+class LoggerFilterNormalCloseIsFine (logging.Filter):
+    def filter (self, record):
+        return not record.getMessage().endswith('(200): Normal shutdown')
+pika_logger.addFilter(LoggerFilterNormalCloseIsFine())
 
 
 class WorkQueueConnection(object):
