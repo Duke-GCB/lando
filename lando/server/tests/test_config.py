@@ -11,7 +11,7 @@ work_queue:
   password: odnal
   worker_username: lobot
   worker_password: tobol
-  queue_name: lando
+  listen_queue: lando
 
 vm_settings:
   worker_image_name: lando_worker
@@ -47,11 +47,11 @@ def write_temp_return_filename(data):
     return file.name
 
 
-class TestWorkerConfig(TestCase):
+class TestServerConfig(TestCase):
     def test_good_config(self):
         filename = write_temp_return_filename(GOOD_CONFIG)
         config = ServerConfig(filename)
         os.unlink(filename)
         work_queue_config = config.work_queue_config()
         self.assertEqual("10.109.253.74", work_queue_config.host)
-        self.assertEqual("lando", work_queue_config.queue_name)
+        self.assertEqual("lando", work_queue_config.listen_queue)

@@ -30,7 +30,7 @@ def write_temp_return_filename(data):
     return file.name
 
 
-class TestServerConfig(TestCase):
+class TestWorkerConfig(TestCase):
     def test_good_config(self):
         filename = write_temp_return_filename(GOOD_CONFIG)
         config = WorkerConfig(filename)
