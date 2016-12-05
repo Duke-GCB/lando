@@ -2,6 +2,7 @@
 Utility only used to perform integration tests against docker images.
 """
 from docker import Client
+import os
 
 DOCKER_BASE_URL = 'unix://var/run/docker.sock'
 DOCKER_VERSION = '1.21'
@@ -36,5 +37,7 @@ class DockerRun(object):
     def destroy(self):
         if self.container_id:
             self.cli.stop(container=self.container_id)
-            self.cli.remove_container(container=self.container_id)
+            # Do not remove containers when testing circle: https://circleci.com/docs/docker-btrfs-error/
+            if os.environ.get('CIRCLECI') != 'true':
+                self.cli.remove_container(container=self.container_id)
             self.container_id = None
