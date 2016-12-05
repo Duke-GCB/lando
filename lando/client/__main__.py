@@ -8,6 +8,7 @@ Example to cancel a job: lando_client cancel_job <job_id>
 from __future__ import print_function, absolute_import
 import sys
 from lando.server.config import ServerConfig
+from lando.server.lando import LANDO_QUEUE_NAME
 from lando.messaging.messaging import JobCommands
 from lando.messaging.clients import LandoClient
 
@@ -16,7 +17,7 @@ CONFIG_FILENAME = 'landoconfig.yml'
 
 def main():
     config = ServerConfig(CONFIG_FILENAME)
-    client = LandoClient(config, queue_name="lando")
+    client = LandoClient(config, queue_name=LANDO_QUEUE_NAME)
     command = sys.argv[1]
     job_id = int(sys.argv[2])
     if command == JobCommands.START_JOB:

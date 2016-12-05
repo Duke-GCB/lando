@@ -3,8 +3,6 @@ Reads configuration settings from a YAML file for use with lando.py and lando_cl
 """
 import yaml
 
-WORK_QUEUE_CONFIG_NAME = ''
-
 
 class ServerConfig(object):
     """
