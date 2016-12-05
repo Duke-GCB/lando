@@ -9,7 +9,10 @@ from lando.server.lando import LANDO_QUEUE_NAME
 from lando.messaging.messaging import MessageRouter
 
 
-if __name__ == "__main__":
+def main():
     config = WorkerConfig(CONFIG_FILE_NAME)
     worker = LandoWorker(config, outgoing_queue_name=LANDO_QUEUE_NAME)
     MessageRouter.run_worker_router(config, worker, listen_queue_name=config.queue_name)
+
+if __name__ == "__main__":
+    main()
