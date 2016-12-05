@@ -85,7 +85,7 @@ class CloudService(object):
         :param config: Config config settings for vm and credentials
         """
         self.config = config
-        self.nova_client = NovaClient(config.cloud_settings())
+        self.nova_client = NovaClient(config.cloud_settings)
 
     def launch_instance(self, server_name, script_contents):
         """
@@ -94,7 +94,7 @@ class CloudService(object):
         :param script_contents: str: bash script to be run when VM starts.
         :return: instance, ip address: openstack instance object and the floating ip address assigned
         """
-        vm_settings = self.config.vm_settings()
+        vm_settings = self.config.vm_settings
         instance = self.nova_client.launch_instance(vm_settings, server_name, script_contents)
         sleep(WAIT_BEFORE_ATTACHING_IP)
         ip_address = self.nova_client.attach_floating_ip(instance, vm_settings.floating_ip_pool_name)

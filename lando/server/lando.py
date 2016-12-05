@@ -34,8 +34,10 @@ class JobSettings(object):
         Creates cloud service for creating and deleting VMs.
         :return: CloudService
         """
-        #return CloudService(self.config)
-        return FakeCloudService(self.config)
+        if self.config.fake_cloud_service:
+            return FakeCloudService(self.config)
+        else:
+            return CloudService(self.config)
 
     def get_job_api(self):
         """
@@ -185,7 +187,7 @@ class Lando(object):
         Blocks and waits for messages on the queue specified in config.
         """
         print("Listening for messages...")
-        work_queue_config = self.config.work_queue_config()
+        work_queue_config = self.config.work_queue_config
         MessageRouter.run_lando_router(self.config, self, work_queue_config.listen_queue)
 
 

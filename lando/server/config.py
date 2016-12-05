@@ -17,36 +17,18 @@ class ServerConfig(object):
         :param filename: str: path to a yaml config file
         """
         with open(filename, 'r') as infile:
-            self.data = yaml.load(infile)
+            data = yaml.load(infile)
+            self.fake_cloud_service = data.get('fake_cloud_service', False)
+            self.work_queue_config = WorkQueue(data['work_queue'])
+            self.vm_settings = self._optional_get(data, 'vm_settings', VMSettings)
+            self.cloud_settings = self._optional_get(data, 'cloud_settings', CloudSettings)
+            self.job_api_settings = self._optional_get(data, 'job_api', JobApiSettings)
 
-    def work_queue_config(self):
-        """
-        Return work queue information from yaml loaded in constructor
-        :return: WorkQueue
-        """
-        return WorkQueue(self.data['work_queue'])
-
-    def vm_settings(self):
-        """
-        Return virtual machine settings or None based on yaml loaded in constructor
-        :return: VMSettings
-        """
-        return self._optional_get('vm_settings', VMSettings)
-
-    def cloud_settings(self):
-        """
-        Return cloud service settings or None based on yaml loaded in constructor
-        :return: CloudSettings
-        """
-        return self._optional_get('cloud_settings', CloudSettings)
-
-    def job_api_settings(self):
-        return self._optional_get('job_api', JobApiSettings)
-
-    def _optional_get(self, name, constructor):
-        data = self.data.get(name, None)
-        if data:
-            return constructor(data)
+    @staticmethod
+    def _optional_get(data, name, constructor):
+        value = data.get(name, None)
+        if value:
+            return constructor(value)
         else:
             return None
 
@@ -56,7 +38,7 @@ class ServerConfig(object):
         :param queue_name: str: name of the queue the worker will listen on.
         :return: str: worker config file data
         """
-        work_queue = self.work_queue_config()
+        work_queue = self.work_queue_config
         data = {
             'work_queue': {
                 'host': work_queue.host,

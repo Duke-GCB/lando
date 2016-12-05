@@ -24,7 +24,7 @@ class WorkQueueConnection(object):
         Setup connection with host, username, and password from config.
         :param config: config.Config: contains work queue configuration
         """
-        work_queue_config = config.work_queue_config()
+        work_queue_config = config.work_queue_config
         self.host = work_queue_config.host
         self.username = work_queue_config.username
         self.password = work_queue_config.password

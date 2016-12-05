@@ -52,6 +52,23 @@ class TestServerConfig(TestCase):
         filename = write_temp_return_filename(GOOD_CONFIG)
         config = ServerConfig(filename)
         os.unlink(filename)
-        work_queue_config = config.work_queue_config()
-        self.assertEqual("10.109.253.74", work_queue_config.host)
-        self.assertEqual("lando", work_queue_config.listen_queue)
+        self.assertEqual(False, config.fake_cloud_service)
+
+        self.assertEqual("10.109.253.74", config.work_queue_config.host)
+        self.assertEqual("lando", config.work_queue_config.listen_queue)
+
+        self.assertEqual('lando_worker', config.vm_settings.worker_image_name)
+        self.assertEqual('jpb67', config.vm_settings.ssh_key_name)
+
+        self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
+        self.assertEqual("jpb67", config.cloud_settings.username)
+
+        self.assertEqual("http://localhost:8000/api", config.job_api_settings.url)
+        self.assertEqual("secret", config.job_api_settings.password)
+
+    def test_good_config_with_fake_cloud_service(self):
+        config_data = GOOD_CONFIG + "\nfake_cloud_service: True"
+        filename = write_temp_return_filename(config_data)
+        config = ServerConfig(filename)
+        os.unlink(filename)
+        self.assertEqual(True, config.fake_cloud_service)

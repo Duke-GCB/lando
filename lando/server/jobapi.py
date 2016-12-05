@@ -5,7 +5,7 @@ from requests.auth import HTTPBasicAuth
 
 class BespinApi(object):
     def __init__(self, config):
-        self.settings = config.job_api_settings()
+        self.settings = config.job_api_settings
 
     def auth(self):
         return HTTPBasicAuth(self.settings.username, self.settings.password)
