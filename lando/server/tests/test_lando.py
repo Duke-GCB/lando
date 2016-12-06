@@ -137,6 +137,7 @@ Set job state to E.
         """
         self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
 
+
 class Report(object):
     """
     Builds a text document of steps executed by Lando.

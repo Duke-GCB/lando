@@ -7,7 +7,7 @@ from __future__ import print_function
 import os
 from lando.messaging.clients import LandoClient
 from lando.messaging.messaging import MessageRouter
-from lando.worker.runworkflow import RunWorkflow
+from lando.worker import runworkflow
 from lando.worker import staging
 from lando.exceptions import JobStepFailed
 
@@ -16,34 +16,66 @@ CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
 WORKING_DIR_FORMAT = 'data_for_job_{}'
 
 
+class LandoWorkerSettings(object):
+    """
+    Creates all external classes for LandoWorker (simplifies unit testing).
+    """
+    def __init__(self, config):
+        self.config = config
+
+    @staticmethod
+    def make_lando_client(self, config, outgoing_queue_name):
+        return LandoClient(config, outgoing_queue_name)
+
+    @staticmethod
+    def make_staging_context(self, credentials):
+        return staging.Context(credentials)
+
+    @staticmethod
+    def make_download_duke_ds_file(self, file_id, destination_path, agent_id, user_id):
+        return staging.DownloadDukeDSFile(file_id, destination_path, agent_id, user_id)
+
+    @staticmethod
+    def make_download_url_file(url, destination_path):
+        return staging.DownloadURLFile(url, destination_path)
+
+    @staticmethod
+    def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+        return runworkflow.RunWorkflow(job_id, working_directory, output_directory, cwl_base_command)
+
+    @staticmethod
+    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
+        return staging.UploadDukeDSFolder(project_id, source_directory, dest_directory, agent_id, user_id)
+
+
 class LandoWorkerActions(object):
     """
     Functions that handle the actual work for different job steps.
     """
-    def __init__(self, config):
+    def __init__(self, settings):
         """
         Setup actions with configuration
-        :param config: WorkerConfig: settings for use with actions (cwl options)
-        """
-        self.config = config
 
-    @staticmethod
-    def stage_files(working_directory, payload):
+        """
+        self.config = settings.config
+        self.settings = settings
+
+    def stage_files(self, working_directory, payload):
         """
         Download files in payload from multiple sources into the working directory.
         :param working_directory: str: path to directory we will save files into
         :param payload: router.StageJobPayload: contains credentials and files to download
         """
-        staging_context = staging.Context(payload.credentials)
+        staging_context = self.settings.make_staging_context(payload.credentials)
         for input_file in payload.input_files:
             for dds_file in input_file.dds_files:
                 destination_path = os.path.join(working_directory, dds_file.destination_path)
-                download_file = staging.DownloadDukeDSFile(dds_file.file_id, destination_path,
-                                                           dds_file.agent_id, dds_file.user_id)
+                download_file = self.settings.make_download_duke_ds_file(dds_file.file_id, destination_path,
+                                                                        dds_file.agent_id, dds_file.user_id)
                 download_file.run(staging_context)
             for url_file in input_file.url_files:
                 destination_path = os.path.join(working_directory, url_file.destination_path)
-                download_file = staging.DownloadURLFile(url_file.url, destination_path)
+                download_file = self.settings.make_download_url_file(url_file.url, destination_path)
                 download_file.run(staging_context)
 
     def run_workflow(self, working_directory, payload):
@@ -53,21 +85,22 @@ class LandoWorkerActions(object):
         :param payload: router.RunJobPayload: details about workflow to run
         """
         cwl_base_command = self.config.cwl_base_command
-        run_workflow = RunWorkflow(payload.job_id, working_directory, payload.output_directory, cwl_base_command)
+        run_workflow = self.settings.make_run_workflow(payload.job_id, working_directory, payload.output_directory,
+                                                       cwl_base_command)
         run_workflow.run_workflow(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
 
-    @staticmethod
-    def save_output(working_directory, payload):
+    def save_output(self, working_directory, payload):
         """
         Upload resulting output directory to a directory in a DukeDS project.
         :param working_directory: str: path to working directory that contains the output directory
         :param payload: path to directory containing files we will run the workflow using
         """
-        staging_context = staging.Context(payload.credentials)
+        staging_context = self.settings.make_staging_context(payload.credentials)
         source_directory = os.path.join(working_directory, payload.dir_name)
-        upload_folder = staging.UploadDukeDSFolder(payload.project_id, source_directory, payload.dir_name,
-                                                   agent_id=payload.dds_app_credentials,
-                                                   user_id=payload.dds_user_credentials)
+        upload_folder = self.settings.make_upload_duke_ds_folder(payload.project_id,
+                                                                 source_directory, payload.dir_name,
+                                                                 agent_id=payload.dds_app_credentials,
+                                                                 user_id=payload.dds_user_credentials)
         upload_folder.run(staging_context)
 
 
@@ -75,15 +108,15 @@ class LandoWorker(object):
     """
     Responds to messages from a queue to run different job steps.
     """
-    def __init__(self, config, outgoing_queue_name):
+    def __init__(self, settings, outgoing_queue_name):
         """
         Setup worker using config to connect to output_queue.
         :param config: WorkerConfig: settings
         :param outgoing_queue_name:
         """
-        self.config = config
-        self.client = LandoClient(config, outgoing_queue_name)
-        self.actions = LandoWorkerActions(config)
+        self.config = settings.config
+        self.client = settings.make_lando_client(self.config, outgoing_queue_name)
+        self.actions = LandoWorkerActions(settings)
 
     def stage_job(self, payload):
         self.run_job_step_with_func(payload, self.actions.stage_files)
@@ -113,6 +146,7 @@ class LandoWorker(object):
     def _make_router(self):
         work_queue_config = self.config.work_queue_config
         return MessageRouter.make_worker_router(self.config, self, work_queue_config.listen_queue)
+
 
 class JobStep(object):
     """

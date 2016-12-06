@@ -1,0 +1,166 @@
+from __future__ import absolute_import
+from unittest import TestCase
+import tempfile
+from lando.worker.config import WorkerConfig
+from lando.worker.worker import LandoWorker
+from lando.messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
+
+
+def write_temp_return_filename(data):
+    """
+    Write out data to a temporary file and return that file's name.
+    :param data: str: data to be written to a file
+    :return: str: temp filename we just created
+    """
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(data)
+    file.close()
+    return file.name
+
+LANDO_WORKER_CONFIG = """
+host: 10.109.253.74
+username: worker
+password: workerpass
+queue_name: task-queue
+"""
+
+class Report(object):
+    """
+    Builds a text document of steps executed by Lando.
+    This makes it easier to assert what operations happened.
+    """
+    def __init__(self):
+        self.text = ''
+
+    def add(self, line):
+        self.text += line + '\n'
+
+
+class FakeSettings(object):
+    def __init__(self, config):
+        self.config = config
+        self.report = Report()
+
+    def make_lando_client(self, config, outgoing_queue_name):
+        return FakeObject("Lando Client", self.report)
+
+    def make_staging_context(self, credentials):
+        return FakeObject("Staging Context", self.report)
+
+    def make_download_duke_ds_file(self, file_id, destination_path, agent_id, user_id):
+        return FakeObject("Download file {}.".format(file_id), self.report)
+
+    def make_download_url_file(self, url, destination_path):
+        return FakeObject("Download url {}.".format(url), self.report)
+
+    def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+        return FakeObject("Run workflow for job {}.".format(job_id), self.report)
+
+    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
+        return FakeObject("Upload folder to DukeDS project: {} dir:{}.".format(project_id, dest_directory), self.report)
+
+class FakeObject(object):
+    def __init__(self, run_message, report):
+        self.run_message = run_message
+        self.report = report
+
+    def job_step_complete(self, payload):
+        self.report.add("Send job step complete for job {}.".format(payload.job_id))
+
+    def run(self, context):
+        self.report.add(self.run_message)
+
+    def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
+        self.report.add(self.run_message)
+
+
+class FakeInputFile(object):
+    def __init__(self, file_type):
+        self.file_type = file_type
+        self.workflow_name = 'workflow'
+        self.dds_files = []
+        self.url_files = []
+        if file_type == 'dds_file':
+            self.dds_files.append(FakeFileData())
+        else:
+            self.url_files.append(FakeFileData())
+
+
+class FakeFileData(object):
+    def __init__(self):
+        self.file_id = 42
+        self.agent_id = 1
+        self.user_id = 2
+        self.url = 'http:stuff'
+        self.destination_path = 'data.txt'
+
+
+class FakeWorkflow(object):
+    def __init__(self):
+        self.url = "file:///tmp/test.cwl"
+        self.input_json = "{'id':1}"
+        self.output_directory = None
+        self.object_name = "#main"
+
+
+class FakeOutputDirectory(object):
+    def __init__(self):
+        self.dir_name = 'results'
+        self.project_id = 1234
+        self.dds_app_credentials = 4
+        self.dds_user_credentials = 8
+
+
+class TestLandoWorker(TestCase):
+    def _make_worker(self):
+        config_filename = write_temp_return_filename(LANDO_WORKER_CONFIG)
+        config = WorkerConfig(config_filename)
+        self.settings = FakeSettings(config)
+        worker = LandoWorker(self.settings, outgoing_queue_name="test")
+        return worker
+
+    def test_stage_job(self):
+        worker = self._make_worker()
+        input_files = [
+            FakeInputFile('dds_file'),
+            FakeInputFile('url_file')
+
+        ]
+        worker.stage_job(StageJobPayload(credentials=None, job_id=1, input_files=input_files, vm_instance_name='test1'))
+        report = """
+Download file 42.
+Download url http:stuff.
+Send job step complete for job 1.
+        """
+        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
+
+    def test_run_job(self):
+        worker = self._make_worker()
+        input_files = [
+            FakeInputFile('dds_file'),
+            FakeInputFile('url_file')
+
+        ]
+        workflow = FakeWorkflow()
+        worker.run_job(RunJobPayload(job_id=2, workflow=workflow, vm_instance_name='test2'))
+        report = """
+Run workflow for job 2.
+Send job step complete for job 2.
+        """
+        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
+
+    def test_save_output(self):
+        worker = self._make_worker()
+        input_files = [
+            FakeInputFile('dds_file'),
+            FakeInputFile('url_file')
+
+        ]
+        outdir = FakeOutputDirectory()
+        worker.store_job_output(StoreJobOutputPayload(credentials=None, job_id=3, output_directory=outdir,
+                                                      vm_instance_name='test3'))
+        report = """
+Upload folder to DukeDS project: 1234 dir:results.
+Send job step complete for job 3.
+        """
+        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())

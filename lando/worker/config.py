@@ -21,7 +21,7 @@ class WorkerConfig(object):
             if not data:
                 raise InvalidConfigException("Empty config file {}.".format(self.filename))
             self.work_queue_config = WorkQueue(data)
-
+            self.cwl_base_command = data.get('cwl_base_command', None)
 
 class WorkQueue(object):
     """
@@ -32,4 +32,3 @@ class WorkQueue(object):
         self.username = get_or_raise_config_exception(data, 'username')
         self.password = get_or_raise_config_exception(data, 'password')
         self.queue_name = get_or_raise_config_exception(data, 'queue_name')
-        self.cwl_base_command = data.get('cwl_base_command', None)
