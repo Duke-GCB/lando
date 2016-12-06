@@ -1,13 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.dockerutil import DockerRun
+from lando.dockerutil import DockerRabbitmq
 from lando.messaging.workqueue import WorkQueueConnection, WorkQueueProcessor, WorkQueueClient
-import time
-
-RABBIT_DOCKER = 'rabbitmq:latest'
-RABBIT_HOST = "127.0.0.1"
-RABBIT_USER = "joe"
-RABBIT_PASSWORD = "secret"
 
 
 class FakeConfig(object):
@@ -21,21 +15,12 @@ class FakeConfig(object):
 class TestWorkQueue(TestCase):
     @classmethod
     def setUpClass(cls):
-        environment = {
-            "RABBITMQ_NODENAME": "my-rabbit",
-            "RABBITMQ_DEFAULT_USER": RABBIT_USER,
-            "RABBITMQ_DEFAULT_PASS": RABBIT_PASSWORD,
-        }
-        ports = [5672, 15672]
-        cls._docker_image = DockerRun(RABBIT_DOCKER, environment, ports)
-        cls._docker_image.run()
-        time.sleep(10)
-        cls.config = FakeConfig(RABBIT_HOST, RABBIT_USER, RABBIT_PASSWORD)
+        cls.rabbit_vm = DockerRabbitmq()
+        cls.config = FakeConfig(DockerRabbitmq.HOST, DockerRabbitmq.USER, DockerRabbitmq.PASSWORD)
 
     @classmethod
     def tearDownClass(cls):
-        cls._docker_image.destroy()
-        pass
+        cls.rabbit_vm.destroy()
 
     def test_work_queue_connection_single_message(self):
         """
@@ -46,6 +31,7 @@ class TestWorkQueue(TestCase):
         work_queue_connection = WorkQueueConnection(self.config)
         work_queue_connection.connect()
         work_queue_connection.send_durable_message(queue_name=my_queue_name, body=my_payload)
+
         def processor(ch, method, properties, body):
             self.assertEqual(my_payload, body)
             # Terminate receive loop
@@ -73,7 +59,7 @@ class TestWorkQueue(TestCase):
         self.two_value = None
         client.send("one", "oneValue")
         client.send("save_two_value", {'two': 2})
-        client.send("stop", 'hey')
+        client.send("stop", '')
 
         # Wait until close_queue message is processed
         processor.process_messages_loop()
