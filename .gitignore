@@ -1,4 +1,3 @@
 env
 landoconfig.yml
-workerconfig.yml
-
+lando_worker_config.yml

@@ -12,7 +12,7 @@ from lando.worker import staging
 from lando.exceptions import JobStepFailed
 
 
-CONFIG_FILE_NAME = 'workerconfig.yml'
+CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
 WORKING_DIR_FORMAT = 'data_for_job_{}'
 
 
