@@ -35,10 +35,11 @@ class TestWorkerConfig(TestCase):
         filename = write_temp_return_filename(GOOD_CONFIG)
         config = WorkerConfig(filename)
         os.unlink(filename)
-        self.assertEqual("10.109.253.74", config.host)
-        self.assertEqual("worker", config.username)
-        self.assertEqual("workerpass", config.password)
-        self.assertEqual("task-queue", config.queue_name)
+        work_queue_config = config.work_queue_config
+        self.assertEqual("10.109.253.74", work_queue_config.host)
+        self.assertEqual("worker", work_queue_config.username)
+        self.assertEqual("workerpass", work_queue_config.password)
+        self.assertEqual("task-queue", work_queue_config.queue_name)
 
     def test_empty_config(self):
         filename = write_temp_return_filename("")

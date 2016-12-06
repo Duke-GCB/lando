@@ -20,14 +20,16 @@ class WorkerConfig(object):
             data = yaml.load(infile)
             if not data:
                 raise InvalidConfigException("Empty config file {}.".format(self.filename))
-            self.host = get_or_raise_config_exception(data, 'host')
-            self.username = get_or_raise_config_exception(data, 'username')
-            self.password = get_or_raise_config_exception(data, 'password')
-            self.queue_name = get_or_raise_config_exception(data, 'queue_name')
-            self.cwl_base_command = data.get('cwl_base_command', None)
+            self.work_queue_config = WorkQueue(data)
 
-    def work_queue_config(self):
-        # Hack to make WorkerConfig compatible with WorkQueueConnection
-        return self
 
-#WorkQueue
+class WorkQueue(object):
+    """
+    Settings for the AMQP used to reply to the lando server.
+    """
+    def __init__(self, data):
+        self.host = get_or_raise_config_exception(data, 'host')
+        self.username = get_or_raise_config_exception(data, 'username')
+        self.password = get_or_raise_config_exception(data, 'password')
+        self.queue_name = get_or_raise_config_exception(data, 'queue_name')
+        self.cwl_base_command = data.get('cwl_base_command', None)

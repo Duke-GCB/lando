@@ -54,7 +54,7 @@ class ServerConfig(object):
 
 class WorkQueue(object):
     """
-    Settings for the AMQP used to control the lando Server
+    Settings for the AMQP used to control lando_worker processes.
     """
     def __init__(self, data):
         self.host = get_or_raise_config_exception(data, 'host')
