@@ -32,6 +32,7 @@ class JobSettings(object):
     def get_cloud_service(self):
         """
         Creates cloud service for creating and deleting VMs.
+        If configuration has fake_cloud_service set to True this will create a fake cloud service for debugging purposes.
         :return: CloudService
         """
         if self.config.fake_cloud_service:
@@ -66,18 +67,30 @@ class JobActions(object):
         self.cloud_service = settings.get_cloud_service()
         self.job_api = settings.get_job_api()
 
-    def make_new_vm_instance_name(self):
-        return self.cloud_service.make_vm_name(self.job_id)
-
     def make_worker_client(self, vm_instance_name):
+        """
+        Makes a worker client to talk to the queue associated with a particular worker(vm_instance_name).
+        :param vm_instance_name: str: name of the instance and also it's queue name.
+        :return: LandoWorkerClient
+        """
         return self.settings.get_worker_client(queue_name=vm_instance_name)
 
     def start_job(self, payload):
-        vm_instance_name = self.make_new_vm_instance_name()
+        """
+        Request from user to start running a job. This is a multi step process.
+        First step is to launch the vm and send stage data request.
+        Then we wait for stage data complete message.
+        :param payload:StartJobPayload contains job_id we should start
+        """
+        vm_instance_name = self.cloud_service.make_vm_name(self.job_id)
         self.launch_vm(vm_instance_name)
         self.send_stage_job_message(vm_instance_name)
 
     def launch_vm(self, vm_instance_name):
+        """
+        Sets job state to creating vm, then creates a new VM with vm_instance_name and gives it a floating IP address.
+        :param vm_instance_name: str: name we should assign to the new vm
+        """
         self._set_job_state(JobStates.CREATE_VM)
         self._show_status("Creating VM")
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name)
@@ -86,6 +99,10 @@ class JobActions(object):
         self._show_status("Launched vm with ip {}".format(ip_address))
 
     def send_stage_job_message(self, vm_instance_name):
+        """
+        Sets the job's state to staging and puts the stage job message into the queue for the worker with vm_instance_name.
+        :param vm_instance_name: str: name of the instance we will send this message to
+        """
         self._set_job_state(JobStates.STAGING)
         self._show_status("Staging data")
         credentials = self.job_api.get_credentials()
@@ -93,6 +110,11 @@ class JobActions(object):
         worker_client.stage_job(credentials, self.job_id, self.job_api.get_input_files(), vm_instance_name)
 
     def stage_job_complete(self, payload):
+        """
+        Message from worker that a the staging job step is complete and successful.
+        Sets the job state to RUNNING and puts the run job message into the queue for the worker.
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        """
         self._set_job_state(JobStates.RUNNING)
         self._show_status("Running job")
         job = self.job_api.get_job()
@@ -100,6 +122,11 @@ class JobActions(object):
         worker_client.run_job(payload.job_id, job.workflow, payload.vm_instance_name)
 
     def run_job_complete(self, payload):
+        """
+        Message from worker that a the run job step is complete and successful.
+        Sets the job state to STORING_OUTPUT and puts the store output message into the queue for the worker.
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        """
         self._set_job_state(JobStates.STORING_JOB_OUTPUT)
         self._show_status("Storing job output")
         credentials = self.job_api.get_credentials()
@@ -108,6 +135,11 @@ class JobActions(object):
         worker_client.store_job_output(credentials, payload.job_id, job.output_directory, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
+        """
+        Message from worker that a the store output job step is complete and successful.
+        Sets the job state to finished terminates the worker's instance and deletes the worker's queue.
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        """
         self._set_job_state(JobStates.FINISHED)
         self._show_status("Terminating VM and queue")
         self.cloud_service.terminate_instance(payload.vm_instance_name)
@@ -115,28 +147,46 @@ class JobActions(object):
         worker_client.delete_queue()
 
     def cancel_job(self, payload):
+        """
+        Request from user to cancel a running a job.
+        Sets status to canceled and terminates the associated VM and deletes the queue.
+        :param payload: CancelJobPayload: contains job id we should cancel
+        """
         self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
-        self.cloud_service.terminate_instance(payload.vm_instance_name)
-        worker_client = self.make_worker_client(payload.vm_instance_name)
+        job = self.job_api.get_job()
+        self.cloud_service.terminate_instance(job.vm_instance_name)
+        worker_client = self.make_worker_client(job.vm_instance_name)
         worker_client.delete_queue()
 
     def stage_job_error(self, payload):
+        """
+        Message from worker that it had an error staging data.
+        :param payload:JobStepErrorPayload: info about error
+        """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Staging job failed")
-        self._log_error(message=payload)
+        self._log_error(message=payload.message)
         # TODO recover?
 
     def run_job_error(self, payload):
+        """
+        Message from worker that it had an error running a job.
+        :param payload:JobStepErrorPayload: info about error
+        """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Running job failed")
-        self._log_error(message=payload)
+        self._log_error(message=payload.message)
         # TODO recover?
 
     def store_job_output_error(self, payload):
+        """
+        Message from worker that it had an error storing output.
+        :param payload:JobStepErrorPayload: info about error
+        """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Storing job output failed")
-        self._log_error(message=payload)
+        self._log_error(message=payload.message)
         # TODO recover?
 
     def _log_error(self, message):
@@ -169,7 +219,11 @@ class Lando(object):
         :param job_id: int: unique id for the job
         :return: JobActions: object with methods for processing messages received in listen_for_messages
         """
-        return JobActions(JobSettings(job_id, self.config))
+        return JobActions(self._make_job_settings(job_id, self.config))
+
+    @staticmethod
+    def _make_job_settings(job_id, config):
+        return JobSettings(job_id, config)
 
     def __getattr__(self, name):
         """
@@ -187,8 +241,13 @@ class Lando(object):
         Blocks and waits for messages on the queue specified in config.
         """
         print("Listening for messages...")
+        router = self._make_router()
+        router.run()
+
+    def _make_router(self):
         work_queue_config = self.config.work_queue_config
-        MessageRouter.run_lando_router(self.config, self, work_queue_config.listen_queue)
+        return MessageRouter.make_lando_router(self.config, self, work_queue_config.listen_queue)
+
 
 
 

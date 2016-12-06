@@ -1,12 +1,12 @@
-#!/usr/bin/env python
 """
-Client to send messages to queue that will be processed by lando.py.
-Usage: python lando_client.py <config_filename> <command> <parameter>
-Example to run a job: python lando_client.py workerconfig.yml start_worker cwljob.yml
+Program that listens for messages on a AMQP queue and runs job steps(staging, run cwl, store output files).
+Create config file in /etc/lando_worker_config.yml
+Run via script with no arguments: lando_worker
 """
 from __future__ import print_function
 import os
 from lando.messaging.clients import LandoClient
+from lando.messaging.messaging import MessageRouter
 from lando.worker.runworkflow import RunWorkflow
 from lando.worker import staging
 from lando.exceptions import JobStepFailed
@@ -102,6 +102,17 @@ class LandoWorker(object):
         job_step = JobStep(self.client, payload, func)
         job_step.run(working_directory)
 
+    def listen_for_messages(self):
+        """
+        Blocks and waits for messages on the queue specified in config.
+        """
+        print("Listening for messages...")
+        router = self._make_router()
+        router.run()
+
+    def _make_router(self):
+        work_queue_config = self.config.work_queue_config
+        return MessageRouter.make_worker_router(self.config, self, work_queue_config.listen_queue)
 
 class JobStep(object):
     """

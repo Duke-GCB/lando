@@ -27,4 +27,7 @@ class WorkerConfig(object):
             self.cwl_base_command = data.get('cwl_base_command', None)
 
     def work_queue_config(self):
+        # Hack to make WorkerConfig compatible with WorkQueueConnection
         return self
+
+#WorkQueue

@@ -9,7 +9,7 @@ DOCKER_BASE_URL = 'unix://var/run/docker.sock'
 DOCKER_VERSION = '1.21'
 
 
-class DockerRun(object):
+class DockerContainer(object):
     """
     Allows running/terminating a docker image.
     """
@@ -73,9 +73,9 @@ class DockerRabbitmq(object):
             "RABBITMQ_DEFAULT_PASS": DockerRabbitmq.PASSWORD,
         }
         ports = [5672, 15672]
-        self.docker = DockerRun(image_name=DockerRabbitmq.IMAGE, environment=environment, ports=ports)
-        self.docker.run()
+        self.container = DockerContainer(image_name=DockerRabbitmq.IMAGE, environment=environment, ports=ports)
+        self.container.run()
         time.sleep(6)
 
     def destroy(self):
-        self.docker.destroy()
+        self.container.destroy()

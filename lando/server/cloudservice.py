@@ -111,6 +111,9 @@ class CloudService(object):
 
 
 class FakeCloudService(object):
+    """
+    Fake cloud service so lando/lando_worker can be run locally.
+    """
     def __init__(self, config):
         self.config = config
 

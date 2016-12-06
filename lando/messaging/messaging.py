@@ -68,36 +68,25 @@ class MessageRouter(object):
         self.processor.process_messages_loop()
 
     @staticmethod
-    def run_lando_router(config, obj, queue_name):
+    def make_lando_router(config, obj, queue_name):
         """
-        Blocking loop that will listen to queue_name sending lando specific messages to obj.
+        Makes MessageRouter which can listen to queue_name sending lando specific messages to obj.
         :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
         :param obj: object: implements lando specific methods
         :param queue_name: str: name of the queue we will listen on.
+        :return MessageRouter
         """
-        MessageRouter.run_loop(config, obj, queue_name, LANDO_INCOMING_MESSAGES)
+        return MessageRouter(config, obj, queue_name, LANDO_INCOMING_MESSAGES)
 
     @staticmethod
-    def run_worker_router(config, obj, listen_queue_name):
+    def make_worker_router(config, obj, listen_queue_name):
         """
-        Blocking loop that will listen to queue_name sending lando_worker specific messages to obj.
+        Makes MessageRouter which can listen to queue_name sending lando_worker specific messages to obj.
         :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
         :param obj: object: implements lando_worker specific methods
         :param queue_name: str: name of the queue we will listen on.
         """
-        MessageRouter.run_loop(config, obj, listen_queue_name, LANDO_WORKER_INCOMING_MESSAGES)
-
-    @staticmethod
-    def run_loop(config, obj, queue_name, messages):
-        """
-        Blocking loop that will call commands as messages come in.
-        :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
-        :param obj: object: implements a method for each name in messages
-        :param queue_name: str: queue we will listen on
-        :param messages: [str]: list of messages we will listen on
-        """
-        router = MessageRouter(config, obj, queue_name, messages)
-        router.run()
+        return MessageRouter(config, obj, listen_queue_name, LANDO_WORKER_INCOMING_MESSAGES)
 
 
 class StartJobPayload(object):
@@ -109,7 +98,6 @@ class StartJobPayload(object):
         :param job_id: int: job id we want to have lando start.
         """
         self.job_id = job_id
-        self.vm_instance_name = None
 
 
 class CancelJobPayload(object):
@@ -121,7 +109,6 @@ class CancelJobPayload(object):
         :param job_id: int: job id we want to have lando cancel.
         """
         self.job_id = job_id
-        self.vm_instance_name = None
 
 
 class StageJobPayload(object):

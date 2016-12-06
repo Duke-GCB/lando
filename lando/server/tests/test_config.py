@@ -72,3 +72,15 @@ class TestServerConfig(TestCase):
         config = ServerConfig(filename)
         os.unlink(filename)
         self.assertEqual(True, config.fake_cloud_service)
+
+    def test_empty_config_file(self):
+        filename = write_temp_return_filename('')
+        with self.assertRaises(InvalidConfigException):
+            config = ServerConfig(filename)
+        os.unlink(filename)
+
+    def test_bogus_config_file(self):
+        filename = write_temp_return_filename('stuff: one')
+        with self.assertRaises(InvalidConfigException):
+            config = ServerConfig(filename)
+        os.unlink(filename)

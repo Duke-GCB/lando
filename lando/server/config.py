@@ -1,7 +1,9 @@
 """
-Reads configuration settings from a YAML file for use with lando.py and lando_client.py.
+Reads configuration settings from a YAML file for use with lando
 """
+from __future__ import absolute_import
 import yaml
+from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
 
 
 class ServerConfig(object):
@@ -16,8 +18,10 @@ class ServerConfig(object):
         """
         with open(filename, 'r') as infile:
             data = yaml.load(infile)
+            if not data:
+                raise InvalidConfigException("Empty config file {}.".format(filename))
             self.fake_cloud_service = data.get('fake_cloud_service', False)
-            self.work_queue_config = WorkQueue(data['work_queue'])
+            self.work_queue_config = WorkQueue(get_or_raise_config_exception(data, 'work_queue'))
             self.vm_settings = self._optional_get(data, 'vm_settings', VMSettings)
             self.cloud_settings = self._optional_get(data, 'cloud_settings', CloudSettings)
             self.job_api_settings = self._optional_get(data, 'job_api', JobApiSettings)
@@ -53,12 +57,12 @@ class WorkQueue(object):
     Settings for the AMQP used to control the lando Server
     """
     def __init__(self, data):
-        self.host = data['host']
-        self.username = data.get('username')
-        self.password = data.get('password')
-        self.worker_username = data.get('worker_username')
-        self.worker_password = data.get('worker_password')
-        self.listen_queue = data.get('listen_queue')
+        self.host = get_or_raise_config_exception(data, 'host')
+        self.username = get_or_raise_config_exception(data, 'username')
+        self.password = get_or_raise_config_exception(data, 'password')
+        self.worker_username = get_or_raise_config_exception(data, 'worker_username')
+        self.worker_password = get_or_raise_config_exception(data, 'worker_password')
+        self.listen_queue = get_or_raise_config_exception(data, 'listen_queue')
 
 
 class VMSettings(object):
@@ -66,11 +70,11 @@ class VMSettings(object):
     Settings used to create a VM for running a job on.
     """
     def __init__(self, data):
-        self.worker_image_name = data['worker_image_name']
-        self.ssh_key_name = data['ssh_key_name']
-        self.network_name = data['network_name']
-        self.floating_ip_pool_name = data['floating_ip_pool_name']
-        self.default_favor_name = data['default_favor_name']
+        self.worker_image_name = get_or_raise_config_exception(data, 'worker_image_name')
+        self.ssh_key_name = get_or_raise_config_exception(data, 'ssh_key_name')
+        self.network_name = get_or_raise_config_exception(data, 'network_name')
+        self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
+        self.default_favor_name = get_or_raise_config_exception(data, 'default_favor_name')
 
 
 class CloudSettings(object):
@@ -78,12 +82,12 @@ class CloudSettings(object):
     Settings used to connect to the VM provider.
     """
     def __init__(self, data):
-        self.auth_url = data['auth_url']
-        self.username = data['username']
-        self.user_domain_name = data['user_domain_name']
-        self.project_name = data['project_name']
-        self.project_domain_name = data['project_domain_name']
-        self.password = data['password']
+        self.auth_url = get_or_raise_config_exception(data, 'auth_url')
+        self.username = get_or_raise_config_exception(data, 'username')
+        self.user_domain_name = get_or_raise_config_exception(data, 'user_domain_name')
+        self.project_name = get_or_raise_config_exception(data, 'project_name')
+        self.project_domain_name = get_or_raise_config_exception(data, 'project_domain_name')
+        self.password = get_or_raise_config_exception(data, 'password')
 
     def credentials(self):
         """
@@ -101,9 +105,12 @@ class CloudSettings(object):
 
 
 class JobApiSettings(object):
+    """
+    Settings used to talk to be Bespin job api.
+    """
     def __init__(self, data):
-        self.url = data['url']
-        self.username = data['username']
-        self.password = data['password']
+        self.url = get_or_raise_config_exception(data, 'url')
+        self.username = get_or_raise_config_exception(data, 'username')
+        self.password = get_or_raise_config_exception(data, 'password')
 
 
