@@ -1,7 +1,13 @@
+"""
+Defines all commands/payloads and a message receiver which allow lando and lando_worker to communicate over AMQP.
+"""
 from workqueue import WorkQueueProcessor
 
 
 class JobCommands(object):
+    """
+    Names of all the commands that are sent through the queue.
+    """
     START_JOB = 'start_job'                                  # webserver -> lando
     CANCEL_JOB = 'cancel_job'                                # webserver -> lando and lando -> lando_worker
 
@@ -18,6 +24,7 @@ class JobCommands(object):
     STORE_JOB_OUTPUT_ERROR = 'store_job_output_error'        # lando_worker -> lando
 
 
+# Commands that lando will receive.
 LANDO_INCOMING_MESSAGES = [
     JobCommands.START_JOB,
     JobCommands.CANCEL_JOB,
@@ -29,6 +36,7 @@ LANDO_INCOMING_MESSAGES = [
     JobCommands.STORE_JOB_OUTPUT_ERROR
 ]
 
+# Commands that lando_worker will receive.
 LANDO_WORKER_INCOMING_MESSAGES = [
     JobCommands.STAGE_JOB,
     JobCommands.RUN_JOB,
@@ -37,46 +45,96 @@ LANDO_WORKER_INCOMING_MESSAGES = [
 
 
 class MessageRouter(object):
+    """
+    Listens for messages on the AMQP queue and runs the appropriate method on an object.
+    """
     def __init__(self, config, obj, queue_name, command_names):
+        """
+        Setup for listening on queue_name for command_names and calling methods on obj when commands come in.
+        :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
+        :param obj: object: lando/lando_worker object that will have methods run on
+        :param queue_name: str: name of the queue we should listen on
+        :param command_names: [str]: list of JobCommands that obj has implemented
+        """
         self.processor = WorkQueueProcessor(config, queue_name)
         for command in command_names:
             self.processor.add_command_by_method_name(command, obj)
 
     def run(self):
         """
-        Busy loop that will call commands as messages come in.
-        :return:
+        Blocking loop that will call commands as messages come in.
+        Delete the queue we are listening on or call processor.shutdown() to end loop.
         """
         self.processor.process_messages_loop()
 
     @staticmethod
     def run_lando_router(config, obj, queue_name):
+        """
+        Blocking loop that will listen to queue_name sending lando specific messages to obj.
+        :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
+        :param obj: object: implements lando specific methods
+        :param queue_name: str: name of the queue we will listen on.
+        """
         MessageRouter.run_loop(config, obj, queue_name, LANDO_INCOMING_MESSAGES)
 
     @staticmethod
     def run_worker_router(config, obj, listen_queue_name):
+        """
+        Blocking loop that will listen to queue_name sending lando_worker specific messages to obj.
+        :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
+        :param obj: object: implements lando_worker specific methods
+        :param queue_name: str: name of the queue we will listen on.
+        """
         MessageRouter.run_loop(config, obj, listen_queue_name, LANDO_WORKER_INCOMING_MESSAGES)
 
     @staticmethod
     def run_loop(config, obj, queue_name, messages):
+        """
+        Blocking loop that will call commands as messages come in.
+        :param config: WorkerConfig/ServerConfig: settings for connecting to the queue
+        :param obj: object: implements a method for each name in messages
+        :param queue_name: str: queue we will listen on
+        :param messages: [str]: list of messages we will listen on
+        """
         router = MessageRouter(config, obj, queue_name, messages)
         router.run()
 
 
 class StartJobPayload(object):
+    """
+    Payload that to be sent with JobCommands.START_JOB to lando.
+    """
     def __init__(self, job_id):
+        """
+        :param job_id: int: job id we want to have lando start.
+        """
         self.job_id = job_id
         self.vm_instance_name = None
 
 
 class CancelJobPayload(object):
+    """
+    Payload that to be sent with JobCommands.CANCEL_JOB to lando.
+    """
     def __init__(self, job_id):
+        """
+        :param job_id: int: job id we want to have lando cancel.
+        """
         self.job_id = job_id
         self.vm_instance_name = None
 
 
 class StageJobPayload(object):
+    """
+    Payload that to be sent with JobCommands.STAGE_JOB to lando_worker.
+    """
     def __init__(self, credentials, job_id, input_files, vm_instance_name):
+        """
+        :param credentials: jobapi.Credentials: keys used to download files
+        :param job_id: int: job id we want to have lando download files for
+        :param input_files: [InputFile]: list of files to download
+        :param vm_instance_name: str: name of the instance lando_worker is running on (this passed back in the response)
+        """
         self.credentials = credentials
         self.job_id = job_id
         self.input_files = input_files
@@ -87,7 +145,15 @@ class StageJobPayload(object):
 
 
 class RunJobPayload(object):
+    """
+    Payload that to be sent with JobCommands.RUN_JOB to lando_worker.
+    """
     def __init__(self, job_id, workflow, vm_instance_name):
+        """
+        :param job_id: int: unique id for this job
+        :param workflow: jobapi.Workflow: url to workflow and parameters to use
+        :param vm_instance_name: name of the instance lando_worker is running on (this passed back in the response)
+        """
         self.job_id = job_id
         self.cwl_file_url = workflow.url
         self.workflow_object_name = workflow.object_name
@@ -100,7 +166,16 @@ class RunJobPayload(object):
 
 
 class StoreJobOutputPayload(object):
+    """
+    Payload that to be sent with JobCommands.STORE_JOB_OUTPUT to lando_worker.
+    """
     def __init__(self, credentials, job_id, output_directory, vm_instance_name):
+        """
+        :param credentials: jobapi.Credentials: user's credentials used to upload resulting files
+        :param job_id: int: unique id for this job
+        :param output_directory: jobapi.OutputDirectory: info about where we will upload the results
+        :param vm_instance_name: name of the instance lando_worker is running on (this passed back in the response)
+        """
         self.credentials = credentials
         self.job_id = job_id
         self.dir_name = output_directory.dir_name

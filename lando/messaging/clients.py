@@ -1,5 +1,6 @@
 """
 Classes that simplify sending messages to the workqueue.
+These send messages that will be recevied by MessageRouter.
 """
 from lando.messaging.messaging import JobCommands
 from lando.messaging.messaging import StartJobPayload, CancelJobPayload, JobStepCompletePayload, JobStepErrorPayload
@@ -76,20 +77,53 @@ class LandoWorkerClient(object):
         self.work_queue_client = WorkQueueClient(config, queue_name)
 
     def stage_job(self, credentials, job_id, input_files, vm_instance_name):
+        """
+        Request that a job be staged on a worker(ie. download some files)
+        :param credentials: jobapi.Credentials: user's credentials used to download input_files
+        :param job_id: int: unique id for this job
+        :param input_files: [InputFile]: list of files to download
+        :param vm_instance_name: str: name of the instance lando_worker is running on (this passed back in the response)
+        """
         self._send(JobCommands.STAGE_JOB, StageJobPayload(credentials, job_id, input_files, vm_instance_name))
 
     def run_job(self, job_id, workflow, vm_instance_name):
+        """
+        Execute a workflow on a worker.
+        :param job_id: int: unique id for this job
+        :param workflow: jobapi.Workflow: url to workflow and parameters to use
+        :param vm_instance_name: name of the instance lando_worker is running on (this passed back in the response)
+        """
         self._send(JobCommands.RUN_JOB, RunJobPayload(job_id, workflow, vm_instance_name))
 
     def store_job_output(self, credentials, job_id, output_directory, vm_instance_name):
+        """
+        Store the output of a finished job.
+        :param credentials: jobapi.Credentials: user's credentials used to upload resulting files
+        :param job_id: int: unique id for this job
+        :param output_directory: jobapi.OutputDirectory: info about where we will upload the results
+        :param vm_instance_name: name of the instance lando_worker is running on (this passed back in the response)
+        """
         payload = StoreJobOutputPayload(credentials, job_id, output_directory, vm_instance_name)
         self._send(JobCommands.STORE_JOB_OUTPUT, payload)
 
     def cancel_job(self, job_id):
+        """
+        Request that the worker cancel a currently running job.
+        :param job_id: int: unique id for the job we want to cancel
+        """
         self._send(JobCommands.CANCEL_JOB, job_id)
 
-    def _send(self, message, payload):
-        self.work_queue_client.send(message, payload)
+    def _send(self, command, payload):
+        """
+        Send a message over work queue to worker.
+        :param command: str: string from JobCommands for which type of command we are sending
+        :param payload: object: payload appropriate for the command we are sending
+        """
+        self.work_queue_client.send(command, payload)
 
     def delete_queue(self):
+        """
+        Delete the queue we are sending messages over.
+        This will end the event loop on lando_worker.
+        """
         self.work_queue_client.delete_queue()

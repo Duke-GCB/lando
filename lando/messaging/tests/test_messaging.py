@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from unittest import TestCase
-import time
 from lando.dockerutil import DockerRabbitmq
 from lando.messaging.messaging import MessageRouter, LANDO_INCOMING_MESSAGES, LANDO_WORKER_INCOMING_MESSAGES
 from lando.messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload

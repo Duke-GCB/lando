@@ -70,7 +70,6 @@ class WorkQueueConnection(object):
         channel.queue_delete(queue=queue_name)
         self.close()
 
-
     def send_durable_message(self, queue_name, body):
         """
         Connect to queue_name, post a durable message with body, disconnect from queue_name.
