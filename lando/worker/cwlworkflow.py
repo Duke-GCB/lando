@@ -50,7 +50,7 @@ class CwlWorkflow(object):
         """
         base_command = self.cwl_base_command
         if not base_command:
-            base_command = ["sudo", "cwl-runner"]
+            base_command = ["cwl-runner"]
         command = base_command[:]
         command.extend(["--outdir", local_output_directory, workflow_file, workflow_input_filename])
         return command
@@ -73,7 +73,8 @@ class CwlWorkflow(object):
         output, return_code = self.run_command(command)
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
-            raise JobStepFailed(error_message + output, "")
+            print(output)
+            raise JobStepFailed(error_message, output)
 
     @staticmethod
     def run_command(command):
