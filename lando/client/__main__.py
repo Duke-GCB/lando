@@ -9,8 +9,8 @@ from __future__ import print_function, absolute_import
 import sys
 from lando.server.config import ServerConfig
 from lando.server.lando import LANDO_QUEUE_NAME
-from lando.messaging.messaging import JobCommands
-from lando.messaging.clients import LandoClient
+from lando_messaging.messaging import JobCommands
+from lando_messaging.clients import LandoClient
 
 CONFIG_FILENAME = 'landoconfig.yml'
 

@@ -8,8 +8,8 @@ from unittest import TestCase
 import tempfile
 from lando.server.lando import Lando
 from lando.server.config import ServerConfig
-from lando.messaging.messaging import StartJobPayload, CancelJobPayload
-from lando.messaging.messaging import JobStepCompletePayload, JobStepErrorPayload
+from lando_messaging.messaging import StartJobPayload, CancelJobPayload
+from lando_messaging.messaging import JobStepCompletePayload, JobStepErrorPayload
 
 
 def write_temp_return_filename(data):

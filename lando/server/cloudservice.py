@@ -35,9 +35,6 @@ class NovaClient(object):
         sess = session.Session(auth=auth)
         return sess
 
-    def make_vm_name(self, job_id):
-        return 'job{}_{}'.format(self.job_id, uuid.uuid4())
-
     def launch_instance(self, vm_settings, server_name, script_contents):
         """
         Start VM with the specified settings, name, and script to run on startup.
@@ -109,6 +106,13 @@ class CloudService(object):
         logging.info('terminating instance {}'.format(server_name))
         self.nova_client.terminate_instance(server_name)
 
+    def make_vm_name(self, job_id):
+        """
+        Create a unique vm name for this job id
+        :param job_id: int: unique job id
+        :return: str
+        """
+        return 'job{}_{}'.format(job_id, uuid.uuid4())
 
 class FakeCloudService(object):
     """

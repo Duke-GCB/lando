@@ -21,6 +21,7 @@ LANDO_REQUIREMENTS = [
       "jsonpointer==1.10",
       "jsonschema==2.5.1",
       "keystoneauth1==2.9.0",
+      "lando_messaging",
       "monotonic==1.1",
       "msgpack-python==0.4.7",
       "netaddr==0.7.18",
@@ -35,7 +36,6 @@ LANDO_REQUIREMENTS = [
       "pbr==1.10.0",
       "pexpect==4.2.0",
       "pickleshare==0.7.2",
-      "pika==0.10.0",
       "positional==1.1.1",
       "prettytable==0.7.2",
       "prompt-toolkit==1.0.3",
@@ -72,6 +72,9 @@ setup(name='lando',
       license='MIT',
       packages=find_packages(),
       install_requires=LANDO_REQUIREMENTS,
+      dependency_links=[
+            "git+git://github.com/Duke-GCB/lando-messaging.git@0.1#egg=lando_messaging-0.1"
+      ],
       zip_safe=False,
       entry_points={
             'console_scripts': [

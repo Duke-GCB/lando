@@ -8,8 +8,8 @@ from datetime import datetime
 from lando.server.jobapi import JobApi, JobStates
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
-from lando.messaging.clients import LandoWorkerClient
-from lando.messaging.messaging import MessageRouter
+from lando_messaging.clients import LandoWorkerClient
+from lando_messaging.messaging import MessageRouter
 
 
 CONFIG_FILE_NAME = '/etc/lando_config.yml'

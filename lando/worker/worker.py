@@ -7,8 +7,8 @@ from __future__ import print_function
 import os
 import sys
 import traceback
-from lando.messaging.clients import LandoClient
-from lando.messaging.messaging import MessageRouter
+from lando_messaging.clients import LandoClient
+from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
 from lando.worker import staging
 

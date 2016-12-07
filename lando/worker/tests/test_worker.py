@@ -3,7 +3,7 @@ from unittest import TestCase
 import tempfile
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker
-from lando.messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
+from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
 
 
 def write_temp_return_filename(data):
