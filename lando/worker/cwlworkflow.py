@@ -73,7 +73,7 @@ class CwlWorkflow(object):
         output, return_code = self.run_command(command)
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
-            raise JobStepFailed(error_message, output)
+            raise JobStepFailed(error_message + output, "")
 
     @staticmethod
     def run_command(command):
