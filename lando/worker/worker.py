@@ -25,15 +25,15 @@ class LandoWorkerSettings(object):
         self.config = config
 
     @staticmethod
-    def make_lando_client(self, config, outgoing_queue_name):
+    def make_lando_client(config, outgoing_queue_name):
         return LandoClient(config, outgoing_queue_name)
 
     @staticmethod
-    def make_staging_context(self, credentials):
+    def make_staging_context(credentials):
         return staging.Context(credentials)
 
     @staticmethod
-    def make_download_duke_ds_file(self, file_id, destination_path, user_id):
+    def make_download_duke_ds_file(file_id, destination_path, user_id):
         return staging.DownloadDukeDSFile(file_id, destination_path, user_id)
 
     @staticmethod
@@ -41,11 +41,11 @@ class LandoWorkerSettings(object):
         return staging.DownloadURLFile(url, destination_path)
 
     @staticmethod
-    def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+    def make_cwl_workflow(job_id, working_directory, output_directory, cwl_base_command):
         return cwlworkflow.CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
 
     @staticmethod
-    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, user_id):
+    def make_upload_duke_ds_folder(project_id, source_directory, dest_directory, user_id):
         return staging.UploadDukeDSFolder(project_id, source_directory, dest_directory, user_id)
 
 
@@ -139,13 +139,13 @@ class LandoWorker(object):
         """
         Blocks and waits for messages on the queue specified in config.
         """
-        print("Listening for messages...")
         router = self._make_router()
+        print("Lando worker listening for messages on queue '{}'.".format(router.queue_name))
         router.run()
 
     def _make_router(self):
         work_queue_config = self.config.work_queue_config
-        return MessageRouter.make_worker_router(self.config, self, work_queue_config.listen_queue)
+        return MessageRouter.make_worker_router(self.config, self, work_queue_config.queue_name)
 
 
 class JobStep(object):

@@ -83,7 +83,7 @@ class CwlWorkflow(object):
         :param command: [str]: command to execute
         :return: str, int: output from stderr/stdout and process exit status.
         """
-        print(command)
+        print(' '.join(command))
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         output = ""
         while True:

@@ -56,6 +56,7 @@ class MessageRouter(object):
         :param queue_name: str: name of the queue we should listen on
         :param command_names: [str]: list of JobCommands that obj has implemented
         """
+        self.queue_name = queue_name
         self.processor = WorkQueueProcessor(config, queue_name)
         for command in command_names:
             self.processor.add_command_by_method_name(command, obj)

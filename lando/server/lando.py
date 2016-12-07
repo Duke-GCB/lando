@@ -12,7 +12,7 @@ from lando.messaging.clients import LandoWorkerClient
 from lando.messaging.messaging import MessageRouter
 
 
-CONFIG_FILE_NAME = 'landoconfig.yml'
+CONFIG_FILE_NAME = '/etc/lando_config.yml'
 LANDO_QUEUE_NAME = 'lando'
 
 
@@ -240,8 +240,8 @@ class Lando(object):
         """
         Blocks and waits for messages on the queue specified in config.
         """
-        print("Listening for messages...")
         router = self._make_router()
+        print("Lando listening for messages on queue '{}'.".format(router.queue_name))
         router.run()
 
     def _make_router(self):
