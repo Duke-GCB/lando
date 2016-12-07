@@ -67,7 +67,6 @@ class TestJobApi(TestCase):
             'output_dir': {
                 'dir_name': 'results',
                 'project_id': '1235123',
-                'dds_app_credentials': '456',
                 'dds_user_credentials': '123',
             },
         }
@@ -86,7 +85,6 @@ class TestJobApi(TestCase):
 
         self.assertEqual('results', job.output_directory.dir_name)
         self.assertEqual('1235123', job.output_directory.project_id)
-        self.assertEqual('456', job.output_directory.dds_app_credentials)
         self.assertEqual('123', job.output_directory.dds_user_credentials)
 
     def test_set_job_state(self):
@@ -110,7 +108,6 @@ class TestJobApi(TestCase):
                     {
                         'file_id': 123,
                         'destination_path': 'seq1.fasta',
-                        'dds_app_credentials': 4667,
                         'dds_user_credentials': 823,
                     }
                 ],
@@ -140,7 +137,6 @@ class TestJobApi(TestCase):
         dds_file = file.dds_files[0]
         self.assertEqual(123, dds_file.file_id)
         self.assertEqual('seq1.fasta', dds_file.destination_path)
-        self.assertEqual(4667, dds_file.agent_id)
         self.assertEqual(823, dds_file.user_id)
 
         file = files[1]
@@ -193,7 +189,5 @@ class TestJobApi(TestCase):
         user_credentials = job_api.get_credentials()
         user_cred = user_credentials.dds_user_credentials[5]
         self.assertEqual('1239109', user_cred.token)
-
-        app_cred = user_credentials.dds_app_credentials[3]
-        self.assertEqual('2191230', app_cred.agent_key)
-        self.assertEqual('localhost/api/v1/', app_cred.api_root)
+        self.assertEqual('2191230', user_cred.endpoint_agent_key)
+        self.assertEqual('localhost/api/v1/', user_cred.endpoint_api_root)

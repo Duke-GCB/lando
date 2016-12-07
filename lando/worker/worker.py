@@ -33,8 +33,8 @@ class LandoWorkerSettings(object):
         return staging.Context(credentials)
 
     @staticmethod
-    def make_download_duke_ds_file(self, file_id, destination_path, agent_id, user_id):
-        return staging.DownloadDukeDSFile(file_id, destination_path, agent_id, user_id)
+    def make_download_duke_ds_file(self, file_id, destination_path, user_id):
+        return staging.DownloadDukeDSFile(file_id, destination_path, user_id)
 
     @staticmethod
     def make_download_url_file(url, destination_path):
@@ -45,8 +45,8 @@ class LandoWorkerSettings(object):
         return cwlworkflow.CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
 
     @staticmethod
-    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
-        return staging.UploadDukeDSFolder(project_id, source_directory, dest_directory, agent_id, user_id)
+    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, user_id):
+        return staging.UploadDukeDSFolder(project_id, source_directory, dest_directory, user_id)
 
 
 class LandoWorkerActions(object):
@@ -72,7 +72,7 @@ class LandoWorkerActions(object):
             for dds_file in input_file.dds_files:
                 destination_path = os.path.join(working_directory, dds_file.destination_path)
                 download_file = self.settings.make_download_duke_ds_file(dds_file.file_id, destination_path,
-                                                                        dds_file.agent_id, dds_file.user_id)
+                                                                         dds_file.user_id)
                 download_file.run(staging_context)
             for url_file in input_file.url_files:
                 destination_path = os.path.join(working_directory, url_file.destination_path)
@@ -100,7 +100,6 @@ class LandoWorkerActions(object):
         source_directory = os.path.join(working_directory, payload.dir_name)
         upload_folder = self.settings.make_upload_duke_ds_folder(payload.project_id,
                                                                  source_directory, payload.dir_name,
-                                                                 agent_id=payload.dds_app_credentials,
                                                                  user_id=payload.dds_user_credentials)
         upload_folder.run(staging_context)
 

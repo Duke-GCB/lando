@@ -48,7 +48,7 @@ class FakeSettings(object):
     def make_staging_context(self, credentials):
         return FakeObject("Staging Context", self.report)
 
-    def make_download_duke_ds_file(self, file_id, destination_path, agent_id, user_id):
+    def make_download_duke_ds_file(self, file_id, destination_path, user_id):
         return FakeObject("Download file {}.".format(file_id), self.report)
 
     def make_download_url_file(self, url, destination_path):
@@ -61,7 +61,7 @@ class FakeSettings(object):
         obj.run = obj.run_workflow
         return obj
 
-    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
+    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, user_id):
         return FakeObject("Upload folder to DukeDS project: {} dir:{}.".format(project_id, dest_directory), self.report)
 
 class FakeObject(object):
@@ -97,7 +97,6 @@ class FakeInputFile(object):
 class FakeFileData(object):
     def __init__(self):
         self.file_id = 42
-        self.agent_id = 1
         self.user_id = 2
         self.url = 'http:stuff'
         self.destination_path = 'data.txt'
@@ -115,7 +114,6 @@ class FakeOutputDirectory(object):
     def __init__(self):
         self.dir_name = 'results'
         self.project_id = 1234
-        self.dds_app_credentials = 4
         self.dds_user_credentials = 8
 
 

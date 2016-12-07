@@ -77,17 +77,6 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
-    def get_dds_app_credentials(self):
-        """
-        Get the all duke data service app credentials.
-        :return: [dict]: list of app credentials
-        """
-        path = 'dds-app-credentials/'
-        url = self._make_url(path)
-        resp = self.requests.get(url, auth=self.auth())
-        resp.raise_for_status()
-        return resp.json()
-
 
 class JobApi(object):
     """
@@ -145,9 +134,6 @@ class JobApi(object):
         for user_credential_data in self.api.get_dds_user_credentials(user_id):
             credentials.add_user_credential(DDSUserCredential(user_credential_data))
 
-        for app_credential_data in self.api.get_dds_app_credentials():
-            credentials.add_app_credential(DDSAppCredential(app_credential_data))
-
         return credentials
 
 
@@ -194,7 +180,6 @@ class OutputDirectory(object):
         output_dir = data['output_dir']
         self.dir_name = output_dir['dir_name']
         self.project_id = output_dir['project_id']
-        self.dds_app_credentials = output_dir['dds_app_credentials']
         self.dds_user_credentials = output_dir['dds_user_credentials']
 
 
@@ -225,7 +210,6 @@ class DukeDSFile(object):
         """
         self.file_id = data['file_id']
         self.destination_path = data['destination_path']
-        self.agent_id = data['dds_app_credentials']
         self.user_id = data['dds_user_credentials']
 
 
@@ -246,16 +230,7 @@ class Credentials(object):
     Keys for downloading from remote storage.
     """
     def __init__(self):
-        self.dds_app_credentials = {}
         self.dds_user_credentials = {}
-
-    def add_app_credential(self, app_credential):
-        """
-        Add app credential to app dictionary for app_credential.id
-        :param app_credential: DDSAppCredential
-        :return:
-        """
-        self.dds_app_credentials[app_credential.id] = app_credential
 
     def add_user_credential(self, user_credential):
         """
@@ -263,23 +238,6 @@ class Credentials(object):
         :param user_credential: DDSUserCredential
         """
         self.dds_user_credentials[user_credential.id] = user_credential
-
-
-class DDSAppCredential(object):
-    """
-    Contains url and agent key for talking to DukeDS.
-    """
-    def __init__(self, data):
-        """
-        :param data: dict: app credential values returned from bespin.
-        """
-        self.id = data['id']
-        self.name = data['name']
-        self.agent_key = data['agent_key']
-        self.api_root = data['api_root']
-
-    def __str__(self):
-        return "{} : {}".format(self.api_root, self.agent_key)
 
 
 class DDSUserCredential(object):
@@ -293,6 +251,9 @@ class DDSUserCredential(object):
         self.id = data['id']
         self.user = data['user']
         self.token = data['token']
+        endpoint = data['endpoint']
+        self.endpoint_api_root = endpoint['api_root']
+        self.endpoint_agent_key = endpoint['agent_key']
 
     def __str__(self):
         return self.token

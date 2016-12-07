@@ -167,7 +167,6 @@ class StoreJobOutputPayload(object):
         self.job_id = job_id
         self.dir_name = output_directory.dir_name
         self.project_id = output_directory.project_id
-        self.dds_app_credentials = output_directory.dds_app_credentials
         self.dds_user_credentials = output_directory.dds_user_credentials
         self.vm_instance_name = vm_instance_name
         self.success_command = JobCommands.STORE_JOB_OUTPUT_COMPLETE

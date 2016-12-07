@@ -71,7 +71,6 @@ class FakeOutputDirectory(object):
     def __init__(self):
         self.dir_name = ''
         self.project_id = ''
-        self.dds_app_credentials = ''
         self.dds_user_credentials = ''
 
 

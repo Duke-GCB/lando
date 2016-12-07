@@ -34,21 +34,21 @@ class Context(object):
         """
         :param credentials: jobapi.Credentials
         """
-        self.dds_app_credentials = credentials.dds_app_credentials
         self.dds_user_credentials = credentials.dds_user_credentials
         self.duke_ds = None
         self.current_app_cred = None
         self.current_user_cred = None
 
-    def get_duke_data_service(self, agent_id, user_id):
+    def get_duke_data_service(self, user_id):
         """
         Create local DukeDataService after by creating DukeDS config.
-        :param agent_id: int: bespin agent id
         :param user_id: int: bespin user id
         """
         config = ddsc.config.Config()
-        config.values[ddsc.config.Config.AGENT_KEY] = self.dds_app_credentials[agent_id].agent_key
-        config.values[ddsc.config.Config.USER_KEY] = self.dds_user_credentials[user_id].token
+        credentials = self.dds_user_credentials[user_id]
+        config.values[ddsc.config.Config.URL] = credentials.endpoint_api_root
+        config.values[ddsc.config.Config.AGENT_KEY] = credentials.endpoint_agent_key
+        config.values[ddsc.config.Config.USER_KEY] = credentials.token
         return DukeDataService(config)
 
 
@@ -169,16 +169,14 @@ class DownloadDukeDSFile(object):
     """
     Downloads a file from DukeDS.
     """
-    def __init__(self, file_id, dest, agent_id, user_id):
+    def __init__(self, file_id, dest, user_id):
         """
         :param file_id: str: unique file id
         :param dest: str: destination we will download the file into
-        :param agent_id: int: bespin agent id
         :param user_id: int: bespin user id
         """
         self.file_id = file_id
         self.dest = dest
-        self.agent_id = agent_id
         self.user_id = user_id
 
     def run(self, context):
@@ -187,7 +185,7 @@ class DownloadDukeDSFile(object):
         :param context: Context
         """
         create_parent_directory(self.dest)
-        duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
+        duke_data_service = context.get_duke_data_service(self.user_id)
 
         duke_data_service.download_file(self.file_id, self.dest)
 
@@ -243,18 +241,16 @@ class UploadDukeDSFolder(object):
     """
     Uploads a folder and the files it contains to DukeDS.
     """
-    def __init__(self, project_id, src, dest, agent_id, user_id):
+    def __init__(self, project_id, src, dest, user_id):
         """
         :param project_id: str: unique id of the project
         :param src: str: path to folder on disk
         :param dest: str: path to where in the project we will upload to
-        :param agent_id: int: bespin agent id
         :param user_id: int: bespin user id
         """
         self.project_id = project_id
         self.src = src
         self.dest = dest
-        self.agent_id = agent_id
         self.user_id = user_id
 
     def run(self, context):
@@ -262,7 +258,7 @@ class UploadDukeDSFolder(object):
         Upload folder and it's files.
         :param context: Context
         """
-        duke_data_service = context.get_duke_data_service(self.agent_id, self.user_id)
+        duke_data_service = context.get_duke_data_service(self.user_id)
         duke_data_service.create_top_level_folder(self.project_id, self.dest)
         for filename in os.listdir(self.src):
             path = os.path.join(self.src, filename)
