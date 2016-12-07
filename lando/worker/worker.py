@@ -9,9 +9,8 @@ import sys
 import traceback
 from lando.messaging.clients import LandoClient
 from lando.messaging.messaging import MessageRouter
-from lando.worker import runworkflow
+from lando.worker import cwlworkflow
 from lando.worker import staging
-from lando.exceptions import JobStepFailed
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
@@ -43,7 +42,7 @@ class LandoWorkerSettings(object):
 
     @staticmethod
     def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
-        return runworkflow.RunWorkflow(job_id, working_directory, output_directory, cwl_base_command)
+        return cwlworkflow.CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
 
     @staticmethod
     def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
@@ -87,9 +86,9 @@ class LandoWorkerActions(object):
         :param payload: router.RunJobPayload: details about workflow to run
         """
         cwl_base_command = self.config.cwl_base_command
-        run_workflow = self.settings.make_run_workflow(payload.job_id, working_directory, payload.output_directory,
+        workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, payload.output_directory,
                                                        cwl_base_command)
-        run_workflow.run_workflow(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
+        workflow.run(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
 
     def save_output(self, working_directory, payload):
         """

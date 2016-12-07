@@ -54,10 +54,12 @@ class FakeSettings(object):
     def make_download_url_file(self, url, destination_path):
         return FakeObject("Download url {}.".format(url), self.report)
 
-    def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+    def make_cwl_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
         if self.raise_when_run_workflow:
             raise ValueError("Something went wrong.")
-        return FakeObject("Run workflow for job {}.".format(job_id), self.report)
+        obj = FakeObject("Run workflow for job {}.".format(job_id), self.report)
+        obj.run = obj.run_workflow
+        return obj
 
     def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
         return FakeObject("Upload folder to DukeDS project: {} dir:{}.".format(project_id, dest_directory), self.report)
