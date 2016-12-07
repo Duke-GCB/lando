@@ -40,6 +40,7 @@ class FakeSettings(object):
     def __init__(self, config):
         self.config = config
         self.report = Report()
+        self.raise_when_run_workflow = False
 
     def make_lando_client(self, config, outgoing_queue_name):
         return FakeObject("Lando Client", self.report)
@@ -54,6 +55,8 @@ class FakeSettings(object):
         return FakeObject("Download url {}.".format(url), self.report)
 
     def make_run_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+        if self.raise_when_run_workflow:
+            raise ValueError("Something went wrong.")
         return FakeObject("Run workflow for job {}.".format(job_id), self.report)
 
     def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, agent_id, user_id):
@@ -72,6 +75,9 @@ class FakeObject(object):
 
     def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
         self.report.add(self.run_message)
+
+    def job_step_error(self, payload, message):
+        self.report.add("Send job step error for job {}: {}.".format(payload.job_id, message))
 
 
 class FakeInputFile(object):
@@ -136,11 +142,6 @@ Send job step complete for job 1.
 
     def test_run_job(self):
         worker = self._make_worker()
-        input_files = [
-            FakeInputFile('dds_file'),
-            FakeInputFile('url_file')
-
-        ]
         workflow = FakeWorkflow()
         worker.run_job(RunJobPayload(job_id=2, workflow=workflow, vm_instance_name='test2'))
         report = """
@@ -149,13 +150,17 @@ Send job step complete for job 2.
         """
         self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
 
+    def test_run_job_raises(self):
+        worker = self._make_worker()
+        self.settings.raise_when_run_workflow = True
+        workflow = FakeWorkflow()
+        worker.run_job(RunJobPayload(job_id=2, workflow=workflow, vm_instance_name='test2'))
+        result = self.settings.report.text.strip()
+        self.assertIn("Send job step error for job 2", result)
+        self.assertIn("ValueError: Something went wrong.", result)
+
     def test_save_output(self):
         worker = self._make_worker()
-        input_files = [
-            FakeInputFile('dds_file'),
-            FakeInputFile('url_file')
-
-        ]
         outdir = FakeOutputDirectory()
         worker.store_job_output(StoreJobOutputPayload(credentials=None, job_id=3, output_directory=outdir,
                                                       vm_instance_name='test3'))
@@ -164,3 +169,5 @@ Upload folder to DukeDS project: 1234 dir:results.
 Send job step complete for job 3.
         """
         self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
+
+

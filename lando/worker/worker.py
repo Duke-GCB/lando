@@ -5,6 +5,8 @@ Run via script with no arguments: lando_worker
 """
 from __future__ import print_function
 import os
+import sys
+import traceback
 from lando.messaging.clients import LandoClient
 from lando.messaging.messaging import MessageRouter
 from lando.worker import runworkflow
@@ -175,11 +177,10 @@ class JobStep(object):
             self.func(working_directory, self.payload)
             self.show_complete_message()
             self.send_job_step_complete()
-        except JobStepFailed as ex:
-            # TODO figure out what to do with ex.details
-            print("Job failed:{}".format(ex.message))
-            print(ex.details)
-            self.send_job_step_errored(ex.message)
+        except: # Trap all exceptions
+            tb = traceback.format_exc()
+            print("Job failed:{}".format(tb))
+            self.send_job_step_errored(tb)
 
     def show_start_message(self):
         """
