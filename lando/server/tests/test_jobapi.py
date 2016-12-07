@@ -171,20 +171,17 @@ class TestJobApi(TestCase):
             {
                 'id': 5,
                 'user': 23,
-                'token': '1239109'
-            }
-        ]
-        app_credentials_response = [
-            {
-                'id': 3,
-                'name': 'dukeds',
-                'agent_key': '2191230',
-                'api_root': 'localhost/api/v1/',
+                'token': '1239109',
+                'endpoint': {
+                    'id': 3,
+                    'name': 'dukeds',
+                    'agent_key': '2191230',
+                    'api_root': 'localhost/api/v1/',
+                }
             }
         ]
         fake_requests.url_to_response['127.0.0.1/jobs/4/'] = FakeResponse(job_response_payload)
         fake_requests.url_to_response['127.0.0.1/dds-user-credentials/?user=23'] = FakeResponse(user_credentials_response)
-        fake_requests.url_to_response['127.0.0.1/dds-app-credentials/'] = FakeResponse(app_credentials_response)
 
         user_credentials = job_api.get_credentials()
         user_cred = user_credentials.dds_user_credentials[5]
