@@ -6,17 +6,19 @@ Example to run a job: lando_client start_job <job_id>
 Example to cancel a job: lando_client cancel_job <job_id>
 """
 from __future__ import print_function, absolute_import
+import os
 import sys
 from lando.server.config import ServerConfig
-from lando.server.lando import LANDO_QUEUE_NAME
+from lando.server.lando import LANDO_QUEUE_NAME, CONFIG_FILE_NAME
 from lando_messaging.messaging import JobCommands
 from lando_messaging.clients import LandoClient
 
-CONFIG_FILENAME = 'landoconfig.yml'
-
 
 def main():
-    config = ServerConfig(CONFIG_FILENAME)
+    config_filename = os.environ.get("LANDO_CONFIG")
+    if not config_filename:
+        config_filename = CONFIG_FILE_NAME
+    config = ServerConfig(config_filename)
     client = LandoClient(config, queue_name=LANDO_QUEUE_NAME)
     command = sys.argv[1]
     job_id = int(sys.argv[2])

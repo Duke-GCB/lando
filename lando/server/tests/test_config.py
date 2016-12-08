@@ -84,3 +84,16 @@ class TestServerConfig(TestCase):
         with self.assertRaises(InvalidConfigException):
             config = ServerConfig(filename)
         os.unlink(filename)
+
+    def test_make_worker_config_yml(self):
+        filename = write_temp_return_filename(GOOD_CONFIG)
+        config = ServerConfig(filename)
+        os.unlink(filename)
+        expected = """
+host: 10.109.253.74
+password: tobol
+queue_name: worker_1
+username: lobot
+"""
+        result = config.make_worker_config_yml('worker_1')
+        self.assertMultiLineEqual(expected.strip(), result.strip())

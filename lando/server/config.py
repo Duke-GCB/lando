@@ -42,12 +42,10 @@ class ServerConfig(object):
         """
         work_queue = self.work_queue_config
         data = {
-            'work_queue': {
-                'host': work_queue.host,
-                'username': work_queue.worker_username,
-                'password': work_queue.worker_password,
-                'queue_name': queue_name
-            }
+            'host': work_queue.host,
+            'username': work_queue.worker_username,
+            'password': work_queue.worker_password,
+            'queue_name': queue_name
         }
         return yaml.safe_dump(data, default_flow_style=False)
 
