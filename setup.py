@@ -21,7 +21,7 @@ LANDO_REQUIREMENTS = [
       "jsonpointer==1.10",
       "jsonschema==2.5.1",
       "keystoneauth1==2.9.0",
-      "lando-messaging==0.1",
+      "lando_messaging",
       "monotonic==1.1",
       "msgpack-python==0.4.7",
       "netaddr==0.7.18",
