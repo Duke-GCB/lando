@@ -111,3 +111,5 @@ It should talk back and forth with lando server staging data, running, job and s
 ```
 lando_worker
 ```
+lando_worker should terminate once it completes the job.
+
