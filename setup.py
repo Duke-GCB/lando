@@ -73,7 +73,7 @@ setup(name='lando',
       packages=find_packages(),
       install_requires=LANDO_REQUIREMENTS,
       dependency_links=[
-            "git+https://github.com/Duke-GCB/lando/archive/use_bespin_api.zip#egg=lando_messaging-0.1"
+            "https://github.com/Duke-GCB/lando/archive/use_bespin_api.zip#egg=lando_messaging-0.1"
       ],
       zip_safe=False,
       entry_points={
