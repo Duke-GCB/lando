@@ -60,7 +60,14 @@ job_api:
 # Use fake cloud service so lando_worker can be run locally.
 fake_cloud_service: True
 ```
+### Add users to Rabbitmq
+```
+rabbitmqctl add_user lando secret1
+rabbitmqctl set_permissions -p / lando  ".*" ".*" ".*"
 
+rabbitmqctl add_user lobot secret2
+rabbitmqctl set_permissions -p / lobot  ".*" ".*" ".*"
+```
 
 ## Running without Openstack
 
