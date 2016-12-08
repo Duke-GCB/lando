@@ -26,7 +26,8 @@ There are two config files that are used by lando.
 * `/etc/lando_worker_config.yml` - this is the  configuration file used by the worker.
 When using Openstack the server program creates and puts the worker's config file on the VM in the correct location.
 
-Sample `/etc/lando_config.yml` file:
+
+#### Sample `/etc/lando_config.yml` file:
 ```
 # Rabbitmq settings
 work_queue:
@@ -64,7 +65,7 @@ job_api:
 fake_cloud_service: True
 ```
 
-Sample `/etc/lando_worker_config.yml` file for when running without openstack:
+#### Sample `/etc/lando_worker_config.yml` file for when running without openstack:
 ```
 host: 10.109.253.74
 username: lobot
