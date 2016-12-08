@@ -72,9 +72,6 @@ setup(name='lando',
       license='MIT',
       packages=find_packages(),
       install_requires=LANDO_REQUIREMENTS,
-      dependency_links=[
-            "http://github.com/Duke-GCB/lando-messaging/tarball/master#egg=lando-messaging-0.1"
-      ],
       zip_safe=False,
       entry_points={
             'console_scripts': [
