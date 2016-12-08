@@ -97,6 +97,7 @@ class JobActions(object):
         boot_script = BootScript(worker_config_yml)
         instance, ip_address = self.cloud_service.launch_instance(vm_instance_name, boot_script.content)
         self._show_status("Launched vm with ip {}".format(ip_address))
+        self.job_api.set_vm_instance_name(vm_instance_name)
 
     def send_stage_job_message(self, vm_instance_name):
         """
