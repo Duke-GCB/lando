@@ -19,8 +19,8 @@ https://github.com/Duke-GCB/bespin-workflows/blob/lando_api/README.md
 
 ### Create lando config files
 There are two config files that are used by lando.
-`/etc/lando_config.yml` - this is the main configuration file used by the server program(lando).
-`/etc/lando_worker_config.yml` - this is the  configuration file used by the worker.
+* `/etc/lando_config.yml` - this is the main configuration file used by the server program(lando).
+* `/etc/lando_worker_config.yml` - this is the  configuration file used by the worker.
 When using Openstack the server program creates and puts the worker's config file on the VM in the correct location.
 
 Sample `/etc/lando_config.yml` file:
@@ -60,6 +60,19 @@ job_api:
 # Use fake cloud service so lando_worker can be run locally.
 fake_cloud_service: True
 ```
+
+Sample `/etc/lando_worker_config.yml` file for when running without openstack:
+```
+host: 10.109.253.74
+username: lobot
+password: secret2
+queue_name: local_worker  
+```
+The queue name `local_worker` is always used for workers when `fake_cloud_service` is True in `/etc/lando_config.yml`.
+
+
+
+
 ### Add users to Rabbitmq
 ```
 rabbitmqctl add_user lando secret1
