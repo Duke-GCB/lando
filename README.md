@@ -25,39 +25,44 @@ When using Openstack the server program creates and puts the worker's config fil
 
 Sample `/etc/lando_config.yml` file:
 ```
+# Rabbitmq settings
 work_queue:
-  host: 10.109.253.74
-  username: lando
-  password: secret1
-  worker_username: lobot
-  worker_password: secret2
-  listen_queue: lando
+  host: 10.109.253.74       # ip address of the rabbitmq
+  username: lando           # username for lando server
+  password: secret1         # password for lando server
+  listen_queue: lando       # queue that lando server should listen on  
+  worker_username: lobot    # username for lando worker
+  worker_password: secret2  # password for lando worker
 
+# Openstack VM settings
 vm_settings:
-  worker_image_name: lando_worker
-  ssh_key_name: jpb67
-  network_name: selfservice
-  floating_ip_pool_name: ext-net
-  default_favor_name: m1.small
+  worker_image_name: lando_worker    # Name of the image that has lando installed and lando_worker setup to run as a service
+  ssh_key_name: jpb67                # Name of the openstack SSH key to install on the worker
+  network_name: selfservice          # Openstack network name to add the vm onto
+  floating_ip_pool_name: ext-net     # Pool of floating IP's that will have one assigned to the VM
+  default_favor_name: m1.small       # Flavor of image to use by default when creating a VM
 
+# General Openstack settings
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
-  username: jpb67
-  user_domain_name: Default
-  project_name: jpb67
-  project_domain_name: Default
-  password: secret3
+  username: jpb67                        
+  password: secret3  
+  user_domain_name: Default               
+  project_name: jpb67               # name of the project we will add VMs to
+  project_domain_name: Default    
 
+# Bespin job API settings
 job_api:
   url: http://localhost:8000/api
   username: jpb67
   password: secret4
+
+# Use fake cloud service so lando_worker can be run locally.
+fake_cloud_service: True
 ```
 
 
 ## Running without Openstack
-
-
 
 ### Run lando client 
 This command will put a job in the rabbitmq queue for the lando server to receive.
