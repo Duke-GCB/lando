@@ -17,6 +17,9 @@ pip install git+git://github.com/Duke-GCB/lando.git@use_bespin_api
 Follow the instructions to install the `lando_api` branch:
 https://github.com/Duke-GCB/bespin-workflows/blob/lando_api/README.md
 
+### Create job in Bespin-workflows
+Using the bespin superuser you created in the previous step go into the admin interface and setup a job.
+
 ### Create lando config files
 There are two config files that are used by lando.
 * `/etc/lando_config.yml` - this is the main configuration file used by the server program(lando).
