@@ -75,6 +75,7 @@ class TestLando(TestCase):
 Created vm name for job 1.
 Set job state to V.
 Launched vm worker_1.
+Set vm instance name to worker_1.
 Set job state to S.
 Making worker client for queue worker_1.
 Stage job 1 on worker_1.
@@ -205,6 +206,9 @@ class FakeJobApi(object):
 
     def get_job(self):
         return FakeJob()
+
+    def set_vm_instance_name(self, vm_instance_name):
+        self.report.add("Set vm instance name to {}.".format(vm_instance_name))
 
 
 class FakeJob(object):
