@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Client to send messages to queue that will be processed by lando.py.
 Usage: lando_client <command> <parameter>

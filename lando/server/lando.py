@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Server that starts/terminates VMs based on messages received from a queue.
 """
