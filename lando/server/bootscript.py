@@ -1,7 +1,7 @@
 """
 Creates a bash script to be run on a new vm.
 This script writes out the worker config file for use by the lando_worker program.
-lando_worker is expected to be setup as a service. (systemd example: sample_files/lando.service)
+lando_worker is expected to be setup as a service.
 """
 
 
