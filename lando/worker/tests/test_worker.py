@@ -169,5 +169,3 @@ Upload folder to DukeDS project: 1234 dir:results.
 Send job step complete for job 3.
         """
         self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
-
-

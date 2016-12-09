@@ -247,9 +247,3 @@ class Lando(object):
     def _make_router(self):
         work_queue_config = self.config.work_queue_config
         return MessageRouter.make_lando_router(self.config, self, work_queue_config.listen_queue)
-
-
-
-
-
-

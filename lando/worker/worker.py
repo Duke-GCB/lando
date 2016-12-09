@@ -203,8 +203,3 @@ class JobStep(object):
         Sends message back to server that this jobs step has failed.
         """
         self.client.job_step_error(self.payload, message)
-
-
-
-
-
