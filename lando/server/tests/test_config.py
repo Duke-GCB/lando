@@ -1,6 +1,6 @@
 from unittest import TestCase
 import os
-import tempfile
+from lando.testutil import write_temp_return_filename
 from lando.server.config import ServerConfig
 from lando.exceptions import InvalidConfigException
 
@@ -33,18 +33,6 @@ job_api:
   username: jpb67
   password: secret
 """
-
-
-def write_temp_return_filename(data):
-    """
-    Write out data to a temporary file and return that file's name.
-    :param data: str: data to be written to a file
-    :return: str: temp filename we just created
-    """
-    file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(data)
-    file.close()
-    return file.name
 
 
 class TestServerConfig(TestCase):

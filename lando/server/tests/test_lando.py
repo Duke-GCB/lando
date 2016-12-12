@@ -2,26 +2,13 @@
 Testing that lando can have top level methods called which will propogate to LandoActions and
 perform the expected actions.
 """
-
 from __future__ import absolute_import
 from unittest import TestCase
-import tempfile
+from lando.testutil import write_temp_return_filename
 from lando.server.lando import Lando
 from lando.server.config import ServerConfig
 from lando_messaging.messaging import StartJobPayload, CancelJobPayload
 from lando_messaging.messaging import JobStepCompletePayload, JobStepErrorPayload
-
-
-def write_temp_return_filename(data):
-    """
-    Write out data to a temporary file and return that file's name.
-    :param data: str: data to be written to a file
-    :return: str: temp filename we just created
-    """
-    file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(data)
-    file.close()
-    return file.name
 
 
 LANDO_CONFIG = """
@@ -181,7 +168,7 @@ class FakeCloudService(object):
         self.report.add("Created vm name for job {}.".format(job_id))
         return 'worker_1'
 
-    def launch_instance(self, vm_instance_name, boot_script_content):
+    def launch_instance(self, vm_instance_name, flavor_name, boot_script_content):
         self.report.add("Launched vm {}.".format(vm_instance_name))
         return None, "127.0.0.1"
 
@@ -216,6 +203,7 @@ class FakeJob(object):
         self.vm_instance_name = 'worker_x'
         self.workflow = {}
         self.output_directory = {}
+        self.vm_flavor = 'm1.xlarge'
 
 
 class FakeCredentials(object):
@@ -238,6 +226,7 @@ class FakeLandoWorkerClient(object):
 
     def store_job_output(self, credentials, job_id, output_directory, vm_instance_name):
         self.report.add("Store output for job {} on {}.".format(job_id, vm_instance_name))
+
 
 class FakeJobRequestPayload(object):
     def __init__(self, job_id, vm_instance_name):

@@ -4,6 +4,7 @@ import os
 import platform
 import tempfile
 import shutil
+from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow
 from lando.exceptions import JobStepFailed
 
@@ -23,16 +24,6 @@ outputs:
   outputfile:
     type: stdout
 """
-
-
-def text_to_file(text, file_path):
-    with open(file_path, 'w') as outfile:
-        outfile.write(text)
-
-
-def file_to_text(file_path):
-    with open(file_path, 'r') as infile:
-        return infile.read()
 
 
 class TestCwlWorkflow(TestCase):

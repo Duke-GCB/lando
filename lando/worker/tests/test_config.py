@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 from unittest import TestCase
 import os
-import tempfile
+from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
 from lando.exceptions import InvalidConfigException
 
@@ -17,17 +18,6 @@ host: 10.109.253.74
 username: worker
 password: workerpass
 """
-
-def write_temp_return_filename(data):
-    """
-    Write out data to a temporary file and return that file's name.
-    :param data: str: data to be written to a file
-    :return: str: temp filename we just created
-    """
-    file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(data)
-    file.close()
-    return file.name
 
 
 class TestWorkerConfig(TestCase):
@@ -46,7 +36,6 @@ class TestWorkerConfig(TestCase):
         with self.assertRaises(InvalidConfigException):
             config = WorkerConfig(filename)
         os.unlink(filename)
-
 
     def test_bad_config(self):
         filename = write_temp_return_filename(BAD_CONFIG)
