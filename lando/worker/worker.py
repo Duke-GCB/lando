@@ -132,6 +132,8 @@ class LandoWorker(object):
 
     def run_job_step_with_func(self, payload, func):
         working_directory = WORKING_DIR_FORMAT.format(payload.job_id)
+        if not os.path.exists(working_directory):
+            os.mkdir(working_directory)
         job_step = JobStep(self.client, payload, func)
         job_step.run(working_directory)
 

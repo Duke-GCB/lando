@@ -1,21 +1,11 @@
 from __future__ import absolute_import
 from unittest import TestCase
-import tempfile
+import os
+import shutil
+from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
-
-
-def write_temp_return_filename(data):
-    """
-    Write out data to a temporary file and return that file's name.
-    :param data: str: data to be written to a file
-    :return: str: temp filename we just created
-    """
-    file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(data)
-    file.close()
-    return file.name
 
 LANDO_WORKER_CONFIG = """
 host: 10.109.253.74
@@ -169,3 +159,16 @@ Upload folder to DukeDS project: 1234 dir:results.
 Send job step complete for job 3.
         """
         self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
+
+    def test_stage_job_creates_working_directory(self):
+        worker = self._make_worker()
+        input_files = [
+            FakeInputFile('dds_file'),
+            FakeInputFile('url_file')
+
+        ]
+        working_dir = "data_for_job_1"
+        if os.path.exists(working_dir):
+            shutil.rmtree(working_dir)
+        worker.stage_job(StageJobPayload(credentials=None, job_id=1, input_files=input_files, vm_instance_name='test1'))
+        self.assertEqual(True, os.path.exists(working_dir))
