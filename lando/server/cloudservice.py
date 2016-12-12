@@ -35,16 +35,20 @@ class NovaClient(object):
         sess = session.Session(auth=auth)
         return sess
 
-    def launch_instance(self, vm_settings, server_name, script_contents):
+    def launch_instance(self, vm_settings, server_name, flavor_name, script_contents):
         """
         Start VM with the specified settings, name, and script to run on startup.
         :param vm_settings: config.VMSettings: settings for VM we want to create
         :param server_name: str: unique name for this VM
+        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
         :param script_contents: str: contents of a bash script that will be run on startup
         :return: openstack instance created
         """
         image = self.nova.images.find(name=vm_settings.worker_image_name)
-        flavor = self.nova.flavors.find(name=vm_settings.default_favor_name)
+        vm_flavor_name = flavor_name
+        if not vm_flavor_name:
+            vm_flavor_name = vm_settings.default_favor_name
+        flavor = self.nova.flavors.find(name=vm_flavor_name)
         net = self.nova.networks.find(label=vm_settings.network_name)
         nics = [{'net-id': net.id}]
         instance = self.nova.servers.create(name=server_name, image=image, flavor=flavor,
@@ -84,15 +88,16 @@ class CloudService(object):
         self.config = config
         self.nova_client = NovaClient(config.cloud_settings)
 
-    def launch_instance(self, server_name, script_contents):
+    def launch_instance(self, server_name, flavor_name, script_contents):
         """
         Start a new VM with the specified name and script to run on start.
         :param server_name: str: unique name for the server.
+        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
         :param script_contents: str: bash script to be run when VM starts.
         :return: instance, ip address: openstack instance object and the floating ip address assigned
         """
         vm_settings = self.config.vm_settings
-        instance = self.nova_client.launch_instance(vm_settings, server_name, script_contents)
+        instance = self.nova_client.launch_instance(vm_settings, server_name, flavor_name, script_contents)
         sleep(WAIT_BEFORE_ATTACHING_IP)
         ip_address = self.nova_client.attach_floating_ip(instance, vm_settings.floating_ip_pool_name)
         logging.info('launched {} on ip {}'.format(server_name, ip_address))
@@ -114,6 +119,7 @@ class CloudService(object):
         """
         return 'job{}_{}'.format(job_id, uuid.uuid4())
 
+
 class FakeCloudService(object):
     """
     Fake cloud service so lando/lando_worker can be run locally.
@@ -121,7 +127,7 @@ class FakeCloudService(object):
     def __init__(self, config):
         self.config = config
 
-    def launch_instance(self, server_name, script_contents):
+    def launch_instance(self, server_name, flavor_name, script_contents):
         print("Pretend we create vm: {}".format(server_name))
         return None, '127.0.0.1'
 
