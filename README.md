@@ -10,11 +10,6 @@ The project is made up of 3 scripts:
 - __lando_worker__ - program that runs inside the VMs that listens for messages to run different steps
 - __lando_client__ - program that can send lando the start/cancel message (only used for testing purposes)
 
-There are two config files:
-
-- __/etc/lando_config.yml__ - contains all settings used by lando
-- __/etc/lando_worker_config.yml__ - created and placed on the VMs by lando based off of data in /etc/lando_config.yml
-
 The major third party components are:
 - __Rabbitmq__ - a queue were messages are placed for lando and lando_worker to consume.
 - __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
