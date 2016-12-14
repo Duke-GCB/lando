@@ -25,11 +25,11 @@ pip install git+git://github.com/Duke-GCB/lando-messaging.git
 pip install git+git://github.com/Duke-GCB/lando.git
 ```
 
-### Install Bespin-workflows.
+### Install Bespin-api.
 Follow the instructions to install the `lando_api` branch:
-https://github.com/Duke-GCB/bespin-workflows/blob/lando_api/README.md
+https://github.com/Duke-GCB/bespin-api/blob/master/README.md
 
-### Create job in Bespin-workflows
+### Create job in Bespin-api
 Using the bespin superuser you created in the previous step go into the admin interface and setup a job.
 
 ### Create lando config files
