@@ -24,7 +24,7 @@ class ServerConfig(object):
             self.work_queue_config = WorkQueue(get_or_raise_config_exception(data, 'work_queue'))
             self.vm_settings = self._optional_get(data, 'vm_settings', VMSettings)
             self.cloud_settings = self._optional_get(data, 'cloud_settings', CloudSettings)
-            self.job_api_settings = self._optional_get(data, 'job_api', JobApiSettings)
+            self.bespin_api_settings = self._optional_get(data, 'bespin_api', BespinApiSettings)
 
     @staticmethod
     def _optional_get(data, name, constructor):
@@ -102,7 +102,7 @@ class CloudSettings(object):
         }
 
 
-class JobApiSettings(object):
+class BespinApiSettings(object):
     """
     Settings used to talk to be Bespin job api.
     """

@@ -28,7 +28,7 @@ cloud_settings:
   project_domain_name: Default
   password: secret
 
-job_api:
+bespin_api:
   url: http://localhost:8000/api
   username: jpb67
   password: secret
@@ -51,8 +51,8 @@ class TestServerConfig(TestCase):
         self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
         self.assertEqual("jpb67", config.cloud_settings.username)
 
-        self.assertEqual("http://localhost:8000/api", config.job_api_settings.url)
-        self.assertEqual("secret", config.job_api_settings.password)
+        self.assertEqual("http://localhost:8000/api", config.bespin_api_settings.url)
+        self.assertEqual("secret", config.bespin_api_settings.password)
 
     def test_good_config_with_fake_cloud_service(self):
         config_data = GOOD_CONFIG + "\nfake_cloud_service: True"

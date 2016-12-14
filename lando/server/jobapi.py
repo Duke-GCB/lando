@@ -14,7 +14,7 @@ class BespinApi(object):
         """
         :param config: ServerConfig: contains settings for connecting to REST api
         """
-        self.settings = config.job_api_settings
+        self.settings = config.bespin_api_settings
         self.requests = requests # Allows mocking requests for unit testing
 
     def auth(self):

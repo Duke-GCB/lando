@@ -8,7 +8,7 @@ class FakeConfig(object):
         self.url = '127.0.0.1'
         self.username = 'joe'
         self.password = 'secret'
-        self.job_api_settings = self
+        self.bespin_api_settings = self
 
 
 class FakeRequests(object):
