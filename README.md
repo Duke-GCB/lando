@@ -16,7 +16,7 @@ There are two config files:
 - __/etc/lando_worker_config.yml__ - created and placed on the VMs by lando based off of data in /etc/lando_config.yml
 
 The major third party components are:
-- __Rabbitmq__ - a queue were messages are placed for lando to consume.
+- __Rabbitmq__ - a queue were messages are placed for lando and lando_worker to consume.
 - __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
 - __Openstack__ - a cloud where VMs are created and will have lando_client run in them to execute workflows.
 
@@ -24,12 +24,10 @@ The major third party components are:
 ## Setup
 Assumes you have installed Python 2.7, [Openstack](https://www.openstack.org/), [Rabbitmq](http://www.rabbitmq.com/).
 
-
-
 ### Install lando-messaging and lando.
 ```
 pip install git+git://github.com/Duke-GCB/lando-messaging.git 
-pip install git+git://github.com/Duke-GCB/lando.git@use_bespin_api
+pip install git+git://github.com/Duke-GCB/lando.git
 ```
 
 ### Install Bespin-workflows.
@@ -83,7 +81,30 @@ job_api:
 If you are running with valid openstack credentials you will not need to create a `/etc/lando_worker_config.yml` file.
 The lando service does this for you.
 
-#### Sample `/etc/lando_worker_config.yml` file for when running without openstack:
+### Add users to Rabbitmq
+```
+rabbitmqctl add_user lando secret1
+rabbitmqctl set_permissions -p / lando  ".*" ".*" ".*"
+
+rabbitmqctl add_user worker secret2
+rabbitmqctl set_permissions -p / worker  ".*" ".*" ".*"
+```
+
+### Running with Openstack
+You can start lando by simply running `lando` where it can see the `/etc/lando_config.yml` config file.
+
+## Running without Openstack
+
+
+#### Turn on option to fake cloud service in `/etc/lando_config.yml`
+At the end of `/etc/lando_config.yml` add the following:
+```
+fake_cloud_service: True
+```
+This will cause lando to print a message telling you to run lando_worker.
+
+
+#### Sample `/etc/lando_worker_config.yml` file for fake cloud service:
 ```
 host: 10.109.253.74
 username: worker
@@ -102,29 +123,14 @@ cwl_base_command:
   - "--tmp-outdir-prefix=/Users/jpb67/Documents/work/tmp"
 ```
 
-### Add users to Rabbitmq
-```
-rabbitmqctl add_user lando secret1
-rabbitmqctl set_permissions -p / lando  ".*" ".*" ".*"
-
-rabbitmqctl add_user worker secret2
-rabbitmqctl set_permissions -p / worker  ".*" ".*" ".*"
-```
-
-### Running
-You can start lando by simply running `lando` where it can see the `/etc/lando_config.yml` config file.
-
-## Running without Openstack
-
-# Use fake cloud service so lando_worker can be run locally.
-fake_cloud_service: True
-
 ### Run lando client 
 This command will put a job in the rabbitmq queue for the lando server to receive.
 This reads the config from `/etc/lando_config.yml`.
 ```
 lando_client start_job 1
 ```
+This command is just meant for testing purposes.
+In a typical use case this message would be queued by bespin-api.
 
 ### Run lando server
 This will listen for messages from the 'lando' rabbitmq queue.
