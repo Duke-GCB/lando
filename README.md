@@ -4,8 +4,27 @@
 
 Service that runs cwl workflows on VMs in a openstack cloud.
 
+The project is made up of 3 scripts:
+
+- __lando__ - server that spawns VMs and sends messages for them to run job steps
+- __lando_worker__ - program that runs inside the VMs that listens for messages to run different steps
+- __lando_client__ - program that can send lando the start/cancel message (only used for testing purposes)
+
+There are two config files:
+
+- __/etc/lando_config.yml__ - contains all settings used by lando
+- __/etc/lando_worker_config.yml__ - created and placed on the VMs by lando based off of data in /etc/lando_config.yml
+
+The major third party components are:
+- __Rabbitmq__ - a queue were messages are placed for lando to consume.
+- __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
+- __Openstack__ - a cloud where VMs are created and will have lando_client run in them to execute workflows.
+
+
 ## Setup
 Assumes you have installed Python 2.7, [Openstack](https://www.openstack.org/), [Rabbitmq](http://www.rabbitmq.com/).
+
+
 
 ### Install lando-messaging and lando.
 ```
@@ -35,7 +54,7 @@ work_queue:
   username: lando           # username for lando server
   password: secret1         # password for lando server
   listen_queue: lando       # queue that lando server should listen on  
-  worker_username: lobot    # username for lando worker
+  worker_username: worker   # username for lando worker
   worker_password: secret2  # password for lando worker
 
 # Openstack VM settings
@@ -60,15 +79,14 @@ job_api:
   url: http://localhost:8000/api
   username: jpb67
   password: secret4
-
-# Use fake cloud service so lando_worker can be run locally.
-fake_cloud_service: True
 ```
+If you are running with valid openstack credentials you will not need to create a `/etc/lando_worker_config.yml` file.
+The lando service does this for you.
 
 #### Sample `/etc/lando_worker_config.yml` file for when running without openstack:
 ```
 host: 10.109.253.74
-username: lobot
+username: worker
 password: secret2
 queue_name: local_worker  
 ```
@@ -89,11 +107,17 @@ cwl_base_command:
 rabbitmqctl add_user lando secret1
 rabbitmqctl set_permissions -p / lando  ".*" ".*" ".*"
 
-rabbitmqctl add_user lobot secret2
-rabbitmqctl set_permissions -p / lobot  ".*" ".*" ".*"
+rabbitmqctl add_user worker secret2
+rabbitmqctl set_permissions -p / worker  ".*" ".*" ".*"
 ```
 
+### Running
+You can start lando by simply running `lando` where it can see the `/etc/lando_config.yml` config file.
+
 ## Running without Openstack
+
+# Use fake cloud service so lando_worker can be run locally.
+fake_cloud_service: True
 
 ### Run lando client 
 This command will put a job in the rabbitmq queue for the lando server to receive.
