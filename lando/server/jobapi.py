@@ -17,12 +17,16 @@ class BespinApi(object):
         self.settings = config.bespin_api_settings
         self.requests = requests # Allows mocking requests for unit testing
 
-    def auth(self):
+
+    def headers(self):
         """
-        Create http auth based on config passed in constructor.
-        :return: HTTPBasicAuth
+        Create HTTP header containing auth info.
+        :return: dict: request headers
         """
-        return HTTPBasicAuth(self.settings.username, self.settings.password)
+        return {
+            'Authorization': 'Token {}'.format(self.settings.token),
+            'Content-type': 'application/json'
+        }
 
     def get_job(self, job_id):
         """
@@ -32,7 +36,7 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, auth=self.auth())
+        resp = self.requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -45,8 +49,7 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        headers = {'Content-type': 'application/json'}
-        resp = self.requests.put(url, auth=self.auth(), json=data)
+        resp = self.requests.put(url, headers=self.headers(), json=data)
         resp.raise_for_status()
         return resp.json()
 
@@ -58,7 +61,7 @@ class BespinApi(object):
         """
         path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, auth=self.auth())
+        resp = self.requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -73,7 +76,7 @@ class BespinApi(object):
         """
         path = 'dds-user-credentials/?user={}'.format(user_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, auth=self.auth())
+        resp = self.requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -272,3 +275,4 @@ class JobStates(object):
     FINISHED = 'F'
     ERRORED = 'E'
     CANCELED = 'C'
+

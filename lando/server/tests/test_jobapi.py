@@ -6,8 +6,7 @@ from lando.server.jobapi import JobApi
 class FakeConfig(object):
     def __init__(self):
         self.url = '127.0.0.1'
-        self.username = 'joe'
-        self.password = 'secret'
+        self.token = 'secretstuff'
         self.bespin_api_settings = self
 
 
@@ -17,17 +16,17 @@ class FakeRequests(object):
         self.last_url = None
         self.last_json = None
 
-    def _response(self, url, auth, json=None):
+    def _response(self, url, headers, json=None):
         self.last_url = url
         self.last_json = json
         response = self.url_to_response.get(url)
         return response
 
-    def get(self, url, auth, json=None):
-        return self._response(url, auth, json)
+    def get(self, url, headers, json=None):
+        return self._response(url, headers, json)
 
-    def put(self, url, auth, json=None):
-        return self._response(url, auth, json)
+    def put(self, url, headers, json=None):
+        return self._response(url, headers, json)
 
 
 class FakeResponse(object):

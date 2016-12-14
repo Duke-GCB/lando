@@ -108,7 +108,6 @@ class BespinApiSettings(object):
     """
     def __init__(self, data):
         self.url = get_or_raise_config_exception(data, 'url')
-        self.username = get_or_raise_config_exception(data, 'username')
-        self.password = get_or_raise_config_exception(data, 'password')
+        self.token = get_or_raise_config_exception(data, 'token')
 
 
