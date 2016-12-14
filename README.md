@@ -10,7 +10,7 @@ The project is made up of 3 scripts:
 - __lando_worker__ - program that runs inside the VMs that listens for messages to run different steps
 - __lando_client__ - program that can send lando the start/cancel message (only used for testing purposes)
 
-The major third party components are:
+The major external components are:
 - __Rabbitmq__ - a queue were messages are placed for lando and lando_worker to consume.
 - __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
 - __Openstack__ - a cloud where VMs are created and will have lando_client run in them to execute workflows.
