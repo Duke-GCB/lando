@@ -99,7 +99,7 @@ cloud_settings:
   project_domain_name: Default    
 
 # Bespin job API settings
-job_api:
+bespin_api:
   url: http://localhost:8000/api
   username: jpb67
   password: secret4
