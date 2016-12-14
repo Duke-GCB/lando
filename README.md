@@ -43,7 +43,7 @@ Running job message flow (omitting Rabbitmq):
 
   2.  __lando_worker__ sends save_output_complete to  __lando__
 
-6.  __lando__ posts a save_output message for __lando_worker__
+6.  __lando__tells __Openstack__ to terminate the __lando_worker__ VM
 
 Additionally __lando__ reads and updates __bespin-api__ job table as the job progresses.
 
