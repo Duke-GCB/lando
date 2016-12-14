@@ -15,6 +15,37 @@ The major external components are:
 - __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
 - __Openstack__ - a cloud where VMs are created and will have lando_client run in them to execute workflows.
 
+## Message Flow
+
+![alt text](https://github.com/Duke-GCB/lando/raw/use_bespin_api/lando-diagram.png "Lando Diagram")
+
+Running job message flow (omitting Rabbitmq):
+
+1.  __bespin-api__ posts a start_job message for __lando__
+
+2.  __lando__ tells __Openstack__ to creates VM that runs __lando_worker__
+
+3.  __lando__ posts a stage_job message for __lando_worker__
+
+  1.  __lando_worker__ downloads files for the job
+
+  2.  __lando_worker__ sends stage_job_complete to  __lando__
+
+4.  __lando__ posts a run_job message for __lando_worker__
+
+  1.  __lando_worker__ runs the CWL workflow for the job
+
+  2.  __lando_worker__ sends run_job_complete to  __lando__
+
+5.  __lando__ posts a save_output message for __lando_worker__
+
+  1.  __lando_worker__ runs the CWL workflow for the job
+
+  2.  __lando_worker__ sends save_output_complete to  __lando__
+
+6.  __lando__ posts a save_output message for __lando_worker__
+
+Additionally __lando__ reads and updates __bespin-api__ job table as the job progresses.
 
 ## Setup
 Assumes you have installed Python 2.7, [Openstack](https://www.openstack.org/), [Rabbitmq](http://www.rabbitmq.com/).
