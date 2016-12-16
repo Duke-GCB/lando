@@ -4,11 +4,8 @@ perform the expected actions.
 """
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.testutil import write_temp_return_filename
 from lando.server.lando import Lando
-from lando.server.config import ServerConfig
-from lando_messaging.messaging import StartJobPayload, CancelJobPayload
-from lando_messaging.messaging import JobStepCompletePayload, JobStepErrorPayload
+from mock import MagicMock, patch
 
 
 LANDO_CONFIG = """
@@ -43,88 +40,6 @@ job_api:
 fake_cloud_service: True
 """
 
-class TestLando(TestCase):
-    def make_job_settings(self, job_id, config):
-        self.fake_job_settings = FakeJobSettings(job_id, config)
-        return self.fake_job_settings
-
-    def _make_lando(self):
-        config_filename = write_temp_return_filename(LANDO_CONFIG)
-        config = ServerConfig(config_filename)
-        lando = Lando(config)
-        lando._make_job_settings = self.make_job_settings
-        return lando
-
-    def test_start_job(self):
-        lando = self._make_lando()
-        lando.start_job(StartJobPayload(1))
-        report = """
-Created vm name for job 1.
-Set job state to V.
-Launched vm worker_1.
-Set vm instance name to worker_1.
-Set job state to S.
-Making worker client for queue worker_1.
-Stage job 1 on worker_1.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_cancel_job(self):
-        lando = self._make_lando()
-        lando.cancel_job(CancelJobPayload(2))
-        report = """
-Set job state to C.
-Terminated vm worker_x.
-Making worker client for queue worker_x.
-Delete my worker's queue.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_stage_job_complete(self):
-        lando = self._make_lando()
-
-        lando.stage_job_complete(JobStepCompletePayload(FakeJobRequestPayload(1, 'worker_3')))
-        report = """
-Set job state to R.
-Making worker client for queue worker_3.
-Run job 1 on worker_3.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_run_job_complete(self):
-        lando = self._make_lando()
-        lando.run_job_complete(JobStepCompletePayload(FakeJobRequestPayload(1, 'worker_4')))
-        report = """
-Set job state to O.
-Making worker client for queue worker_4.
-Store output for job 1 on worker_4.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_stage_job_error(self):
-        lando = self._make_lando()
-        lando.stage_job_error(JobStepErrorPayload(FakeJobRequestPayload(1, 'worker_5'), message='Oops1'))
-        report = """
-Set job state to E.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_run_job_error(self):
-        lando = self._make_lando()
-        lando.run_job_error(JobStepErrorPayload(FakeJobRequestPayload(1, 'worker_5'), message='Oops2'))
-        report = """
-Set job state to E.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
-    def test_store_job_output_error(self):
-        lando = self._make_lando()
-        lando.store_job_output_error(JobStepErrorPayload(FakeJobRequestPayload(1, 'worker_5'), message='Oops3'))
-        report = """
-Set job state to E.
-        """
-        self.assertMultiLineEqual(report.strip(), self.fake_job_settings.report.text.strip())
-
 
 class Report(object):
     """
@@ -137,98 +52,183 @@ class Report(object):
     def add(self, line):
         self.text += line + '\n'
 
-
-class FakeJobSettings(object):
-    def __init__(self, job_id, config):
-        self.job_id = job_id
-        self.config = config
-        self.report = Report()
-        self.cloud_service = FakeCloudService(self.report)
-        self.job_api = FakeJobApi(self.report)
-        self.worker_client = FakeLandoWorkerClient(self.report)
-
-    def get_cloud_service(self):
-        return self.cloud_service
-
-    def get_job_api(self):
-        return self.job_api
-
-    def get_worker_client(self, queue_name):
-        self.report.add("Making worker client for queue {}.".format(queue_name))
-        return self.worker_client
-
-
-class FakeCloudService(object):
-    def __init__(self, report):
-        self.vm_name_job_id = None
-        self.report = report
-
     def make_vm_name(self, job_id):
-        self.vm_name_job_id = job_id
-        self.report.add("Created vm name for job {}.".format(job_id))
-        return 'worker_1'
+        self.add("Created vm name for job {}.".format(job_id))
+        return "worker_x"
 
-    def launch_instance(self, vm_instance_name, flavor_name, boot_script_content):
-        self.report.add("Launched vm {}.".format(vm_instance_name))
-        return None, "127.0.0.1"
+    def launch_instance(self, server_name, flavor_name, script_contents):
+        self.add("Launched vm {}.".format(server_name))
+        return MagicMock(), MagicMock()
 
-    def terminate_instance(self, instance_name):
-        self.report.add("Terminated vm {}.".format(instance_name))
-
-
-class FakeJobApi(object):
-    def __init__(self, report):
-        self.job_state = None
-        self.report = report
-
-    def set_job_state(self, state):
-        self.report.add("Set job state to {}.".format(state))
-        self.job_state = state
-
-    def get_credentials(self):
-        return FakeCredentials()
-
-    def get_input_files(self):
-        return []
+    def terminate_instance(self, server_name):
+        self.add("Terminated vm {}.".format(server_name))
 
     def get_job(self):
-        return FakeJob()
+        job = MagicMock()
+        job.id = '1'
+        job.user_id = '1'
+        job.state = 'N'
+        job.vm_flavor = ''
+        job.vm_instance_name = 'worker_x'
+        job.vm_project_name = 'bespin_user1'
+        job.workflow = MagicMock()
+        job.output_directory = MagicMock()
+        return job
 
-    def set_vm_instance_name(self, vm_instance_name):
-        self.report.add("Set vm instance name to {}.".format(vm_instance_name))
+    def set_job_state(self, state):
+        self.add("Set job state to {}.".format(state))
 
+    def set_job_step(self, step):
+        self.add("Set job step to {}.".format(step))
 
-class FakeJob(object):
-    def __init__(self):
-        self.vm_instance_name = 'worker_x'
-        self.workflow = {}
-        self.output_directory = {}
-        self.vm_flavor = 'm1.xlarge'
+    def set_vm_instance_name(self, instance_name):
+        self.add("Set vm instance name to {}.".format(instance_name))
 
-
-class FakeCredentials(object):
-    pass
-
-
-class FakeLandoWorkerClient(object):
-    def __init__(self, report):
-        self.report = report
-
-    def stage_job(self, credentials, job_id, input_files, vm_instance_name):
-        self.report.add("Stage job {} on {}.".format(job_id, vm_instance_name))
-        pass
-
-    def delete_queue(self):
-        self.report.add("Delete my worker's queue.")
+    def stage_job(self, credentials, job_id, files, vm_instance_name):
+        self.add("Put stage message in queue for {}.".format(vm_instance_name))
 
     def run_job(self, job_id, workflow, vm_instance_name):
-        self.report.add("Run job {} on {}.".format(job_id, vm_instance_name))
+        self.add("Put run_job message in queue for {}.".format(vm_instance_name))
 
     def store_job_output(self, credentials, job_id, output_directory, vm_instance_name):
-        self.report.add("Store output for job {} on {}.".format(job_id, vm_instance_name))
+        self.add("Put store_job_output message in queue for {}.".format(vm_instance_name))
+
+    def delete_queue(self):
+        self.add("Delete my worker's queue.")
 
 
-class FakeJobRequestPayload(object):
-    def __init__(self, job_id, vm_instance_name):
-        self.job_id = job_id
-        self.vm_instance_name = vm_instance_name
+def make_mock_settings_and_report(job_id):
+    report = Report()
+    settings = MagicMock()
+    cloud_service = MagicMock()
+    cloud_service.make_vm_name = report.make_vm_name
+    cloud_service.launch_instance = report.launch_instance
+    cloud_service.terminate_instance = report.terminate_instance
+
+    job_api = MagicMock()
+    job_api.set_job_state = report.set_job_state
+    job_api.set_job_step = report.set_job_step
+    job_api.set_vm_instance_name = report.set_vm_instance_name
+    job_api.get_job = report.get_job
+
+    worker_client = MagicMock()
+    worker_client.stage_job = report.stage_job
+    worker_client.run_job = report.run_job
+    worker_client.delete_queue = report.delete_queue
+    worker_client.store_job_output = report.store_job_output
+
+    settings.get_cloud_service.return_value = cloud_service
+    settings.get_job_api.return_value = job_api
+    settings.get_worker_client.return_value = worker_client
+    settings.job_id = job_id
+    return settings, report
+
+
+class TestLando(TestCase):
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_start_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to R.
+Created vm name for job 1.
+Set job step to V.
+Launched vm worker_x.
+Set vm instance name to worker_x.
+Set job step to S.
+Put stage message in queue for worker_x.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_cancel_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 2
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.cancel_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to C.
+Terminated vm worker_x.
+Delete my worker's queue.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_stage_job_complete(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 3
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.stage_job_complete(MagicMock(job_id=1, vm_instance_name='worker_x'))
+        expected_report = """
+Set job step to R.
+Put run_job message in queue for worker_x.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_run_job_complete(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 4
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.run_job_complete(MagicMock(job_id=1, vm_instance_name='worker_x'))
+        expected_report = """
+Set job step to O.
+Put store_job_output message in queue for worker_x.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_stage_job_error(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 4
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.stage_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops1'))
+        expected_report = """
+Set job state to E.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_run_job_error(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 4
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.run_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops2'))
+        expected_report = """
+Set job state to E.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_store_job_output_error(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 4
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.store_job_output_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops3'))
+        expected_report = """
+Set job state to E.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())

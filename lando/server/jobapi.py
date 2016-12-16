@@ -3,7 +3,6 @@ Allows reading and updating job information when talking to Bespin REST api.
 """
 from __future__ import print_function
 import requests
-from requests.auth import HTTPBasicAuth
 
 
 class BespinApi(object):
@@ -15,7 +14,6 @@ class BespinApi(object):
         :param config: ServerConfig: contains settings for connecting to REST api
         """
         self.settings = config.bespin_api_settings
-        self.requests = requests # Allows mocking requests for unit testing
 
 
     def headers(self):
@@ -36,7 +34,7 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
+        resp = requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -49,7 +47,7 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.put(url, headers=self.headers(), json=data)
+        resp = requests.put(url, headers=self.headers(), json=data)
         resp.raise_for_status()
         return resp.json()
 
@@ -61,7 +59,7 @@ class BespinApi(object):
         """
         path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
+        resp = requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -76,7 +74,7 @@ class BespinApi(object):
         """
         path = 'dds-user-credentials/?user={}'.format(user_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
+        resp = requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
 
@@ -106,6 +104,13 @@ class JobApi(object):
         :param state: str: value from JobStates
         """
         self._set_job({'state': state})
+
+    def set_job_step(self, step):
+        """
+        Change the step of the job is working on.
+        :param state: str: value from JobSteps
+        """
+        self._set_job({'step': step})
 
     def set_vm_instance_name(self, vm_instance_name):
         """
@@ -153,6 +158,7 @@ class Job(object):
         self.state = data['state']
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
+        self.vm_project_name = data['vm_project_name']
         self.workflow = Workflow(data)
         self.output_directory = OutputDirectory(data)
 
@@ -267,12 +273,19 @@ class JobStates(object):
     Values for state that must match up those supported by Bespin.
     """
     NEW = 'N'
+    RUNNING = 'R'
+    FINISHED = 'F'
+    ERRORED = 'E'
+    CANCELED = 'C'
+
+
+class JobSteps(object):
+    """
+    Values for state that must match up those supported by Bespin.
+    """
     CREATE_VM = 'V'
     STAGING = 'S'
     RUNNING = 'R'
     STORING_JOB_OUTPUT = 'O'
     TERMINATE_VM = 'T'
-    FINISHED = 'F'
-    ERRORED = 'E'
-    CANCELED = 'C'
 
