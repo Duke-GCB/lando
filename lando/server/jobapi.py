@@ -38,6 +38,16 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
+    def get_jobs_for_vm_instance_name(self, vm_instance_name):
+        """
+        Get list of jobs that are setup to run on vm_instance_name.
+        :param vm_instance_name: str: unique name of the vm (also name of the vm's queue)
+        :return: list: list of dict: list of job info
+        """
+        path = 'jobs/?vm_instance_name={}'.format(vm_instance_name)
+        url = self._make_url(path)
+        return self._get_all_pages_results(url)
+
     def put_job(self, job_id, data):
         """
         Update a job with some fields.
@@ -59,12 +69,10 @@ class BespinApi(object):
         """
         path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
-        resp = requests.get(url, headers=self.headers())
-        resp.raise_for_status()
-        return resp.json()
+        return self._get_all_pages_results(url)
 
     def _make_url(self, suffix):
-        return '{}/{}'.format(self.settings.url, suffix)
+        return '{}/admin/{}'.format(self.settings.url, suffix)
 
     def get_dds_user_credentials(self, user_id):
         """
@@ -74,9 +82,49 @@ class BespinApi(object):
         """
         path = 'dds-user-credentials/?user={}'.format(user_id)
         url = self._make_url(path)
-        resp = requests.get(url, headers=self.headers())
+        return self._get_all_pages_results(url)
+
+    def post_error(self, job_id, job_step, content):
+        """
+        Record message associated with an error that occurred while running a job.
+        :param job_id: int: unique job id
+        :param job_step: str: value from JobSteps representing where in running the job we where when this error occured
+        :param content: str: text we want to store describing the error
+        :return: dict: post response
+        """
+        path = 'job-errors/'
+        url = self._make_url(path)
+        resp = requests.post(url, headers=self.headers(), json={
+            "job": job_id,
+            "job_step": job_step,
+            "content": content,
+        })
         resp.raise_for_status()
         return resp.json()
+
+    def _get_all_pages_results(self, base_url):
+        """
+        Given a url that follows JSON API pagination fetch 'results' of all pages.
+        Makes a request for each page and returns all the results when done.
+        :param base_url: str: base url which will have page=<pagenum> appended
+        :return: [dict]: list of results from all requests
+        """
+        results = []
+        page_param = "&page="
+        if base_url[-1] == '/':
+            page_param = "?page="
+        fetch_page = 1
+        while True:
+            url = "{}{}{}".format(base_url, page_param, fetch_page)
+            resp = requests.get(url, headers=self.headers())
+            resp.raise_for_status()
+            json_data = resp.json()
+            results.extend(json_data["results"])
+            num_pages = json_data["meta"]["pagination"]["pages"]
+            if fetch_page >= num_pages:
+                break
+            fetch_page += 1
+        return results
 
 
 class JobApi(object):
@@ -144,6 +192,27 @@ class JobApi(object):
 
         return credentials
 
+    def save_error_details(self, job_step, content):
+        """
+        Send details about an error back to bespin-api.
+        :param job_step: str: value from JobSteps representing where in running the job we where when this error occured
+        :param content: str: text we want to store describing the error
+        """
+        self.api.post_error(self.job_id, job_step, content)
+
+    @staticmethod
+    def get_jobs_for_vm_instance_name(config, vm_instance_name):
+        """
+        Get list of jobs that are setup to run on vm_instance_name.
+        :param vm_instance_name: str: unique name of the vm (also name of the vm's queue)
+        :return: list: [Job]: list of jobs for this instance(should only be one)
+        """
+        result = []
+        api = BespinApi(config)
+        for job_dict in api.get_jobs_for_vm_instance_name(vm_instance_name):
+            result.append(Job(job_dict))
+        return result
+
 
 class Job(object):
     """
@@ -156,6 +225,7 @@ class Job(object):
         self.id = data['id']
         self.user_id = data['user_id']
         self.state = data['state']
+        self.step = data['step']
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_project_name = data['vm_project_name']
