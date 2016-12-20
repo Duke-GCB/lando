@@ -6,6 +6,7 @@ from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
+from mock import patch, MagicMock
 
 LANDO_WORKER_CONFIG = """
 host: 10.109.253.74
@@ -70,6 +71,9 @@ class FakeObject(object):
 
     def job_step_error(self, payload, message):
         self.report.add("Send job step error for job {}: {}.".format(payload.job_id, message))
+
+    def worker_started(self, queue_name):
+        self.report.add("Send worker started message for {}.".format(queue_name))
 
 
 class FakeInputFile(object):
@@ -172,3 +176,10 @@ Send job step complete for job 3.
             shutil.rmtree(working_dir)
         worker.stage_job(StageJobPayload(credentials=None, job_id=1, input_files=input_files, vm_instance_name='test1'))
         self.assertEqual(True, os.path.exists(working_dir))
+
+    @patch('lando.worker.worker.MessageRouter')
+    def test_worker_sends_worker_started(self, MockMessageRouter):
+        settings = MagicMock()
+        worker = LandoWorker(settings, outgoing_queue_name='stuff')
+        worker.listen_for_messages()
+        settings.make_lando_client.return_value.worker_started.assert_called()
