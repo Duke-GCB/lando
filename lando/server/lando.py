@@ -6,7 +6,7 @@ from datetime import datetime
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
-from lando_messaging.clients import LandoWorkerClient
+from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
 
 
@@ -85,7 +85,29 @@ class JobActions(object):
         cloud_service = self._get_cloud_service(job)
         vm_instance_name = cloud_service.make_vm_name(self.job_id)
         self.launch_vm(vm_instance_name)
-        self.send_stage_job_message(vm_instance_name)
+        # Once the VM launches it will send us the worker_started message
+        # this will cause send_stage_job_message to be run.
+
+    def restart_job(self, payload):
+        """
+        Request from user to resume running a job. It will resume based on the value of job.step
+        returned from the job api. Canceled jobs will always restart from the beginning(vm was terminated).
+        :param payload:RestartJobPayload contains job_id we should restart
+        """
+        job = self.job_api.get_job()
+        vm_instance_name = job.vm_instance_name
+        if vm_instance_name and job.state != JobStates.CANCELED:
+            payload.vm_instance_name = vm_instance_name
+            if job.step == JobSteps.STAGING:
+                self.send_stage_job_message(job.vm_instance_name)
+            elif job.step == JobSteps.RUNNING:
+                self.stage_job_complete(payload)
+            elif job.step == JobSteps.STORING_JOB_OUTPUT:
+                self.run_job_complete(payload)
+            elif job.step == JobSteps.TERMINATE_VM:
+                self.store_job_output_complete(payload)
+        else:
+            self.start_job(StartJobPayload(payload.job_id))
 
     def launch_vm(self, vm_instance_name):
         """
@@ -153,7 +175,6 @@ class JobActions(object):
         worker_client.delete_queue()
         self._set_job_state(JobStates.FINISHED)
 
-
     def cancel_job(self, payload):
         """
         Request from user to cancel a running a job.
@@ -176,7 +197,6 @@ class JobActions(object):
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Staging job failed")
         self._log_error(message=payload.message)
-        # TODO recover?
 
     def run_job_error(self, payload):
         """
@@ -186,7 +206,6 @@ class JobActions(object):
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Running job failed")
         self._log_error(message=payload.message)
-        # TODO recover?
 
     def store_job_output_error(self, payload):
         """
@@ -196,10 +215,10 @@ class JobActions(object):
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Storing job output failed")
         self._log_error(message=payload.message)
-        # TODO recover?
 
     def _log_error(self, message):
-        print("TODO log error:{}".format(message))
+        job = self.job_api.get_job()
+        self.job_api.save_error_details(job.step, message)
 
     def _set_job_state(self, state):
         self.job_api.set_job_state(state)
@@ -250,6 +269,18 @@ class Lando(object):
             action = self._make_actions(payload.job_id)
             getattr(action, name)(payload)
         return action_method
+
+    def worker_started(self, worker_started_payload):
+        """
+        Called when a worker VM has finished launching and is ready to run a job.
+        Sends message to this worker to stage their job(s).
+        :param worker_started_payload: WorkerStartedPayload: contains worker_queue_name for the worker
+        """
+        vm_instance_name = worker_started_payload.worker_queue_name
+        for job in JobApi.get_jobs_for_vm_instance_name(self.config, vm_instance_name):
+            if job.state == JobStates.RUNNING and job.step == JobSteps.CREATE_VM:
+                actions = self._make_actions(job.id)
+                actions.send_stage_job_message(vm_instance_name)
 
     def listen_for_messages(self):
         """

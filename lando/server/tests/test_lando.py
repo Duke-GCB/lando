@@ -140,8 +140,23 @@ Created vm name for job 1.
 Set job step to V.
 Launched vm worker_x.
 Set vm instance name to worker_x.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobApi')
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_worker_started(self, mock_requests, MockLandoWorkerClient, MockJobSettings, MockJobApi):
+        MockJobApi.get_jobs_for_vm_instance_name.return_value = [MagicMock(state="R", step="V")]
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.worker_started(MagicMock(worker_queue_name='stuff'))
+        expected_report = """
 Set job step to S.
-Put stage message in queue for worker_x.
+Put stage message in queue for stuff.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
