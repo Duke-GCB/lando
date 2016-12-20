@@ -106,6 +106,8 @@ class JobActions(object):
                 self.run_job_complete(payload)
             elif job.step == JobSteps.TERMINATE_VM:
                 self.store_job_output_complete(payload)
+            else:
+                self.start_job(StartJobPayload(payload.job_id))
         else:
             self.start_job(StartJobPayload(payload.job_id))
 
