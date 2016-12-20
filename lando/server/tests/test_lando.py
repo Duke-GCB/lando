@@ -370,4 +370,3 @@ Delete my worker's queue.
 Set job state to F.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
-g
