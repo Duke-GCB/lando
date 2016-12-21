@@ -74,6 +74,3 @@ lando_worker
 This will send the worker ready message to lando and they will begin
 running the job steps. lando_worker will exit when lando terminates
 the queue lando_worker is listening on.
-
-
-
