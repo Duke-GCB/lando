@@ -3,6 +3,8 @@ Server that starts/terminates VMs based on messages received from a queue.
 """
 from __future__ import print_function, absolute_import
 from datetime import datetime
+import traceback
+import logging
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
@@ -198,7 +200,7 @@ class JobActions(object):
         """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Staging job failed")
-        self._log_error(message=payload.message)
+        self.send_error_to_bespin(message=payload.message)
 
     def run_job_error(self, payload):
         """
@@ -207,7 +209,7 @@ class JobActions(object):
         """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Running job failed")
-        self._log_error(message=payload.message)
+        self.send_error_to_bespin(message=payload.message)
 
     def store_job_output_error(self, payload):
         """
@@ -216,9 +218,13 @@ class JobActions(object):
         """
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Storing job output failed")
-        self._log_error(message=payload.message)
+        self.send_error_to_bespin(message=payload.message)
 
-    def _log_error(self, message):
+    def send_error_to_bespin(self, message):
+        """
+        Send an error message back to bespin including our job's current step.
+        :param message: str: details of the error (typically includes a stack trace)
+        """
         job = self.job_api.get_job()
         self.job_api.save_error_details(job.step, message)
 
@@ -268,8 +274,11 @@ class Lando(object):
         :return: func(payload): function that will call the appropriate JobActions method
         """
         def action_method(payload):
-            action = self._make_actions(payload.job_id)
-            getattr(action, name)(payload)
+            actions = self._make_actions(payload.job_id)
+            try:
+                getattr(actions, name)(payload)
+            except:
+                self.handle_action_exception(actions, name, traceback.format_exc())
         return action_method
 
     def worker_started(self, worker_started_payload):
@@ -282,7 +291,21 @@ class Lando(object):
         for job in JobApi.get_jobs_for_vm_instance_name(self.config, vm_instance_name):
             if job.state == JobStates.RUNNING and job.step == JobSteps.CREATE_VM:
                 actions = self._make_actions(job.id)
-                actions.send_stage_job_message(vm_instance_name)
+                try:
+                    actions.send_stage_job_message(vm_instance_name)
+                except:
+                    self.handle_action_exception(actions, 'send_stage_job_message', traceback.format_exc())
+
+    def handle_action_exception(self, actions, action_name, exception_details):
+        """
+        Display error then send it back to bespin-api.
+        :param actions: JobActions: action that failed contains the job info and bespin-api connection
+        :param action_name: str: name of the action that threw the error
+        :param exception_details: str: details about the exception that occured
+        """
+        error_details = "Error occured in {}.\n{}".format(action_name, exception_details)
+        print(error_details)
+        actions.send_error_to_bespin(error_details)
 
     def listen_for_messages(self):
         """

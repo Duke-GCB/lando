@@ -53,6 +53,8 @@ class Report(object):
         self.job_state = 'N'
         self.job_step = ''
         self.vm_instance_name = 'worker_x'
+        self.fail_to_create_vm = False
+        self.fail_to_stage_job = False
 
     def add(self, line):
         self.text += line + '\n'
@@ -62,6 +64,8 @@ class Report(object):
         return "worker_x"
 
     def launch_instance(self, server_name, flavor_name, script_contents):
+        if self.fail_to_create_vm:
+            raise ValueError("Ooops")
         self.add("Launched vm {}.".format(server_name))
         return MagicMock(), MagicMock()
 
@@ -91,6 +95,8 @@ class Report(object):
         self.add("Set vm instance name to {}.".format(instance_name))
 
     def stage_job(self, credentials, job_id, files, vm_instance_name):
+        if self.fail_to_stage_job:
+            raise ValueError("Oops again!")
         self.add("Put stage message in queue for {}.".format(vm_instance_name))
 
     def run_job(self, job_id, workflow, vm_instance_name):
@@ -108,6 +114,10 @@ class Report(object):
             MagicMock(stuff='ok')
         ]
 
+    def save_error_details(self, step, message):
+        self.add("Send error to bespin {}.".format(message))
+
+
 def make_mock_settings_and_report(job_id):
     report = Report()
     settings = MagicMock()
@@ -122,6 +132,7 @@ def make_mock_settings_and_report(job_id):
     job_api.set_vm_instance_name = report.set_vm_instance_name
     job_api.get_job = report.get_job
     job_api.get_jobs_for_vm_instance_name = report.get_jobs_for_vm_instance_name
+    job_api.save_error_details = report.save_error_details
 
     worker_client = MagicMock()
     worker_client.stage_job = report.stage_job
@@ -229,6 +240,7 @@ Put store_job_output message in queue for worker_x.
         lando.stage_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops1'))
         expected_report = """
 Set job state to E.
+Send error to bespin Oops1.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -243,6 +255,7 @@ Set job state to E.
         lando.run_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops2'))
         expected_report = """
 Set job state to E.
+Send error to bespin Oops2.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -257,6 +270,7 @@ Set job state to E.
         lando.store_job_output_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops3'))
         expected_report = """
 Set job state to E.
+Send error to bespin Oops3.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -370,3 +384,39 @@ Delete my worker's queue.
 Set job state to F.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_trap_errors_for_generic(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.fail_to_create_vm = True
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to R.
+Created vm name for job 1.
+Set job step to V.
+Send error to bespin
+        """
+        self.assertTrue(report.text.strip().startswith(expected_report.strip()))
+
+    @patch('lando.server.lando.JobApi')
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_trap_errors_for_worker_started(self, mock_requests, MockLandoWorkerClient, MockJobSettings, MockJobApi):
+        MockJobApi.get_jobs_for_vm_instance_name.return_value = [MagicMock(state="R", step="V")]
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.fail_to_stage_job = True
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.worker_started(MagicMock(worker_queue_name='stuff'))
+        expected_report = """
+Set job step to S.
+Send error to bespin
+        """
+        self.assertTrue(report.text.strip().startswith(expected_report.strip()))
