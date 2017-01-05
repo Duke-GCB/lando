@@ -5,3 +5,5 @@ queue_name: local_worker
 cwl_base_command:
   - "cwl-runner"
   - "--debug"
+  - "--tmpdir-prefix=/Users/jpb67/Documents/work/tmp"
+  - "--tmp-outdir-prefix=/Users/jpb67/Documents/work/tmp"
