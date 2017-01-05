@@ -17,7 +17,7 @@ The major external components are:
 
 ## Message Flow
 
-![alt text](https://github.com/Duke-GCB/lando/raw/use_bespin_api/lando-diagram.png "Lando Diagram")
+![alt text](https://github.com/Duke-GCB/lando/raw/master/lando-diagram.png "Lando Diagram")
 
 Running job message flow (omitting Rabbitmq):
 
@@ -46,6 +46,7 @@ Running job message flow (omitting Rabbitmq):
 6.  __lando__ tells __Openstack__ to terminate the __lando_worker__ VM
 
 Additionally __lando__ reads and updates __bespin-api__ job table as the job progresses.
+
 
 ## Setup
 Assumes you have installed Python 2.7, [Openstack](https://www.openstack.org/), [Rabbitmq](http://www.rabbitmq.com/).
