@@ -17,7 +17,7 @@ export SEQ_DDS_FILE_ID='__FILL_IN__'
 export AGENT_KEY='__FILL_IN__'
 export USER_KEY='__FILL_IN__'
 ```
-If running on OSX add `tmpdir-prefix` and `tmp-outdir-prefix` to cwl_base_command:
+If running on OSX update `tmpdir-prefix` and `tmp-outdir-prefix` to cwl_base_command in `worker_config.yml`:
 ```
 cwl_base_command:
   - "cwl-runner"
@@ -25,6 +25,7 @@ cwl_base_command:
   - "--tmpdir-prefix=/Users/<username>/tmp"
   - "--tmp-outdir-prefix=/Users/<username>/tmp"
 ```
+Otherwise you can remove the `--tmpdir-prefix` and `--tmp-outdir-prefix` tags.
 
 ### Checkout bespin-api 
 In a terminal in this directory(integration_test).
