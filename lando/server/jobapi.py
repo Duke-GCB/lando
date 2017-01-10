@@ -46,7 +46,7 @@ class BespinApi(object):
         """
         path = 'jobs/?vm_instance_name={}'.format(vm_instance_name)
         url = self._make_url(path)
-        return self._get_all_pages_results(url)
+        return self._get_results(url)
 
     def put_job(self, job_id, data):
         """
@@ -69,7 +69,7 @@ class BespinApi(object):
         """
         path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
-        return self._get_all_pages_results(url)
+        return self._get_results(url)
 
     def _make_url(self, suffix):
         return '{}/admin/{}'.format(self.settings.url, suffix)
@@ -82,7 +82,7 @@ class BespinApi(object):
         """
         path = 'dds-user-credentials/?user={}'.format(user_id)
         url = self._make_url(path)
-        return self._get_all_pages_results(url)
+        return self._get_results(url)
 
     def post_error(self, job_id, job_step, content):
         """
@@ -102,29 +102,17 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
-    def _get_all_pages_results(self, base_url):
+    def _get_results(self, url):
         """
-        Given a url that follows JSON API pagination fetch 'results' of all pages.
-        Makes a request for each page and returns all the results when done.
-        :param base_url: str: base url which will have page=<pagenum> appended
-        :return: [dict]: list of results from all requests
+        Given a url that returns a JSON array send a GET request and return the results
+        :param url: str: url which returns a list of items
+        :return: [dict]: items returned from request
         """
         results = []
-        page_param = "&page="
-        if base_url[-1] == '/':
-            page_param = "?page="
-        fetch_page = 1
-        while True:
-            url = "{}{}{}".format(base_url, page_param, fetch_page)
-            resp = requests.get(url, headers=self.headers())
-            resp.raise_for_status()
-            json_data = resp.json()
-            results.extend(json_data["results"])
-            num_pages = json_data["meta"]["pagination"]["pages"]
-            if fetch_page >= num_pages:
-                break
-            fetch_page += 1
-        return results
+        resp = requests.get(url, headers=self.headers())
+        resp.raise_for_status()
+        json_data = resp.json()
+        return json_data
 
 
 class JobApi(object):
