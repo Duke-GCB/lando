@@ -3,7 +3,6 @@ Allows reading and updating job information when talking to Bespin REST api.
 """
 from __future__ import print_function
 import requests
-from requests.auth import HTTPBasicAuth
 
 
 class BespinApi(object):
@@ -15,7 +14,6 @@ class BespinApi(object):
         :param config: ServerConfig: contains settings for connecting to REST api
         """
         self.settings = config.bespin_api_settings
-        self.requests = requests # Allows mocking requests for unit testing
 
 
     def headers(self):
@@ -36,9 +34,19 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
+        resp = requests.get(url, headers=self.headers())
         resp.raise_for_status()
         return resp.json()
+
+    def get_jobs_for_vm_instance_name(self, vm_instance_name):
+        """
+        Get list of jobs that are setup to run on vm_instance_name.
+        :param vm_instance_name: str: unique name of the vm (also name of the vm's queue)
+        :return: list: list of dict: list of job info
+        """
+        path = 'jobs/?vm_instance_name={}'.format(vm_instance_name)
+        url = self._make_url(path)
+        return self._get_results(url)
 
     def put_job(self, job_id, data):
         """
@@ -49,7 +57,7 @@ class BespinApi(object):
         """
         path = 'jobs/{}/'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.put(url, headers=self.headers(), json=data)
+        resp = requests.put(url, headers=self.headers(), json=data)
         resp.raise_for_status()
         return resp.json()
 
@@ -61,12 +69,10 @@ class BespinApi(object):
         """
         path = 'job-input-files/?job={}'.format(job_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
-        resp.raise_for_status()
-        return resp.json()
+        return self._get_results(url)
 
     def _make_url(self, suffix):
-        return '{}/{}'.format(self.settings.url, suffix)
+        return '{}/admin/{}'.format(self.settings.url, suffix)
 
     def get_dds_user_credentials(self, user_id):
         """
@@ -76,9 +82,37 @@ class BespinApi(object):
         """
         path = 'dds-user-credentials/?user={}'.format(user_id)
         url = self._make_url(path)
-        resp = self.requests.get(url, headers=self.headers())
+        return self._get_results(url)
+
+    def post_error(self, job_id, job_step, content):
+        """
+        Record message associated with an error that occurred while running a job.
+        :param job_id: int: unique job id
+        :param job_step: str: value from JobSteps representing where in running the job we where when this error occured
+        :param content: str: text we want to store describing the error
+        :return: dict: post response
+        """
+        path = 'job-errors/'
+        url = self._make_url(path)
+        resp = requests.post(url, headers=self.headers(), json={
+            "job": job_id,
+            "job_step": job_step,
+            "content": content,
+        })
         resp.raise_for_status()
         return resp.json()
+
+    def _get_results(self, url):
+        """
+        Given a url that returns a JSON array send a GET request and return the results
+        :param url: str: url which returns a list of items
+        :return: [dict]: items returned from request
+        """
+        results = []
+        resp = requests.get(url, headers=self.headers())
+        resp.raise_for_status()
+        json_data = resp.json()
+        return json_data
 
 
 class JobApi(object):
@@ -106,6 +140,13 @@ class JobApi(object):
         :param state: str: value from JobStates
         """
         self._set_job({'state': state})
+
+    def set_job_step(self, step):
+        """
+        Change the step of the job is working on.
+        :param state: str: value from JobSteps
+        """
+        self._set_job({'step': step})
 
     def set_vm_instance_name(self, vm_instance_name):
         """
@@ -139,6 +180,27 @@ class JobApi(object):
 
         return credentials
 
+    def save_error_details(self, job_step, content):
+        """
+        Send details about an error back to bespin-api.
+        :param job_step: str: value from JobSteps representing where in running the job we where when this error occured
+        :param content: str: text we want to store describing the error
+        """
+        self.api.post_error(self.job_id, job_step, content)
+
+    @staticmethod
+    def get_jobs_for_vm_instance_name(config, vm_instance_name):
+        """
+        Get list of jobs that are setup to run on vm_instance_name.
+        :param vm_instance_name: str: unique name of the vm (also name of the vm's queue)
+        :return: list: [Job]: list of jobs for this instance(should only be one)
+        """
+        result = []
+        api = BespinApi(config)
+        for job_dict in api.get_jobs_for_vm_instance_name(vm_instance_name):
+            result.append(Job(job_dict))
+        return result
+
 
 class Job(object):
     """
@@ -151,8 +213,10 @@ class Job(object):
         self.id = data['id']
         self.user_id = data['user_id']
         self.state = data['state']
+        self.step = data['step']
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
+        self.vm_project_name = data['vm_project_name']
         self.workflow = Workflow(data)
         self.output_directory = OutputDirectory(data)
 
@@ -267,12 +331,19 @@ class JobStates(object):
     Values for state that must match up those supported by Bespin.
     """
     NEW = 'N'
+    RUNNING = 'R'
+    FINISHED = 'F'
+    ERRORED = 'E'
+    CANCELED = 'C'
+
+
+class JobSteps(object):
+    """
+    Values for state that must match up those supported by Bespin.
+    """
     CREATE_VM = 'V'
     STAGING = 'S'
     RUNNING = 'R'
     STORING_JOB_OUTPUT = 'O'
     TERMINATE_VM = 'T'
-    FINISHED = 'F'
-    ERRORED = 'E'
-    CANCELED = 'C'
 

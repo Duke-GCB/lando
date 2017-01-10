@@ -142,6 +142,7 @@ class LandoWorker(object):
         Blocks and waits for messages on the queue specified in config.
         """
         router = self._make_router()
+        self.client.worker_started(router.queue_name)
         print("Lando worker listening for messages on queue '{}'.".format(router.queue_name))
         router.run()
 

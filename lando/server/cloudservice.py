@@ -15,12 +15,12 @@ class NovaClient(object):
     """
     Wraps up openstack nova operations.
     """
-    def __init__(self, cloud_settings):
+    def __init__(self, credentials):
         """
         Setup internal nova client based on credentials in cloud_settings
-        :param cloud_settings: config.CloudSettings: url, username, password, etc
+        :credentials: dictionary of url, username, password, etc
         """
-        nova_session = NovaClient.get_session(cloud_settings.credentials())
+        nova_session = NovaClient.get_session(credentials)
         self.nova = nvclient.Client('2', session=nova_session)
 
     @staticmethod
@@ -80,13 +80,14 @@ class CloudService(object):
     """
     Service for creating and terminating virtual machines.
     """
-    def __init__(self, config):
+    def __init__(self, config, project_name):
         """
         Setup configuration needed to connect to cloud service and
         :param config: Config config settings for vm and credentials
+        :param project_name: name of the project(tenant) which will contain our VMs
         """
         self.config = config
-        self.nova_client = NovaClient(config.cloud_settings)
+        self.nova_client = NovaClient(config.cloud_settings.credentials(project_name))
 
     def launch_instance(self, server_name, flavor_name, script_contents):
         """

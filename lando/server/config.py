@@ -83,20 +83,20 @@ class CloudSettings(object):
         self.auth_url = get_or_raise_config_exception(data, 'auth_url')
         self.username = get_or_raise_config_exception(data, 'username')
         self.user_domain_name = get_or_raise_config_exception(data, 'user_domain_name')
-        self.project_name = get_or_raise_config_exception(data, 'project_name')
         self.project_domain_name = get_or_raise_config_exception(data, 'project_domain_name')
         self.password = get_or_raise_config_exception(data, 'password')
 
-    def credentials(self):
+    def credentials(self, project_name):
         """
         Make credentials for connecting to the cloud.
+        :param project_name: str: name of the project(tenant) which will contain our VMs
         :return: dict: cloud credentials read from config file
         """
         return {
           'auth_url': self.auth_url,
           'username': self.username,
           'user_domain_name': self.user_domain_name,
-          'project_name' : self.project_name,
+          'project_name' : project_name,
           'project_domain_name': self.project_domain_name,
           'password': self.password,
         }
