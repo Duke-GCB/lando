@@ -50,7 +50,7 @@ class TestJobApi(TestCase):
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('jpb67', job.vm_project_name)
 
-        self.assertEqual('{ "value": 1 }', job.workflow.input_json)
+        self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.object_name)
         self.assertEqual('results', job.workflow.output_directory)
