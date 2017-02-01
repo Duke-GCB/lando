@@ -1,3 +1,4 @@
 dependencies:
   pre:
     - pip install mock
+    - pip install git+git://github.com/Duke-GCB/lando-messaging.git
