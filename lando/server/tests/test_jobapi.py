@@ -25,7 +25,7 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
@@ -156,7 +156,7 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
@@ -207,7 +207,7 @@ class TestJobApi(TestCase):
                 'vm_flavor': 'm1.tiny',
                 'vm_instance_name': '',
                 "vm_project_name": 'jpb67',
-                'workflow_input_json': '{ "value": 1 }',
+                'job_order': '{ "value": 1 }',
                 'workflow_version': {
                     'url': 'file:///mnt/fastqc.cwl',
                     'object_name': '#main',
