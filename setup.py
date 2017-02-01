@@ -41,7 +41,7 @@ LANDO_REQUIREMENTS = [
       "prompt-toolkit==1.0.3",
       "ptyprocess==0.5.1",
       "Pygments==2.1.3",
-      "pyparsing==2.1.5",
+      "pyparsing==2.1.10",
       "python-cinderclient==1.8.0",
       "python-glanceclient==2.1.0",
       "python-keystoneclient==3.2.0",
