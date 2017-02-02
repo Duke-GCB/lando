@@ -178,6 +178,7 @@ class JobActions(object):
         cloud_service.terminate_instance(payload.vm_instance_name)
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.delete_queue()
+        self._set_job_step(None)
         self._set_job_state(JobStates.FINISHED)
 
     def cancel_job(self, payload):

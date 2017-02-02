@@ -376,6 +376,7 @@ Put store_job_output message in queue for some_vm.
 Set job step to T.
 Terminated vm some_vm.
 Delete my worker's queue.
+Set job step to None.
 Set job state to F.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
