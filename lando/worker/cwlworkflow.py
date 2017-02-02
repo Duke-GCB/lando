@@ -29,7 +29,7 @@ class CwlWorkflow(object):
         self.output_directory = output_directory
         self.cwl_base_command = cwl_base_command
 
-    def _write_workflow_input_file(self, input_json):
+    def _write_job_order_file(self, input_json):
         """
         Save input_json to our output file and return path to our filename
         :param input_json: str: settings used in the workflow
@@ -40,36 +40,36 @@ class CwlWorkflow(object):
             outfile.write(input_json)
         return filename
 
-    def _build_command(self, local_output_directory, workflow_file, workflow_input_filename):
+    def _build_command(self, local_output_directory, workflow_file, job_order_filename):
         """
         Create an array containing "cwl-runner" and it's arguments.
         :param local_output_directory: str: path to directory we will save output files into
         :param workflow_file: str: path to the cwl workflow
-        :param workflow_input_filename: str: path to the cwl workflow input file
+        :param job_order_filename: str: path to the cwl job order (input file)
         :return: [str]: command and arguments
         """
         base_command = self.cwl_base_command
         if not base_command:
             base_command = ["cwl-runner"]
         command = base_command[:]
-        command.extend(["--outdir", local_output_directory, workflow_file, workflow_input_filename])
+        command.extend(["--outdir", local_output_directory, workflow_file, job_order_filename])
         return command
 
-    def run(self, cwl_file_url, workflow_object_name, input_json):
+    def run(self, cwl_file_url, workflow_object_name, job_order):
         """
         Downloads the packed cwl workflow from cwl_file_url, runs it.
         If cwl-runner doesn't exit with 0 raise JobStepFailed
         :param cwl_file_url: str: url to workflow we will run (should be packed)
         :param workflow_object_name: name of the object in our workflow to execute (typically '#main')
-        :param input_json: str: json string of input parameters for our workflow
+        :param job_order: str: json string of input parameters for our workflow
         """
-        workflow_input_filename = self._write_workflow_input_file(input_json)
+        job_order_filename = self._write_job_order_file(job_order)
         workflow_file = os.path.join(self.working_directory, 'workflow.cwl')
         urllib.urlretrieve(cwl_file_url, workflow_file)
         if workflow_object_name:
             workflow_file += workflow_object_name
         local_output_directory = os.path.join(self.working_directory, self.output_directory)
-        command = self._build_command(local_output_directory, workflow_file, workflow_input_filename)
+        command = self._build_command(local_output_directory, workflow_file, job_order_filename)
         output, return_code = self.run_command(command)
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)

@@ -229,7 +229,7 @@ class Workflow(object):
         """
         :param data: dict: workflow values returned from bespin.
         """
-        self.input_json = data['workflow_input_json']
+        self.job_order = data['job_order']
         workflow_version = data['workflow_version']
         self.url = workflow_version['url']
         self.object_name = workflow_version['object_name']
