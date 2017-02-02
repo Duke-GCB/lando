@@ -25,7 +25,7 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
@@ -50,7 +50,7 @@ class TestJobApi(TestCase):
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('jpb67', job.vm_project_name)
 
-        self.assertEqual('{ "value": 1 }', job.workflow.input_json)
+        self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.object_name)
         self.assertEqual('results', job.workflow.output_directory)
@@ -156,7 +156,7 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
@@ -207,7 +207,7 @@ class TestJobApi(TestCase):
                 'vm_flavor': 'm1.tiny',
                 'vm_instance_name': '',
                 "vm_project_name": 'jpb67',
-                'workflow_input_json': '{ "value": 1 }',
+                'job_order': '{ "value": 1 }',
                 'workflow_version': {
                     'url': 'file:///mnt/fastqc.cwl',
                     'object_name': '#main',
