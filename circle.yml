@@ -1,4 +1,3 @@
 dependencies:
   pre:
-    - pip install --upgrade shade
     - pip install mock
