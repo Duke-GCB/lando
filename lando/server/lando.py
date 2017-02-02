@@ -3,6 +3,7 @@ Server that starts/terminates VMs based on messages received from a queue.
 """
 from __future__ import print_function, absolute_import
 from datetime import datetime
+import traceback
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
@@ -98,6 +99,8 @@ class JobActions(object):
         vm_instance_name = job.vm_instance_name
         if vm_instance_name and job.state != JobStates.CANCELED:
             payload.vm_instance_name = vm_instance_name
+            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT]:
+                self._set_job_state(JobStates.RUNNING)
             if job.step == JobSteps.STAGING:
                 self.send_stage_job_message(job.vm_instance_name)
             elif job.step == JobSteps.RUNNING:
@@ -175,6 +178,7 @@ class JobActions(object):
         cloud_service.terminate_instance(payload.vm_instance_name)
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.delete_queue()
+        self._set_job_step(None)
         self._set_job_state(JobStates.FINISHED)
 
     def cancel_job(self, payload):
@@ -184,12 +188,14 @@ class JobActions(object):
         :param payload: CancelJobPayload: contains job id we should cancel
         """
         self._set_job_state(JobStates.CANCELED)
+        self._set_job_step(None)
         self._show_status("Canceling job")
         job = self.job_api.get_job()
-        cloud_service = self._get_cloud_service(job)
-        cloud_service.terminate_instance(job.vm_instance_name)
-        worker_client = self.make_worker_client(job.vm_instance_name)
-        worker_client.delete_queue()
+        if job.vm_instance_name:
+            cloud_service = self._get_cloud_service(job)
+            cloud_service.terminate_instance(job.vm_instance_name)
+            worker_client = self.make_worker_client(job.vm_instance_name)
+            worker_client.delete_queue()
 
     def stage_job_error(self, payload):
         """
@@ -235,6 +241,17 @@ class JobActions(object):
         format_str = "{}: {} for job: {}."
         print(format_str.format(datetime.now(), message, self.job_id))
 
+    def generic_job_error(self, action_name, details):
+        """
+        Sets current job state to error and creates a job error with the details.
+        :param action_name: str: name of the action that failed
+        :param details: str: details about what went wrong typically a stack trace
+        """
+        self._set_job_state(JobStates.ERRORED)
+        message = "Running {} failed with {}".format(action_name, details)
+        self._show_status(message)
+        self._log_error(message=message)
+
 
 class Lando(object):
     """
@@ -268,8 +285,12 @@ class Lando(object):
         :return: func(payload): function that will call the appropriate JobActions method
         """
         def action_method(payload):
-            action = self._make_actions(payload.job_id)
-            getattr(action, name)(payload)
+            actions = self._make_actions(payload.job_id)
+            try:
+                getattr(actions, name)(payload)
+            except:  # Trap all exceptions
+                tb = traceback.format_exc()
+                actions.generic_job_error(name, tb)
         return action_method
 
     def worker_started(self, worker_started_payload):
