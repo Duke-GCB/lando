@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
-      "keystoneauth1>=2.11.0",
-      "python-novaclient>=2.21.0,!=2.27.0,!=2.32.0",
       "DukeDSClient",
+      "keystoneauth1>=2.11.0",
       "lando-messaging",
-      "requests==2.10.0",
+      "python-novaclient>=2.21.0,!=2.27.0,!=2.32.0",
       "PyYAML==3.11",
+      "requests==2.10.0",
 ]
 
 setup(name='lando',
