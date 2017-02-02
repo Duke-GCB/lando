@@ -6,8 +6,8 @@ from __future__ import absolute_import
 from unittest import TestCase
 from lando.server.lando import Lando
 from lando.server.jobapi import JobStates, JobSteps
-
 from mock import MagicMock, patch
+from novaclient.exceptions import NotFound
 
 
 LANDO_CONFIG = """
@@ -53,6 +53,7 @@ class Report(object):
         self.job_state = 'N'
         self.job_step = ''
         self.vm_instance_name = 'worker_x'
+        self.launch_instance_error = None
 
     def add(self, line):
         self.text += line + '\n'
@@ -62,10 +63,14 @@ class Report(object):
         return "worker_x"
 
     def launch_instance(self, server_name, flavor_name, script_contents):
+        if self.launch_instance_error:
+            raise self.launch_instance_error
         self.add("Launched vm {}.".format(server_name))
         return MagicMock(), MagicMock()
 
     def terminate_instance(self, server_name):
+        if not server_name:
+            raise ValueError("Can't delete empty server_name.")
         self.add("Terminated vm {}.".format(server_name))
 
     def get_job(self):
@@ -183,6 +188,7 @@ Put stage message in queue for stuff.
         lando.cancel_job(MagicMock(job_id=job_id))
         expected_report = """
 Set job state to C.
+Set job step to None.
 Terminated vm worker_x.
 Delete my worker's queue.
         """
@@ -310,6 +316,7 @@ Set vm instance name to worker_x.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
 Set job step to S.
 Put stage message in queue for some_vm.
         """
@@ -328,6 +335,7 @@ Put stage message in queue for some_vm.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
 Set job step to R.
 Put run_job message in queue for some_vm.
         """
@@ -346,6 +354,7 @@ Put run_job message in queue for some_vm.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
 Set job step to O.
 Put store_job_output message in queue for some_vm.
         """
@@ -368,5 +377,43 @@ Set job step to T.
 Terminated vm some_vm.
 Delete my worker's queue.
 Set job state to F.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_create_failing_vm(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.launch_instance_error = NotFound('some vm image')
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to R.
+Created vm name for job 1.
+Set job step to V.
+Set job state to E.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_cancel_job_with_no_vm_name(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        """
+        When canceling a job that doesn't have a VM yet just set the state to canceled.
+        There is no need to try to delete a VM or queue that doesn't exist.
+        """
+        job_id = 2
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.vm_instance_name = ''
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.cancel_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to C.
+Set job step to None.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
