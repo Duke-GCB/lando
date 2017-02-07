@@ -4,15 +4,17 @@ Server that starts/terminates VMs based on messages received from a queue.
 from __future__ import print_function, absolute_import
 from datetime import datetime
 import traceback
+import json
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
-
+from lando_messaging.workqueue import WorkProgressQueue
 
 CONFIG_FILE_NAME = '/etc/lando_config.yml'
 LANDO_QUEUE_NAME = 'lando'
+WORK_PROGRESS_EXCHANGE_NAME = 'job_status'
 
 
 class JobSettings(object):
@@ -55,6 +57,12 @@ class JobSettings(object):
         """
         return LandoWorkerClient(self.config, queue_name=queue_name)
 
+    def get_work_progress_queue(self):
+        """
+        Creates object for sending progress notifications to queue containing job progress info.
+        """
+        return WorkProgressQueue(self.config, WORK_PROGRESS_EXCHANGE_NAME)
+
 
 class JobActions(object):
     """
@@ -65,6 +73,7 @@ class JobActions(object):
         self.job_id = settings.job_id
         self.config = settings.config
         self.job_api = settings.get_job_api()
+        self.work_progress_queue = settings.get_work_progress_queue()
 
     def make_worker_client(self, vm_instance_name):
         """
@@ -187,8 +196,8 @@ class JobActions(object):
         Sets status to canceled and terminates the associated VM and deletes the queue.
         :param payload: CancelJobPayload: contains job id we should cancel
         """
-        self._set_job_state(JobStates.CANCELED)
         self._set_job_step(None)
+        self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
         job = self.job_api.get_job()
         if job.vm_instance_name:
@@ -230,9 +239,21 @@ class JobActions(object):
 
     def _set_job_state(self, state):
         self.job_api.set_job_state(state)
+        self._send_job_progress_notification()
 
     def _set_job_step(self, step):
         self.job_api.set_job_step(step)
+        if step:
+            self._send_job_progress_notification()
+
+    def _send_job_progress_notification(self):
+        job = self.job_api.get_job()
+        payload = json.dumps({
+            "job": job.id,
+            "state": job.state,
+            "step": job.step,
+        })
+        self.work_progress_queue.send(payload)
 
     def _get_cloud_service(self, job):
         return self.settings.get_cloud_service(job.vm_project_name)
