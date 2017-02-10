@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
+import pwd
 import platform
 import tempfile
 import shutil
@@ -25,6 +26,10 @@ outputs:
     type: stdout
 """
 
+# Temp directory in users home directory needed to run cwl on OSX
+USERNAME = pwd.getpwuid(os.getuid())[0]
+USER_TEMP_DIR = "/Users/" + USERNAME + "/Documents/"
+
 
 class TestCwlWorkflow(TestCase):
     def make_input_files(self, input_file_directory):
@@ -46,8 +51,8 @@ class TestCwlWorkflow(TestCase):
             cwl_base_command = [
                 "cwl-runner",
                 "--debug",
-                "--tmpdir-prefix=/Users/jpb67/tmp/",
-                "--tmp-outdir-prefix=/Users/jpb67/tmp/",
+                "--tmpdir-prefix=" + USER_TEMP_DIR,
+                "--tmp-outdir-prefix=" + USER_TEMP_DIR,
             ]
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
@@ -89,8 +94,8 @@ outputfile: results.txt
             cwl_base_command = [
                 "cwl-runner",
                 "--debug",
-                "--tmpdir-prefix=/Users/jpb67",
-                "--tmp-outdir-prefix=/Users/jpb67",
+                "--tmpdir-prefix=" + USER_TEMP_DIR,
+                "--tmp-outdir-prefix=" + USER_TEMP_DIR,
             ]
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
