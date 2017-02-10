@@ -46,8 +46,8 @@ class TestCwlWorkflow(TestCase):
             cwl_base_command = [
                 "cwl-runner",
                 "--debug",
-                "--tmpdir-prefix=/Users/jpb67",
-                "--tmp-outdir-prefix=/Users/jpb67",
+                "--tmpdir-prefix=/Users/jpb67/tmp/",
+                "--tmp-outdir-prefix=/Users/jpb67/tmp/",
             ]
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
