@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
-      "cwlref-runner==1.0"
+      "cwlref-runner==1.0",
       "DukeDSClient",
       "keystoneauth1>=2.11.0",
       "lando-messaging",
