@@ -99,7 +99,7 @@ class FakeFileData(object):
 class FakeWorkflow(object):
     def __init__(self):
         self.url = "file:///tmp/test.cwl"
-        self.input_json = "{'id':1}"
+        self.job_order = "{'id':1}"
         self.output_directory = None
         self.object_name = "#main"
 

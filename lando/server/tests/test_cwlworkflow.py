@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
+import pwd
 import platform
 import tempfile
 import shutil
@@ -42,13 +43,6 @@ class TestCwlWorkflow(TestCase):
         working_directory = tempfile.mkdtemp()
         output_directory = 'result'
         cwl_base_command = None
-        if platform.system() == 'Darwin':
-            cwl_base_command = [
-                "cwl-runner",
-                "--debug",
-                "--tmpdir-prefix=/Users/jpb67",
-                "--tmp-outdir-prefix=/Users/jpb67",
-            ]
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -85,13 +79,6 @@ outputfile: results.txt
         working_directory = tempfile.mkdtemp()
         output_directory = 'result'
         cwl_base_command = None
-        if platform.system() == 'Darwin':
-            cwl_base_command = [
-                "cwl-runner",
-                "--debug",
-                "--tmpdir-prefix=/Users/jpb67",
-                "--tmp-outdir-prefix=/Users/jpb67",
-            ]
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
