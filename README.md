@@ -91,7 +91,6 @@ vm_settings:
   floating_ip_pool_name: ext-net     # Pool of floating IP's that will have one assigned to the VM
   default_favor_name: m1.small       # Flavor of image to use by default when creating a VM
 
-
 # General Openstack settings
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
