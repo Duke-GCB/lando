@@ -3,6 +3,7 @@ Allows launching and terminating openstack virtual machines.
 """
 from keystoneauth1 import session
 from keystoneauth1 import loading
+import novaclient.exceptions
 from novaclient import client as nvclient
 from time import sleep
 import logging
@@ -67,13 +68,28 @@ class NovaClient(object):
         instance.add_floating_ip(floating_ip)
         return floating_ip.ip
 
-    def terminate_instance(self, server_name):
+    def _delete_floating_ip(self, instance):
+        """
+        Delete floating ip address associated with the instance with server_name.
+        If not found will log as as warning.
+        :param instance: Server: VM we want to delete a floating IP from
+        """
+        try:
+            floating_ip = self.nova.floating_ips.find(instance_id=instance.id)
+            floating_ip.delete()
+        except novaclient.exceptions.NotFound:
+            logging.warn('No floating ip address found for {} ({})'.format(instance.name, instance.id))
+
+    def terminate_instance(self, server_name, delete_floating_ip):
         """
         Terminate a VM based on name.
         :param server_name: str: name of the VM to terminate
+        :param delete_floating_ip: bool: should we try to delete an attached floating ip address
         """
-        s = self.nova.servers.find(name=server_name)
-        self.nova.servers.delete(s)
+        instance = self.nova.servers.find(name=server_name)
+        if delete_floating_ip:
+            self._delete_floating_ip(instance)
+        self.nova.servers.delete(instance)
 
 
 class CloudService(object):
@@ -99,18 +115,23 @@ class CloudService(object):
         """
         vm_settings = self.config.vm_settings
         instance = self.nova_client.launch_instance(vm_settings, server_name, flavor_name, script_contents)
-        sleep(WAIT_BEFORE_ATTACHING_IP)
-        ip_address = self.nova_client.attach_floating_ip(instance, vm_settings.floating_ip_pool_name)
-        logging.info('launched {} on ip {}'.format(server_name, ip_address))
+        ip_address = None
+        if vm_settings.allocate_floating_ips:
+            sleep(WAIT_BEFORE_ATTACHING_IP)
+            ip_address = self.nova_client.attach_floating_ip(instance, vm_settings.floating_ip_pool_name)
+            logging.info('launched {} on floating ip {}'.format(server_name, ip_address))
+        else:
+            logging.info('launched {} with id'.format(server_name, instance.id))
         return instance, ip_address
 
     def terminate_instance(self, server_name):
         """
-        Terminate the VM with server_name.
+        Terminate the VM with server_name and deletes attached floating ip address
         :param server_name: str: name of the VM to terminate
         """
+        vm_settings = self.config.vm_settings
         logging.info('terminating instance {}'.format(server_name))
-        self.nova_client.terminate_instance(server_name)
+        self.nova_client.terminate_instance(server_name, delete_floating_ip=vm_settings.allocate_floating_ips)
 
     def make_vm_name(self, job_id):
         """
