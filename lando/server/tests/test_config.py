@@ -19,6 +19,7 @@ vm_settings:
   network_name: selfservice
   floating_ip_pool_name: ext-net
   default_favor_name: m1.small
+{}
 
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
@@ -36,7 +37,7 @@ bespin_api:
 
 class TestServerConfig(TestCase):
     def test_good_config(self):
-        filename = write_temp_return_filename(GOOD_CONFIG)
+        filename = write_temp_return_filename(GOOD_CONFIG.format(""))
         config = ServerConfig(filename)
         os.unlink(filename)
         self.assertEqual(False, config.fake_cloud_service)
@@ -46,6 +47,8 @@ class TestServerConfig(TestCase):
 
         self.assertEqual('lando_worker', config.vm_settings.worker_image_name)
         self.assertEqual('jpb67', config.vm_settings.ssh_key_name)
+        #  by default allocate_floating_ips is off
+        self.assertEqual(False, config.vm_settings.allocate_floating_ips)
 
         self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
         self.assertEqual("jpb67", config.cloud_settings.username)
@@ -53,8 +56,22 @@ class TestServerConfig(TestCase):
         self.assertEqual("http://localhost:8000/api", config.bespin_api_settings.url)
         self.assertEqual("10498124091240e", config.bespin_api_settings.token)
 
+    def test_allocate_floating_ip_true(self):
+        line = "  allocate_floating_ips: true"
+        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
+        config = ServerConfig(filename)
+        os.unlink(filename)
+        self.assertEqual(True, config.vm_settings.allocate_floating_ips)
+
+    def test_allocate_floating_ip_false(self):
+        line = "  allocate_floating_ips: false"
+        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
+        config = ServerConfig(filename)
+        os.unlink(filename)
+        self.assertEqual(False, config.vm_settings.allocate_floating_ips)
+
     def test_good_config_with_fake_cloud_service(self):
-        config_data = GOOD_CONFIG + "\nfake_cloud_service: True"
+        config_data = GOOD_CONFIG.format("") + "\nfake_cloud_service: True"
         filename = write_temp_return_filename(config_data)
         config = ServerConfig(filename)
         os.unlink(filename)
@@ -73,7 +90,7 @@ class TestServerConfig(TestCase):
         os.unlink(filename)
 
     def test_make_worker_config_yml(self):
-        filename = write_temp_return_filename(GOOD_CONFIG)
+        filename = write_temp_return_filename(GOOD_CONFIG.format(""))
         config = ServerConfig(filename)
         os.unlink(filename)
         expected = """
