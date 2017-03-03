@@ -122,7 +122,8 @@ class Report(object):
         self.add("Send progress notification. Job:{} State:{} Step:{}".format(
             data['job'], data['state'], data['step']))
 
-    def send_delayed_message(self, payload):
+    def send_delayed_message(self, work_request):
+        payload = work_request.payload
         self.add("Send delayed message for job_id:{} retry_count:{}.".format(payload.job_id, payload.retry_count))
 
 

@@ -10,8 +10,8 @@ from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
 from lando.exceptions import QuotaExceededException
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
-from lando_messaging.messaging import MessageRouter
-from lando_messaging.workqueue import WorkProgressQueue, DelayedMessageQueue
+from lando_messaging.messaging import MessageRouter, JobCommands
+from lando_messaging.workqueue import WorkProgressQueue, DelayedMessageQueue, WorkRequest
 
 
 CONFIG_FILE_NAME = '/etc/lando_config.yml'
@@ -115,7 +115,8 @@ class JobActions(object):
         except QuotaExceededException as ex:
             if payload.retry_count <= self.config.vm_settings.retry_times:
                 payload.retry_count += 1
-                self.delayed_message_queue.send_delayed_message(payload)
+                work_request = WorkRequest(JobCommands.START_JOB, payload)
+                self.delayed_message_queue.send_delayed_message(work_request)
             else:
                 raise ex
 
