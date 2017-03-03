@@ -1,7 +1,7 @@
 from unittest import TestCase
 import os
 from lando.testutil import write_temp_return_filename
-from lando.server.config import ServerConfig
+from lando.server.config import ServerConfig, DEFAULT_RETRY_TIMES, DEFAULT_RETRY_WAIT_SECONDS
 from lando.exceptions import InvalidConfigException
 
 GOOD_CONFIG = """
@@ -47,6 +47,8 @@ class TestServerConfig(TestCase):
 
         self.assertEqual('lando_worker', config.vm_settings.worker_image_name)
         self.assertEqual('jpb67', config.vm_settings.ssh_key_name)
+        self.assertEqual(DEFAULT_RETRY_TIMES, config.vm_settings.retry_times)
+        self.assertEqual(DEFAULT_RETRY_WAIT_SECONDS, config.vm_settings.retry_wait_seconds)
         #  by default allocate_floating_ips is off
         self.assertEqual(False, config.vm_settings.allocate_floating_ips)
 

@@ -7,6 +7,7 @@ from unittest import TestCase
 import json
 from lando.server.lando import Lando
 from lando.server.jobapi import JobStates, JobSteps
+from lando.exceptions import QuotaExceededException
 from mock import MagicMock, patch
 from novaclient.exceptions import NotFound
 
@@ -121,6 +122,9 @@ class Report(object):
         self.add("Send progress notification. Job:{} State:{} Step:{}".format(
             data['job'], data['state'], data['step']))
 
+    def send_delayed_message(self, payload):
+        self.add("Send delayed message for job_id:{} retry_count:{}.".format(payload.job_id, payload.retry_count))
+
 
 def make_mock_settings_and_report(job_id):
     report = Report()
@@ -146,11 +150,16 @@ def make_mock_settings_and_report(job_id):
     work_progress_queue = MagicMock()
     work_progress_queue.send = report.work_progress_queue_send
 
+    delayed_message_queue = MagicMock()
+    delayed_message_queue.send_delayed_message = report.send_delayed_message
+
     settings.get_cloud_service.return_value = cloud_service
     settings.get_job_api.return_value = job_api
     settings.get_worker_client.return_value = worker_client
     settings.get_work_progress_queue.return_value = work_progress_queue
+    settings.get_delayed_message_queue.return_value = delayed_message_queue
     settings.job_id = job_id
+    settings.config = MagicMock()
     return settings, report
 
 
@@ -163,7 +172,7 @@ class TestLando(TestCase):
         mock_settings, report = make_mock_settings_and_report(job_id)
         MockJobSettings.return_value = mock_settings
         lando = Lando(MagicMock())
-        lando.start_job(MagicMock(job_id=job_id))
+        lando.start_job(MagicMock(job_id=job_id, retry_count=0))
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:None
@@ -173,6 +182,44 @@ Send progress notification. Job:1 State:R Step:V
 Launched vm worker_x.
 Set vm instance name to worker_x.
         """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_start_job_exceed_quota_then_ok(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        config = MagicMock(vm_settings=MagicMock(retry_times=10))
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        mock_settings.config = config
+        report.launch_instance_error = QuotaExceededException("Quota exceeded for cores")
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(config)
+
+        # If we are out of quota we should create a delayed message
+        lando.start_job(MagicMock(job_id=job_id, retry_count=0))
+        expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:None
+Created vm name for job 1.
+Set job step to V.
+Send progress notification. Job:1 State:R Step:V
+Send delayed message for job_id:1 retry_count:1.
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+        # After failing too many times we should mark the job as error
+        report.text = ''
+        lando.start_job(MagicMock(job_id=job_id, retry_count=11))
+        expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:V
+Created vm name for job 1.
+Set job step to V.
+Send progress notification. Job:1 State:R Step:V
+Set job state to E.
+Send progress notification. Job:1 State:E Step:V
+            """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobApi')
@@ -285,24 +332,6 @@ Send progress notification. Job:1 State:E Step:None
         expected_report = """
 Set job state to E.
 Send progress notification. Job:1 State:E Step:None
-        """
-        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
-
-    @patch('lando.server.lando.JobSettings')
-    @patch('lando.server.lando.LandoWorkerClient')
-    @patch('lando.server.jobapi.requests')
-    def test_restart_new_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
-        job_id = 1
-        mock_settings, report = make_mock_settings_and_report(job_id)
-        MockJobSettings.return_value = mock_settings
-        lando = Lando(MagicMock())
-        lando.restart_job(Stuff())
-        expected_report = """
-Set job state to R.
-Created vm name for job 1.
-Set job step to V.
-Launched vm worker_x.
-Set vm instance name to worker_x.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 

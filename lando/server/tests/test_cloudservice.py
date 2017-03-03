@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import novaclient.exceptions
-from lando.server.cloudservice import CloudService
+from lando.server.cloudservice import CloudService, NovaClient
+from lando.exceptions import QuotaExceededException
 import mock
 
 
@@ -96,3 +97,45 @@ class TestCwlWorkflow(TestCase):
         cloud_service.terminate_instance(server_name='worker1')
         mock_client().servers.delete.assert_called()
         mock_client().floating_ips.find.assert_called()
+
+    def test_is_quota_exceeded_message(self):
+        good_values = [
+            "Quota exceeded for cores",
+            "Quota exceeded for resources"
+        ]
+        bad_values = [
+            "Invalid image format",
+            "Security group not found"
+        ]
+        for val in good_values:
+            self.assertEqual(True, NovaClient.is_quota_exceeded_message(val))
+        for val in bad_values:
+            self.assertEqual(False, NovaClient.is_quota_exceeded_message(val))
+
+    @mock.patch('lando.server.cloudservice.sleep')
+    @mock.patch('keystoneauth1.loading.get_plugin_loader')
+    @mock.patch('keystoneauth1.session.Session')
+    @mock.patch('novaclient.client.Client')
+    def test_launch_instance_quota_exceeded(self, mock_client, mock_session, mock_get_plugin_loader, mock_sleep):
+        mock_client().servers.create.side_effect = novaclient.exceptions.ClientException(
+            code=403,
+            message="Quota exceeded for cores")
+        config = mock.MagicMock()
+        config.vm_settings.default_favor_name = 'm1.xbig'
+        cloud_service = CloudService(config, project_name='bespin_user1')
+        with self.assertRaises(QuotaExceededException):
+            cloud_service.launch_instance(server_name="worker1", flavor_name='m1.GIANT', script_contents="")
+
+    @mock.patch('lando.server.cloudservice.sleep')
+    @mock.patch('keystoneauth1.loading.get_plugin_loader')
+    @mock.patch('keystoneauth1.session.Session')
+    @mock.patch('novaclient.client.Client')
+    def test_launch_instance_invalid_image_format(self, mock_client, mock_session, mock_get_plugin_loader, mock_sleep):
+        mock_client().servers.create.side_effect = novaclient.exceptions.ClientException(
+            code=403,
+            message="Invalid image format")
+        config = mock.MagicMock()
+        config.vm_settings.default_favor_name = 'm1.xbig'
+        cloud_service = CloudService(config, project_name='bespin_user1')
+        with self.assertRaises(novaclient.exceptions.ClientException):
+            cloud_service.launch_instance(server_name="worker1", flavor_name='m1.GIANT', script_contents="")

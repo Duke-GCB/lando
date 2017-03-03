@@ -8,6 +8,7 @@ class InvalidConfigException(Exception):
     Raised when we fail to load a configuration file.
     """
     def __init__(self, message):
+        super(InvalidConfigException, self).__init__(message)
         self.value = message
 
     def __str__(self):
@@ -32,8 +33,17 @@ class JobStepFailed(Exception):
     Raised when a job step failed
     """
     def __init__(self, message, details):
+        super(JobStepFailed, self).__init__(message)
         self.value = message
         self.details = details
 
     def __str__(self):
         return repr(self.value)
+
+
+class QuotaExceededException(Exception):
+    """
+    Raised when user has exhausted their CloudService VM quota.
+    """
+    def __init__(self, message):
+        super(QuotaExceededException, self).__init__(message)

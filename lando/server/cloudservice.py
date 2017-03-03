@@ -1,6 +1,7 @@
 """
 Allows launching and terminating openstack virtual machines.
 """
+from __future__ import absolute_import
 from keystoneauth1 import session
 from keystoneauth1 import loading
 import novaclient.exceptions
@@ -8,6 +9,7 @@ from novaclient import client as nvclient
 from time import sleep
 import logging
 import uuid
+from lando.exceptions import QuotaExceededException
 
 WAIT_BEFORE_ATTACHING_IP = 5
 
@@ -52,10 +54,25 @@ class NovaClient(object):
         flavor = self.nova.flavors.find(name=vm_flavor_name)
         net = self.nova.networks.find(label=vm_settings.network_name)
         nics = [{'net-id': net.id}]
-        instance = self.nova.servers.create(name=server_name, image=image, flavor=flavor,
-                                            key_name=vm_settings.ssh_key_name,
-                                            nics=nics, userdata=script_contents)
+        try:
+            instance = self.nova.servers.create(name=server_name, image=image, flavor=flavor,
+                                                key_name=vm_settings.ssh_key_name,
+                                                nics=nics, userdata=script_contents)
+        except novaclient.exceptions.ClientException as ex:
+            if NovaClient.is_quota_exceeded_message(ex.message):
+                raise QuotaExceededException(ex.message)
+            else:
+                raise ex
         return instance
+
+    @staticmethod
+    def is_quota_exceeded_message(message):
+        """
+        Test the message included in the novaclient.exceptions.ClientException to see if this user has exceeded
+        their quota.
+        :param message: str: exception message
+        """
+        return "quota exceeded" in message.lower()
 
     def attach_floating_ip(self, instance, floating_ip_pool_name):
         """

@@ -6,6 +6,9 @@ import yaml
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
 
 
+DEFAULT_RETRY_TIMES = 10
+DEFAULT_RETRY_WAIT_SECONDS = 20
+
 class ServerConfig(object):
     """
     Configuration for either Server or Client.
@@ -74,6 +77,8 @@ class VMSettings(object):
         self.allocate_floating_ips = data.get('allocate_floating_ips', False)
         self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
         self.default_favor_name = get_or_raise_config_exception(data, 'default_favor_name')
+        self.retry_times = data.get('retry_times', DEFAULT_RETRY_TIMES)
+        self.retry_wait_seconds = data.get('retry_wait_seconds', DEFAULT_RETRY_WAIT_SECONDS)
 
 
 class CloudSettings(object):

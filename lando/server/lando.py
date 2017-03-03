@@ -8,9 +8,11 @@ import json
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
+from lando.exceptions import QuotaExceededException
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
-from lando_messaging.workqueue import WorkProgressQueue
+from lando_messaging.workqueue import WorkProgressQueue, DelayedMessageQueue
+
 
 CONFIG_FILE_NAME = '/etc/lando_config.yml'
 LANDO_QUEUE_NAME = 'lando'
@@ -63,6 +65,17 @@ class JobSettings(object):
         """
         return WorkProgressQueue(self.config, WORK_PROGRESS_EXCHANGE_NAME)
 
+    def get_delayed_message_queue(self, work_queue_connection):
+        """
+        Create a delayed message queue so we can have messages re-sent after a delay.
+        :param work_queue_connection: WorkQueueConnection: connection from WorkProgressQueue
+        :return: DelayedMessageQueue: call send_delayed_message to have a message r
+        """
+        queue_name = self.config.work_queue_config.listen_queue
+        delayed_queue_name = "{}_delayed_queue".format(queue_name)
+        retry_wait_ms = self.config.vm_settings.retry_wait_seconds * 1000
+        return DelayedMessageQueue(work_queue_connection, queue_name, delayed_queue_name, retry_wait_ms)
+
 
 class JobActions(object):
     """
@@ -74,6 +87,7 @@ class JobActions(object):
         self.config = settings.config
         self.job_api = settings.get_job_api()
         self.work_progress_queue = settings.get_work_progress_queue()
+        self.delayed_message_queue = settings.get_delayed_message_queue(self.work_progress_queue.connection)
 
     def make_worker_client(self, vm_instance_name):
         """
@@ -94,9 +108,16 @@ class JobActions(object):
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         vm_instance_name = cloud_service.make_vm_name(self.job_id)
-        self.launch_vm(vm_instance_name)
-        # Once the VM launches it will send us the worker_started message
-        # this will cause send_stage_job_message to be run.
+        try:
+            # Once the VM launches it will send us the worker_started message
+            # this will cause send_stage_job_message to be run.
+            self.launch_vm(vm_instance_name)
+        except QuotaExceededException as ex:
+            if payload.retry_count <= self.config.vm_settings.retry_times:
+                payload.retry_count += 1
+                self.delayed_message_queue.send_delayed_message(payload)
+            else:
+                raise ex
 
     def restart_job(self, payload):
         """
