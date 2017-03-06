@@ -4,5 +4,6 @@ FROM python:2.7.13
 RUN pip install git+git://github.com/Duke-GCB/lando-messaging.git
 RUN pip install git+git://github.com/Duke-GCB/lando.git
 ENV WORKDIR /work
+RUN mkdir ${WORKDIR}
 WORKDIR ${WORKDIR}
 CMD lando
