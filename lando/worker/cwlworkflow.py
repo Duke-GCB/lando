@@ -13,6 +13,8 @@ JOB_STDERR_FILENAME = 'cwltool-output.log'
 WORKFLOW_FILENAME = 'workflow.cwl'
 JOB_ORDER_FILENAME = 'workflow.yml'
 RESULTS_DIRECTORY_FILENAME = 'results'
+WORKFLOW_DIRECTORY = 'workflow'
+LOGS_DIRECTORY = 'logs'
 
 
 class ResultDirectory(object):
@@ -36,14 +38,19 @@ class ResultDirectory(object):
         return self._save_to_directory(self.working_directory, JOB_ORDER_FILENAME, input_json)
 
     def add_job_output(self, output, error_output):
-        self._save_to_directory(self.base_directory, JOB_STDOUT_FILENAME, output)
-        self._save_to_directory(self.base_directory, JOB_STDERR_FILENAME, error_output)
+        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
+        os.mkdir(workflow_directory)
+        self._save_to_directory(workflow_directory, JOB_STDOUT_FILENAME, output)
+        self._save_to_directory(workflow_directory, JOB_STDERR_FILENAME, error_output)
 
     def add_workflow_files(self):
-        shutil.copy(self.workflow_path, os.path.join(self.base_directory, WORKFLOW_FILENAME))
-        shutil.copy(self.job_order_file_path, os.path.join(self.base_directory, JOB_ORDER_FILENAME))
+        logs_directory = os.path.join(self.base_directory, LOGS_DIRECTORY)
+        os.mkdir(logs_directory)
+        shutil.copy(self.workflow_path, os.path.join(logs_directory, WORKFLOW_FILENAME))
+        shutil.copy(self.job_order_file_path, os.path.join(logs_directory, JOB_ORDER_FILENAME))
 
-    def _save_to_directory(self, directory_path, filename, data):
+    @staticmethod
+    def _save_to_directory(directory_path, filename, data):
         file_path = os.path.join(directory_path, filename)
         with open(file_path, 'w') as outfile:
             outfile.write(data)
