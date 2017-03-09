@@ -3,6 +3,7 @@ Runs cwl workflow.
 """
 from __future__ import print_function
 import os
+import shutil
 import urllib
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
@@ -19,26 +20,31 @@ class ResultDirectory(object):
     Creates a directory to hold the output files to be delivered to the user.
     """
     def __init__(self, working_directory, user_directory_name, cwl_file_url, job_order):
+        self.working_directory = working_directory
         self.base_directory = os.path.join(working_directory, user_directory_name)
         os.mkdir(self.base_directory)
         self.output_directory = os.path.join(self.base_directory, RESULTS_DIRECTORY_FILENAME)
         self.workflow_path = self._add_workflow_file(cwl_file_url)
         self.job_order_file_path = self._add_job_order_file(job_order)
 
-    def _add_job_order_file(self, input_json):
-        return self._save_to_base_directory(JOB_ORDER_FILENAME, input_json)
-
     def _add_workflow_file(self, cwl_file_url):
-        workflow_file = os.path.join(self.base_directory, WORKFLOW_FILENAME)
+        workflow_file = os.path.join(self.working_directory, WORKFLOW_FILENAME)
         urllib.urlretrieve(cwl_file_url, workflow_file)
         return workflow_file
 
-    def add_job_output(self, output, errorOutput):
-        self._save_to_base_directory(JOB_STDOUT_FILENAME, output)
-        self._save_to_base_directory(JOB_STDERR_FILENAME, errorOutput)
+    def _add_job_order_file(self, input_json):
+        return self._save_to_directory(self.working_directory, JOB_ORDER_FILENAME, input_json)
 
-    def _save_to_base_directory(self, filename, data):
-        file_path = os.path.join(self.base_directory, filename)
+    def add_job_output(self, output, error_output):
+        self._save_to_directory(self.base_directory, JOB_STDOUT_FILENAME, output)
+        self._save_to_directory(self.base_directory, JOB_STDERR_FILENAME, error_output)
+
+    def add_workflow_files(self):
+        shutil.copy(self.workflow_path, os.path.join(self.base_directory, WORKFLOW_FILENAME))
+        shutil.copy(self.job_order_file_path, os.path.join(self.base_directory, JOB_ORDER_FILENAME))
+
+    def _save_to_directory(self, directory_path, filename, data):
+        file_path = os.path.join(directory_path, filename)
         with open(file_path, 'w') as outfile:
             outfile.write(data)
         return file_path
@@ -107,11 +113,11 @@ class CwlWorkflow(object):
             result_directory.output_directory,
             workflow_file,
             result_directory.job_order_file_path)
-        output, errorOutput, return_code = self.run_command(command)
-        result_directory.add_job_output(output, errorOutput)
+        output, error_output, return_code = self.run_command(command)
+        result_directory.add_job_output(output, error_output)
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
-            raise JobStepFailed(error_message + errorOutput, output)
+            raise JobStepFailed(error_message + error_output, output)
 
     @staticmethod
     def run_command(command):
@@ -123,11 +129,11 @@ class CwlWorkflow(object):
         print(' '.join(command))
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         output = ""
-        errorOutput = ""
+        error_output = ""
         while True:
             line = p.stderr.readline()
             if line:
-                errorOutput += line + "\n"
+                error_output += line + "\n"
             else:
                 break
         while True:
@@ -137,4 +143,4 @@ class CwlWorkflow(object):
             else:
                 break
         p.wait()
-        return output, errorOutput, p.returncode
+        return output, error_output, p.returncode
