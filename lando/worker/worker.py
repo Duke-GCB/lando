@@ -11,6 +11,7 @@ from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
 from lando.worker import staging
+from ddsc.core.util import KindType
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
@@ -46,7 +47,8 @@ class LandoWorkerSettings(object):
 
     @staticmethod
     def make_upload_duke_ds_folder(project_id, source_directory, dest_directory, user_id):
-        return staging.UploadDukeDSFolder(project_id, source_directory, dest_directory, user_id)
+        return staging.UploadDukeDSFolder(project_id, project_id, KindType.project_str,
+                                          source_directory, dest_directory, user_id)
 
 
 class LandoWorkerActions(object):

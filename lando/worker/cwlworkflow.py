@@ -7,6 +7,42 @@ import urllib
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
 
+JOB_STDOUT_FILENAME = 'cwltool-output.json'
+JOB_STDERR_FILENAME = 'cwltool-output.log'
+WORKFLOW_FILENAME = 'workflow.cwl'
+JOB_ORDER_FILENAME = 'workflow.yml'
+RESULTS_DIRECTORY_FILENAME = 'results'
+
+
+class ResultDirectory(object):
+    """
+    Creates a directory to hold the output files to be delivered to the user.
+    """
+    def __init__(self, working_directory, user_directory_name, cwl_file_url, job_order):
+        self.base_directory = os.path.join(working_directory, user_directory_name)
+        os.mkdir(self.base_directory)
+        self.output_directory = os.path.join(self.base_directory, RESULTS_DIRECTORY_FILENAME)
+        self.workflow_path = self._add_workflow_file(cwl_file_url)
+        self.job_order_file_path = self._add_job_order_file(job_order)
+
+    def _add_job_order_file(self, input_json):
+        return self._save_to_base_directory(JOB_ORDER_FILENAME, input_json)
+
+    def _add_workflow_file(self, cwl_file_url):
+        workflow_file = os.path.join(self.base_directory, WORKFLOW_FILENAME)
+        urllib.urlretrieve(cwl_file_url, workflow_file)
+        return workflow_file
+
+    def add_job_output(self, output, errorOutput):
+        self._save_to_base_directory(JOB_STDOUT_FILENAME, output)
+        self._save_to_base_directory(JOB_STDERR_FILENAME, errorOutput)
+
+    def _save_to_base_directory(self, filename, data):
+        file_path = os.path.join(self.base_directory, filename)
+        with open(file_path, 'w') as outfile:
+            outfile.write(data)
+        return file_path
+
 
 class CwlWorkflow(object):
     """
@@ -21,7 +57,7 @@ class CwlWorkflow(object):
         Setup workflow
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to working directory that contains input files
-        :param output_directory: str: path to ouput directory
+        :param output_directory: str: path to output directory
         :param cwl_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
         """
         self.job_id = job_id
@@ -63,18 +99,19 @@ class CwlWorkflow(object):
         :param workflow_object_name: name of the object in our workflow to execute (typically '#main')
         :param job_order: str: json string of input parameters for our workflow
         """
-        job_order_filename = self._write_job_order_file(job_order)
-        workflow_file = os.path.join(self.working_directory, 'workflow.cwl')
-        urllib.urlretrieve(cwl_file_url, workflow_file)
+        result_directory = ResultDirectory(self.working_directory, self.output_directory, cwl_file_url, job_order)
+        workflow_file = result_directory.workflow_path
         if workflow_object_name:
             workflow_file += workflow_object_name
-        local_output_directory = os.path.join(self.working_directory, self.output_directory)
-        command = self._build_command(local_output_directory, workflow_file, job_order_filename)
-        output, return_code = self.run_command(command)
+        command = self._build_command(
+            result_directory.output_directory,
+            workflow_file,
+            result_directory.job_order_file_path)
+        output, errorOutput, return_code = self.run_command(command)
+        result_directory.add_job_output(output, errorOutput)
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
-            print(output)
-            raise JobStepFailed(error_message + output, output)
+            raise JobStepFailed(error_message + errorOutput, output)
 
     @staticmethod
     def run_command(command):
@@ -86,10 +123,11 @@ class CwlWorkflow(object):
         print(' '.join(command))
         p = Popen(command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         output = ""
+        errorOutput = ""
         while True:
             line = p.stderr.readline()
             if line:
-                output += line + "\n"
+                errorOutput += line + "\n"
             else:
                 break
         while True:
@@ -99,4 +137,4 @@ class CwlWorkflow(object):
             else:
                 break
         p.wait()
-        return output, p.returncode
+        return output, errorOutput, p.returncode

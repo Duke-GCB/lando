@@ -156,13 +156,16 @@ class DukeDataService(object):
         file_id, file_kind = self.find_child(parent_id, parent_kind, filename)
         return file_id
 
-    def create_top_level_folder(self, project_id, folder_name):
+    def create_folder(self, parent_id, parent_kind, folder_name):
         """
-        Create a top level folder in the project.
-        :param project_id: str: unique id of the project
+        Create a folder with folder_name under the parent specified by parent_id/parent_kind.
+        :param parent_id: str: unique id of the parent
+        :param parent_kind: str: kind of the parent (folder or project)
         :param folder_name: str: name of the folder to create
+        :return: str,str: uuid and kind of the folder
         """
-        self.data_service.create_folder(folder_name, KindType.project_str, project_id)
+        response = self.data_service.create_folder(folder_name,parent_kind, parent_id).json()
+        return response['id'], response['kind']
 
 
 class DownloadDukeDSFile(object):
@@ -241,7 +244,7 @@ class UploadDukeDSFolder(object):
     """
     Uploads a folder and the files it contains to DukeDS.
     """
-    def __init__(self, project_id, src, dest, user_id):
+    def __init__(self, project_id, parent_id, parent_kind, src, dest, user_id):
         """
         :param project_id: str: unique id of the project
         :param src: str: path to folder on disk
@@ -259,8 +262,14 @@ class UploadDukeDSFolder(object):
         :param context: Context
         """
         duke_data_service = context.get_duke_data_service(self.user_id)
-        duke_data_service.create_top_level_folder(self.project_id, self.dest)
+        folder_id, folder_kind = duke_data_service.create_folder(self.parent_id, self.parent_kind, self.dest)
         for filename in os.listdir(self.src):
             path = os.path.join(self.src, filename)
-            upload_file = UploadDukeDSFile(self.project_id, path, os.path.join(self.dest, filename))
-            upload_file.run(duke_data_service)
+            if os.path.isdir(path):
+                child_folder_name = os.path.basename(path)
+                child_folder = UploadDukeDSFolder(self.project_id, folder_id, folder_kind, path,
+                                                  child_folder_name, self.user_id)
+                child_folder.run(context)
+            else:
+                upload_file = UploadDukeDSFile(self.project_id, path, os.path.join(self.dest, filename))
+                upload_file.run(duke_data_service)

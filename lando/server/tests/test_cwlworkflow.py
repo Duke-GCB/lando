@@ -6,7 +6,7 @@ import platform
 import tempfile
 import shutil
 from lando.testutil import text_to_file, file_to_text
-from lando.worker.cwlworkflow import CwlWorkflow
+from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY_FILENAME
 from lando.exceptions import JobStepFailed
 
 SAMPLE_WORKFLOW = """
@@ -67,7 +67,10 @@ outputfile: results.txt
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
 
-        result_file_content = file_to_text(os.path.join(working_directory, output_directory, "results.txt"))
+        result_file_content = file_to_text(os.path.join(working_directory,
+                                                        output_directory,
+                                                        RESULTS_DIRECTORY_FILENAME,
+                                                        "results.txt"))
         self.assertEqual(result_file_content, "one\ntwo\n")
         shutil.rmtree(working_directory)
 
