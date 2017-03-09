@@ -115,6 +115,7 @@ class CwlWorkflow(object):
             result_directory.job_order_file_path)
         output, error_output, return_code = self.run_command(command)
         result_directory.add_job_output(output, error_output)
+        result_directory.add_workflow_files()
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
             raise JobStepFailed(error_message + error_output, output)
