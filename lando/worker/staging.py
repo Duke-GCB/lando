@@ -252,6 +252,8 @@ class UploadDukeDSFolder(object):
         :param user_id: int: bespin user id
         """
         self.project_id = project_id
+        self.parent_id = parent_id
+        self.parent_kind = parent_kind
         self.src = src
         self.dest = dest
         self.user_id = user_id
