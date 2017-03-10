@@ -6,10 +6,11 @@ import jinja2
 
 TEMPLATE = """
 # Summary
-{{ workflow.documentation }}
-Job: {{ job.name }}
+
+Job: {{ workflow.documentation }}
 Job Id: {{ job.id }}
-Created: {{ job.created }}
+Started: {{ job.started }}
+Finished: {{ job.finished }}
 Run time: {{ job.run_time }}
 Output: {{ job.num_output_files }} files ({{ job.total_file_size_str }})
 
@@ -24,12 +25,15 @@ Output: {{ job.num_output_files }} files ({{ job.total_file_size_str }})
 {% for item in workflow.output_data %}
 {{ item.documentation }}
   {% for file in item.files %}
-{{ file.filename }} {{ file.checksum}}  {{ file.size }}
+{{ file.filename }}  checksum:{{ file.checksum}}  size:{{ file.size }}
   {% endfor %}
 {% endfor %}
 
 # Reproducing
 
+Retrieve all data and update {{ workflow.job_order_filename }} settings for where you put them.
+Install cwltool
+Run this command:
 cwtool {{ workflow.workflow_filename }} {{ workflow.job_order_filename }}
 
 You can compare the output from this tool against {{ workflow.job_output_filename }}.
@@ -50,13 +54,19 @@ class CwlReport(object):
             outfile.write(self.render())
 
 
+def get_documentation_str(node):
+    documentation = node.get("doc")
+    if not documentation:
+        documentation = node.get("id")
+    return documentation
+
 class WorkflowInfo(object):
     def __init__(self, workflow_filename, cwl_version, workflow_node):
         self.workflow_filename = workflow_filename
         self.job_order_filename = None
         self.job_output_filename = None
         self.cwl_version = cwl_version
-        self.documentation = workflow_node.get("doc")
+        self.documentation = get_documentation_str(workflow_node)
         self.input_params = []
         self.output_data = []
         for input_param in workflow_node.get("inputs"):
@@ -94,7 +104,11 @@ class WorkflowInfo(object):
             for key in doc.keys():
                 val = doc.get(key)
                 out_data = find_by_name(key, self.output_data)
-                out_data.add_file(OutputFile(val))
+                if type(val) == dict:
+                    out_data.add_file(OutputFile(val))
+                else:
+                    for item in val:
+                        out_data.add_file(OutputFile(item))
 
     def count_output_files(self):
         return len(self.output_data)
@@ -113,7 +127,7 @@ def find_by_name(name, items):
 class InputParam(object):
     def __init__(self, data):
         self.name = os.path.basename(data.get('id'))
-        self.documentation = data.get('doc')
+        self.documentation = get_documentation_str(data)
         self.value = []
         self.str_value = ''
 
@@ -127,7 +141,7 @@ class InputParam(object):
 class OutputData(object):
     def __init__(self, data):
         self.name = os.path.basename(data.get('id'))
-        self.documentation = data.get('doc')
+        self.documentation = get_documentation_str(data)
         self.files = []
 
     def add_file(self, output_file):
@@ -136,7 +150,7 @@ class OutputData(object):
 
 class OutputFile(object):
     def __init__(self, data):
-        self.filename = os.path.basename(data['location'])
+        self.filename = os.path.basename(data.get('location'))
         self.checksum = data.get('checksum')
         self.size = data.get('size')
 
@@ -158,19 +172,23 @@ def create_workflow_info(workflow_path):
     if doc.get("id") == "#main":
         return WorkflowInfo(workflow_path, cwl_version, doc)
     raise ValueError("Unable to find #main in {}".format(workflow_path))
-#
+
+
 # def main():
-#     workflow_info = create_workflow_info(workflow_path="testdata/imads-workflow.packed.cwl")
-#     workflow_info.update_with_job_order(job_order_path="testdata/imads-job-order.json")
-#     workflow_info.update_with_job_output(job_output_path="testdata/imads-output.json")
+#     workflow_info = create_workflow_info(workflow_path="../../somedata/workflow/workflow.cwl")
+#     workflow_info.update_with_job_order(job_order_path="../../somedata/workflow/workflow.yml")
+#     workflow_info.update_with_job_output(job_output_path="../../somedata/logs/cwltool-output.json")
 #     job_data = {
 #         'id': 1,
-#         'name': 'Bradley Lab Pig/Eagle RNA sequencing',
 #         'started': "2017-03-08T21:36:58.491777Z",
+#         'finished': "2017-03-08T21:36:58.491777Z",
 #         'run_time': '12 hours',
 #         'num_output_files': workflow_info.count_output_files(),
 #         'total_file_size_str': workflow_info.total_file_size_str()
 #     }
 #     report = CwlReport(workflow_info, job_data)
-#     report.save("report.html", "index.html")
-#
+#     print(report.render())
+
+
+if __name__ == "__main__":
+    main()
