@@ -85,14 +85,13 @@ class DukeDataService(object):
         """
         logging.info('Transferring {} of {}', increment_amt, item.name)
 
-    def upload_file(self, project_id, source_path, destination_path):
+    def upload_file(self, project_id, parent_id, parent_kind, source_path, destination_path):
         """
         Upload into project_id the file at source_path and store it at destination_path in the project.
         :param project_id: str: DukeDS unique project id
         :param source_path: str: path to our file we will upload
         :param destination_path: str: path to where we will save the file in the DukeDS project
         """
-        parent_id, parent_kind = self.find_or_create_item(project_id, KindType.project_str, destination_path)
         local_file = LocalFile(source_path)
         local_file.remote_id = self.get_file_id(parent_id, parent_kind, os.path.basename(destination_path))
         local_file.need_to_send = True
@@ -222,13 +221,15 @@ class UploadDukeDSFile(object):
     """
     Uploads a file to DukeDS.
     """
-    def __init__(self, project_id, src, dest):
+    def __init__(self, project_id, parent_id, parent_kind, src, dest):
         """
         :param project_id: str: unique project id
         :param src: str: path to the file we want to upload
         :param dest: str: path to where we want to upload the file in the project
         """
         self.project_id = project_id
+        self.parent_id = parent_id
+        self.parent_kind = parent_kind
         self.src = src
         self.dest = dest
 
@@ -237,7 +238,7 @@ class UploadDukeDSFile(object):
         Upload the file
         :param duke_data_service: DukeDataService
         """
-        duke_data_service.upload_file(self.project_id, self.src, self.dest)
+        duke_data_service.upload_file(self.project_id, self.parent_id, self.parent_kind, self.src, self.dest)
 
 
 class UploadDukeDSFolder(object):
@@ -273,5 +274,5 @@ class UploadDukeDSFolder(object):
                                                   child_folder_name, self.user_id)
                 child_folder.run(context)
             else:
-                upload_file = UploadDukeDSFile(self.project_id, path, os.path.join(self.dest, filename))
+                upload_file = UploadDukeDSFile(folder_id, folder_kind, path, os.path.join(self.dest, filename))
                 upload_file.run(duke_data_service)
