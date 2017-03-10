@@ -1,8 +1,9 @@
 from __future__ import print_function
 import os
+import sys
 import yaml
 import jinja2
-
+import humanfriendly
 
 TEMPLATE = """
 # Summary
@@ -114,7 +115,11 @@ class WorkflowInfo(object):
         return len(self.output_data)
 
     def total_file_size_str(self):
-        return '200? GB'
+        number_bytes = 0
+        for item in self.output_data:
+            for file_data in item.files:
+                number_bytes += file_data.size
+        return humanfriendly.format_size(number_bytes)
 
 
 def find_by_name(name, items):
@@ -174,20 +179,21 @@ def create_workflow_info(workflow_path):
     raise ValueError("Unable to find #main in {}".format(workflow_path))
 
 
-# def main():
-#     workflow_info = create_workflow_info(workflow_path="../../somedata/workflow/workflow.cwl")
-#     workflow_info.update_with_job_order(job_order_path="../../somedata/workflow/workflow.yml")
-#     workflow_info.update_with_job_output(job_output_path="../../somedata/logs/cwltool-output.json")
-#     job_data = {
-#         'id': 1,
-#         'started': "2017-03-08T21:36:58.491777Z",
-#         'finished': "2017-03-08T21:36:58.491777Z",
-#         'run_time': '12 hours',
-#         'num_output_files': workflow_info.count_output_files(),
-#         'total_file_size_str': workflow_info.total_file_size_str()
-#     }
-#     report = CwlReport(workflow_info, job_data)
-#     print(report.render())
+def main():
+
+    workflow_info = create_workflow_info(workflow_path=sys.argv[1])
+    workflow_info.update_with_job_order(job_order_path=sys.argv[2])
+    workflow_info.update_with_job_output(job_output_path=sys.argv[3])
+    job_data = {
+        'id': 1,
+        'started': "2017-03-08T21:36:58.491777Z",
+        'finished': "2017-03-08T21:36:58.491777Z",
+        'run_time': '12 hours',
+        'num_output_files': workflow_info.count_output_files(),
+        'total_file_size_str': workflow_info.total_file_size_str()
+    }
+    report = CwlReport(workflow_info, job_data)
+    print(report.render())
 
 
 if __name__ == "__main__":
