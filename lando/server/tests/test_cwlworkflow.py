@@ -10,20 +10,33 @@ from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY_FILENAME
 from lando.exceptions import JobStepFailed
 
 SAMPLE_WORKFLOW = """
-cwlVersion: v1.0
-class: CommandLineTool
-baseCommand: cat
-stdout: $(inputs.outputfile)
-inputs:
- files:
-    type:
-      type: array
-      items: File
-    inputBinding:
-      position: 1
-outputs:
-  outputfile:
-    type: stdout
+{
+    "class": "CommandLineTool",
+    "baseCommand": "cat",
+    "stdout": "$(inputs.outputfile)",
+    "inputs": [
+        {
+            "type": {
+                "type": "array",
+                "items": "File"
+            },
+            "inputBinding": {
+                "position": 1
+            },
+            "id": "#main/files"
+        }
+    ],
+    "outputs": [
+        {
+            "type": "File",
+            "id": "#main/outputfile",
+            "outputBinding": {
+                "glob": "$(inputs.outputfile)"
+            }
+        }
+    ],
+    "id": "#main"
+}
 """
 
 

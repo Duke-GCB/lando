@@ -7,6 +7,8 @@ import shutil
 import urllib
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
+from lando.worker.cwlreport import create_workflow_info, CwlReport
+
 
 JOB_STDOUT_FILENAME = 'cwltool-output.json'
 JOB_STDERR_FILENAME = 'cwltool-output.log'
@@ -37,17 +39,35 @@ class ResultDirectory(object):
     def _add_job_order_file(self, input_json):
         return self._save_to_directory(self.working_directory, JOB_ORDER_FILENAME, input_json)
 
-    def add_job_output(self, output, error_output):
-        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
-        os.mkdir(workflow_directory)
-        self._save_to_directory(workflow_directory, JOB_STDOUT_FILENAME, output)
-        self._save_to_directory(workflow_directory, JOB_STDERR_FILENAME, error_output)
-
-    def add_workflow_files(self):
+    def create_log_files(self, output, error_output):
         logs_directory = os.path.join(self.base_directory, LOGS_DIRECTORY)
         os.mkdir(logs_directory)
-        shutil.copy(self.workflow_path, os.path.join(logs_directory, WORKFLOW_FILENAME))
-        shutil.copy(self.job_order_file_path, os.path.join(logs_directory, JOB_ORDER_FILENAME))
+        self._save_to_directory(logs_directory, JOB_STDOUT_FILENAME, output)
+        self._save_to_directory(logs_directory, JOB_STDERR_FILENAME, error_output)
+
+    def copy_workflow_inputs(self):
+        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
+        os.mkdir(workflow_directory)
+        shutil.copy(self.workflow_path, os.path.join(workflow_directory, WORKFLOW_FILENAME))
+        shutil.copy(self.job_order_file_path, os.path.join(workflow_directory, JOB_ORDER_FILENAME))
+
+    def create_report(self):
+        logs_directory = os.path.join(self.base_directory, LOGS_DIRECTORY)
+        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
+
+        workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, WORKFLOW_FILENAME))
+        workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, JOB_ORDER_FILENAME))
+        workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
+        job_data = {
+            'id': 1,
+            'name': 'Bradley Lab Pig/Eagle RNA sequencing',
+            'started': "2017-03-08T21:36:58.491777Z",
+            'run_time': '12 hours',
+            'num_output_files': workflow_info.count_output_files(),
+            'total_file_size_str': workflow_info.total_file_size_str()
+        }
+        report = CwlReport(workflow_info, job_data)
+        report.save(os.path.join(self.base_directory, 'Bespin-Report.txt'))
 
     @staticmethod
     def _save_to_directory(directory_path, filename, data):
@@ -121,8 +141,9 @@ class CwlWorkflow(object):
             workflow_file,
             result_directory.job_order_file_path)
         output, error_output, return_code = self.run_command(command)
-        result_directory.add_job_output(output, error_output)
-        result_directory.add_workflow_files()
+        result_directory.create_log_files(output, error_output)
+        result_directory.copy_workflow_inputs()
+        result_directory.create_report()
         if return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(return_code)
             raise JobStepFailed(error_message + error_output, output)
