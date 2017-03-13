@@ -21,7 +21,7 @@ Output: {{ job.num_output_files }} files ({{ job.total_file_size_str }})
 # Input
 {% for param in workflow.input_params %}
 {{ param.documentation }}
-{{ param.str_value }}
+{{ param.value }}
 
 {% endfor %}
 
@@ -48,20 +48,22 @@ class CwlReport(object):
     """
     Report detailing inputs and outputs of a cwl workflow that has been run.
     """
-    def __init__(self, workflow_info, job_data):
+    def __init__(self, workflow_info, job_data, template=TEMPLATE):
         """
         :param workflow_info: WorkflowInfo: info derived from cwl input/output files
         :param job_data: dict: data used in report from non-cwl sources
+        :param template: str: template to use for rendering
         """
         self.workflow_info = workflow_info
         self.job_data = job_data
+        self.template = template
 
     def render(self):
         """
         Make the report
         :return: str: report contents
         """
-        template = jinja2.Template(TEMPLATE)
+        template = jinja2.Template(self.template)
         return template.render(workflow=self.workflow_info, job=self.job_data)
 
     def save(self, destination_path):
@@ -137,7 +139,7 @@ class WorkflowInfo(object):
             val = doc.get(key)
             input_param = find_by_name(key, self.input_params)
             if input_param:
-                input_param.set_value(val, self._create_str_value(val))
+                input_param.set_value(self._create_str_value(val))
 
     @staticmethod
     def _create_str_value(val):
@@ -201,17 +203,16 @@ class InputParam(object):
     def __init__(self, data):
         self.name = os.path.basename(data.get('id'))
         self.documentation = get_documentation_str(data)
-        self.value = []
-        self.str_value = ''
+        self.value = None
 
-    def set_value(self, value, str_value):
+    def set_value(self, value):
         """
-        Saves value/str_value and raises error if called more than once.
+        Saves str_value and raises error if called more than once.
+        :param value: str: user facing value
         """
         if self.value:
             raise ("Duplicate value for {} : {}".format(self.name, value))
         self.value = value
-        self.str_value = str_value
 
 
 class OutputData(object):
