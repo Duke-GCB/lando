@@ -47,8 +47,12 @@ class LandoWorkerSettings(object):
 
     @staticmethod
     def make_upload_duke_ds_folder(project_id, source_directory, dest_directory, user_id):
-        return staging.UploadDukeDSFolder(project_id, project_id, KindType.project_str,
-                                          source_directory, dest_directory, user_id)
+        return staging.UploadDukeDSFolder(project_id=project_id,
+                                          parent_id=project_id,
+                                          parent_kind=KindType.project_str,
+                                          src=source_directory,
+                                          dest=dest_directory,
+                                          user_id=user_id)
 
 
 class LandoWorkerActions(object):

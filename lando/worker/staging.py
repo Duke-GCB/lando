@@ -88,7 +88,9 @@ class DukeDataService(object):
     def upload_file(self, project_id, parent_id, parent_kind, source_path, destination_path):
         """
         Upload into project_id the file at source_path and store it at destination_path in the project.
-        :param project_id: str: DukeDS unique project id
+        :param project_id:  str: DukeDS project uuid
+        :param parent_id: str: DukeDS uuid of the parent of this file: a folder or project(project_id above)
+        :param parent_kind: str: str type of parent ('dds-project' or 'dds-folder')
         :param source_path: str: path to our file we will upload
         :param destination_path: str: path to where we will save the file in the DukeDS project
         """
@@ -97,20 +99,6 @@ class DukeDataService(object):
         local_file.need_to_send = True
         file_content_sender = FileUploader(self.config, self.data_service, local_file, self)
         file_content_sender.upload(project_id, parent_kind, parent_id)
-
-    def find_or_create_item(self, parent_id, parent_kind, path):
-        """
-        Find project/folder object or create it in DukeDS.
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of parent 'dds_project' or 'dds_folder'
-        :param path: str: DukeDS path we want to create a parent at
-        :return: str,str: item unique id, item kind
-        """
-        dirname = os.path.dirname(path)
-        if dirname:
-            for part in dirname.split(os.path.sep):
-                parent_id, parent_kind = self.find_or_create_directory(parent_id, parent_kind, part)
-        return parent_id, parent_kind
 
     def find_or_create_directory(self, parent_id, parent_kind, child_name):
         """
@@ -159,7 +147,7 @@ class DukeDataService(object):
         """
         Create a folder with folder_name under the parent specified by parent_id/parent_kind.
         :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of the parent (folder or project)
+        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
         :param folder_name: str: name of the folder to create
         :return: str,str: uuid and kind of the folder
         """
@@ -224,6 +212,8 @@ class UploadDukeDSFile(object):
     def __init__(self, project_id, parent_id, parent_kind, src, dest):
         """
         :param project_id: str: unique project id
+        :param parent_id: str: unique id of the parent
+        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
         :param src: str: path to the file we want to upload
         :param dest: str: path to where we want to upload the file in the project
         """
@@ -247,7 +237,10 @@ class UploadDukeDSFolder(object):
     """
     def __init__(self, project_id, parent_id, parent_kind, src, dest, user_id):
         """
+
         :param project_id: str: unique id of the project
+        :param parent_id: str: unique id of the parent
+        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
         :param src: str: path to folder on disk
         :param dest: str: path to where in the project we will upload to
         :param user_id: int: bespin user id
