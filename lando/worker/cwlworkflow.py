@@ -58,15 +58,21 @@ class CwlDirectory(object):
       ...files downloaded during stage in job step
       workflow.cwl        # cwl workflow we will run
       workflow.yml        # job order input file
-      upload_directory/   # this is a user specified name
-        results/
+      <upload_directory>/   # user specified directory name
+        results/          # output_directory member
            ...output files from workflow
     """
     def __init__(self, working_directory, user_directory_name, cwl_file_url, job_order):
+        """
+        :param working_directory: str: path to directory cwl will be run in (data files may be relative to this path)
+        :param user_directory_name: str: name user has chosen for their result directory
+        :param cwl_file_url: str: url to packed cwl file to run
+        :param job_order: str: job order string data (JSON or YAML format)
+        """
         self.working_directory = working_directory
-        self.base_directory = os.path.join(working_directory, user_directory_name)
-        create_dir_if_necessary(self.base_directory)
-        self.output_directory = os.path.join(self.base_directory, RESULTS_DIRECTORY_FILENAME)
+        self.result_directory = os.path.join(working_directory, user_directory_name)
+        create_dir_if_necessary(self.result_directory)
+        self.output_directory = os.path.join(self.result_directory, RESULTS_DIRECTORY_FILENAME)
         self.workflow_path = self._add_workflow_file(cwl_file_url)
         self.job_order_file_path = save_data_to_directory(self.working_directory, JOB_ORDER_FILENAME, job_order)
 
@@ -203,7 +209,7 @@ class ResultsDirectory(object):
         :param cwl_directory: CwlDirectory: directory data for a job that has been run
         """
         self.job_id = job_id
-        self.base_directory = cwl_directory.base_directory
+        self.result_directory = cwl_directory.result_directory
         self.workflow_path = cwl_directory.workflow_path
         self.job_order_file_path = cwl_directory.job_order_file_path
 
@@ -222,7 +228,7 @@ class ResultsDirectory(object):
         :param output: str: stdout from cwl-runner
         :param error_output:  str: stderr from cwl-runner
         """
-        logs_directory = os.path.join(self.base_directory, LOGS_DIRECTORY)
+        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
         create_dir_if_necessary(logs_directory)
         save_data_to_directory(logs_directory, JOB_STDOUT_FILENAME, output)
         save_data_to_directory(logs_directory, JOB_STDERR_FILENAME, error_output)
@@ -231,7 +237,7 @@ class ResultsDirectory(object):
         """
         Copies workflow input files to the 'workflow' directory.
         """
-        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
+        workflow_directory = os.path.join(self.result_directory, WORKFLOW_DIRECTORY)
         create_dir_if_necessary(workflow_directory)
         shutil.copy(self.workflow_path, os.path.join(workflow_directory, WORKFLOW_FILENAME))
         shutil.copy(self.job_order_file_path, os.path.join(workflow_directory, JOB_ORDER_FILENAME))
@@ -241,8 +247,8 @@ class ResultsDirectory(object):
         Creates a report to the directory that will be uploaded based on the inputs and outputs of the workflow.
         :param cwl_process: CwlProcess: contains job start/stop info
         """
-        logs_directory = os.path.join(self.base_directory, LOGS_DIRECTORY)
-        workflow_directory = os.path.join(self.base_directory, WORKFLOW_DIRECTORY)
+        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
+        workflow_directory = os.path.join(self.result_directory, WORKFLOW_DIRECTORY)
         workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, WORKFLOW_FILENAME))
         workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, JOB_ORDER_FILENAME))
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
@@ -255,4 +261,4 @@ class ResultsDirectory(object):
             'total_file_size_str': workflow_info.total_file_size_str()
         }
         report = CwlReport(workflow_info, job_data)
-        report.save(os.path.join(self.base_directory, REPORT_FILENAME))
+        report.save(os.path.join(self.result_directory, REPORT_FILENAME))
