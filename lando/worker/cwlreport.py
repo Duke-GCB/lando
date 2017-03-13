@@ -147,7 +147,7 @@ class WorkflowInfo(object):
         if type(val) == dict:
             return val['path']
         if type(val) == list:
-            return ','.join([WorkflowInfo.create_str_value(part) for part in val])
+            return ','.join([WorkflowInfo._create_str_value(part) for part in val])
         return str(val)
 
     def update_with_job_output(self, job_output_path):

@@ -68,9 +68,7 @@ class CwlDirectory(object):
         create_dir_if_necessary(self.base_directory)
         self.output_directory = os.path.join(self.base_directory, RESULTS_DIRECTORY_FILENAME)
         self.workflow_path = self._add_workflow_file(cwl_file_url)
-        self.job_order_file_path = self.save_data_to_directory(self.working_directory,
-                                                               JOB_ORDER_FILENAME,
-                                                               job_order)
+        self.job_order_file_path = save_data_to_directory(self.working_directory, JOB_ORDER_FILENAME, job_order)
 
     def _add_workflow_file(self, cwl_file_url):
         """
