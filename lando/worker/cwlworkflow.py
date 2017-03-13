@@ -6,6 +6,7 @@ import os
 import shutil
 import urllib
 import datetime
+import json
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
@@ -19,6 +20,7 @@ REPORT_FILENAME = 'Bespin-Report.txt'
 LOGS_DIRECTORY = 'logs'
 JOB_STDOUT_FILENAME = 'cwltool-output.json'
 JOB_STDERR_FILENAME = 'cwltool-output.log'
+JOB_DATA_FILENAME = 'job-data.json'
 
 WORKFLOW_DIRECTORY = 'workflow'
 WORKFLOW_FILENAME = 'workflow.cwl'
@@ -245,6 +247,7 @@ class ResultsDirectory(object):
     def _create_report(self, cwl_process):
         """
         Creates a report to the directory that will be uploaded based on the inputs and outputs of the workflow.
+        Also saves the json job-specific file into logs.
         :param cwl_process: CwlProcess: contains job start/stop info
         """
         logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
@@ -254,11 +257,16 @@ class ResultsDirectory(object):
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
         job_data = {
             'id': self.job_id,
-            'started': cwl_process.started,
-            'finished': cwl_process.finished,
+            'started': cwl_process.started.isoformat(),
+            'finished': cwl_process.finished.isoformat(),
             'run_time': cwl_process.total_runtime_str(),
             'num_output_files': workflow_info.count_output_files(),
             'total_file_size_str': workflow_info.total_file_size_str()
         }
         report = CwlReport(workflow_info, job_data)
         report.save(os.path.join(self.result_directory, REPORT_FILENAME))
+        self._save_job_data(job_data)
+
+    def _save_job_data(self, job_data):
+        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
+        save_data_to_directory(logs_directory, JOB_DATA_FILENAME, json.dumps(job_data))

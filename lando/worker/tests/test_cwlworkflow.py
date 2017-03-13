@@ -186,7 +186,7 @@ class TestCwlWorkflowProcess(TestCase):
                                      job_order_filename='joborder')
         process.run()
         self.assertEqual(1, process.return_code)
-        self.assertIn("illegal option", process.error_output.strip())
+        self.assertIn("usage", process.error_output.strip())
 
 
 class TestResultsDirectory(TestCase):
@@ -195,15 +195,26 @@ class TestResultsDirectory(TestCase):
     @patch("lando.worker.cwlworkflow.shutil")
     @patch("lando.worker.cwlworkflow.create_workflow_info")
     @patch("lando.worker.cwlworkflow.CwlReport")
-    def test_something(self, mock_cwl_report, mock_create_workflow_info, mock_shutil, mock_save_data_to_directory,
+    def test_add_files(self, mock_cwl_report, mock_create_workflow_info, mock_shutil, mock_save_data_to_directory,
                        mock_create_dir_if_necessary):
         job_id = 1
         cwl_directory = MagicMock(result_directory='/tmp/fakedir',
                                   workflow_path='/tmp/nosuchpath.cwl',
                                   job_order_file_path='/tmp/alsonotreal.json')
+        # Create directory
         results_directory = ResultsDirectory(job_id, cwl_directory)
+
+        # Make dummy data so we can serialize the values
+        mock_create_workflow_info().total_file_size_str.return_value = '1234'
+        mock_create_workflow_info().count_output_files.return_value = 1
         cwl_process = MagicMock(output='stdoutdata', error_output='stderrdata')
+        cwl_process.started.isoformat.return_value = ''
+        cwl_process.finished.isoformat.return_value = ''
+        cwl_process.total_runtime_str.return_value = '0 minutes'
+
+        # Ask directory to add files based on a mock process
         results_directory.add_files(cwl_process)
+
         mock_create_dir_if_necessary.assert_has_calls([
             call("/tmp/fakedir/logs"),
             call("/tmp/fakedir/workflow")])
