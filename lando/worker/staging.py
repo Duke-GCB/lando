@@ -267,5 +267,6 @@ class UploadDukeDSFolder(object):
                                                   child_folder_name, self.user_id)
                 child_folder.run(context)
             else:
-                upload_file = UploadDukeDSFile(folder_id, folder_kind, path, os.path.join(self.dest, filename))
+                upload_file = UploadDukeDSFile(self.project_id, folder_id, folder_kind, path,
+                                               os.path.join(self.dest, filename))
                 upload_file.run(duke_data_service)
