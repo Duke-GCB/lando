@@ -1,3 +1,6 @@
+"""
+Creates a report about the inputs and outputs of a cwl workflow.
+"""
 from __future__ import print_function
 import os
 import sys
@@ -42,27 +45,75 @@ You can compare the output from this tool against {{ workflow.job_output_filenam
 
 
 class CwlReport(object):
+    """
+    Report detailing inputs and outputs of a cwl workflow that has been run.
+    """
     def __init__(self, workflow_info, job_data):
+        """
+        :param workflow_info: WorkflowInfo: info derived from cwl input/output files
+        :param job_data: dict: data used in report from non-cwl sources
+        """
         self.workflow_info = workflow_info
         self.job_data = job_data
 
     def render(self):
+        """
+        Make the report
+        :return: str: report contents
+        """
         template = jinja2.Template(TEMPLATE)
         return template.render(workflow=self.workflow_info, job=self.job_data)
 
     def save(self, destination_path):
+        """
+        Save the report to destination_path
+        :param destination_path: str: path to where we will write the report
+        """
         with open(destination_path, 'w') as outfile:
             outfile.write(self.render())
 
 
 def get_documentation_str(node):
+    """
+    Retrieve the documentation information from a cwl formatted dictionary.
+    If there is no doc tag return the id value.
+    :param node: dict: cwl dictionary
+    :return: str: documentation description or id
+    """
     documentation = node.get("doc")
     if not documentation:
         documentation = node.get("id")
     return documentation
 
+
+def create_workflow_info(workflow_path):
+    """
+    Create a workflow_info filling in data based on a packed cwl workflow.
+    :param workflow_path: str: packed cwl workflow
+    :return: WorkflowInfo
+    """
+    doc = parse_yaml_or_json(workflow_path)
+    cwl_version = doc.get('cwlVersion')
+    graph = doc.get("$graph")
+    if graph:
+        for node in graph:
+            if node.get("id") == "#main":
+                return WorkflowInfo(workflow_path, cwl_version, node)
+    if doc.get("id") == "#main":
+        return WorkflowInfo(workflow_path, cwl_version, doc)
+    raise ValueError("Unable to find #main in {}".format(workflow_path))
+
+
 class WorkflowInfo(object):
+    """
+    Information about the workflow derived from cwl input/output files.
+    """
     def __init__(self, workflow_filename, cwl_version, workflow_node):
+        """
+        :param workflow_filename: str: path to a packed cwl workflow
+        :param cwl_version: str: version of cwl used in workflow_filename
+        :param workflow_node: dict: cwl dictionary inside workflow_filename
+        """
         self.workflow_filename = workflow_filename
         self.job_order_filename = None
         self.job_output_filename = None
@@ -71,27 +122,28 @@ class WorkflowInfo(object):
         self.input_params = []
         self.output_data = []
         for input_param in workflow_node.get("inputs"):
-            self.add_input_param(InputParam(input_param))
+            self.input_params.append(InputParam(input_param))
         for output_param in workflow_node.get("outputs"):
-            self.add_output_data(OutputData(output_param))
-
-    def add_input_param(self, input_param):
-        self.input_params.append(input_param)
-
-    def add_output_data(self, out_data):
-        self.output_data.append(out_data)
+            self.output_data.append(OutputData(output_param))
 
     def update_with_job_order(self, job_order_path):
+        """
+        Updates internal state based on job order data
+        :param job_order_path: str: path to the job_order file used with workflow_name
+        """
         self.job_order_filename = job_order_path
         doc = parse_yaml_or_json(job_order_path)
         for key in doc.keys():
             val = doc.get(key)
             input_param = find_by_name(key, self.input_params)
             if input_param:
-                input_param.set_value(val, self.create_str_value(val))
+                input_param.set_value(val, self._create_str_value(val))
 
     @staticmethod
-    def create_str_value(val):
+    def _create_str_value(val):
+        """
+        Coerce cwl value into str.
+        """
         if type(val) == dict:
             return val['path']
         if type(val) == list:
@@ -99,6 +151,10 @@ class WorkflowInfo(object):
         return str(val)
 
     def update_with_job_output(self, job_output_path):
+        """
+        Updates internal state based on stdout (resulting json) from running cwl
+        :param job_output_path: str: path to resulting json object from running cwl
+        """
         self.job_output_filename = job_output_path
         doc = parse_yaml_or_json(job_output_path)
         if doc:
@@ -115,6 +171,9 @@ class WorkflowInfo(object):
         return len(self.output_data)
 
     def total_file_size_str(self):
+        """
+        Returns the total output file size as a human friendly string.
+        """
         number_bytes = 0
         for item in self.output_data:
             for file_data in item.files:
@@ -123,6 +182,12 @@ class WorkflowInfo(object):
 
 
 def find_by_name(name, items):
+    """
+    Find the object with the specified name attribute.
+    :param name: str: name to look for
+    :param items: [object]: list of objects to look for
+    :return: first item matching name or None if not found
+    """
     for item in items:
         if item.name == name:
             return item
@@ -130,6 +195,9 @@ def find_by_name(name, items):
 
 
 class InputParam(object):
+    """
+    Input parameter for a cwl workflow.
+    """
     def __init__(self, data):
         self.name = os.path.basename(data.get('id'))
         self.documentation = get_documentation_str(data)
@@ -137,6 +205,9 @@ class InputParam(object):
         self.str_value = ''
 
     def set_value(self, value, str_value):
+        """
+        Saves value/str_value and raises error if called more than once.
+        """
         if self.value:
             raise ("Duplicate value for {} : {}".format(self.name, value))
         self.value = value
@@ -144,50 +215,58 @@ class InputParam(object):
 
 
 class OutputData(object):
+    """
+    Output file generated by a cwl workflow.
+    """
     def __init__(self, data):
+        """
+        :param data: dict: cwl formatted output data dictionary
+        """
         self.name = os.path.basename(data.get('id'))
         self.documentation = get_documentation_str(data)
         self.files = []
 
     def add_file(self, output_file):
+        """
+        Add an output file to the list associated with this output data.
+        :param output_file: OutputFile: info about the file
+        """
         self.files.append(output_file)
 
 
 class OutputFile(object):
+    """
+    Single file created by a CWL workflow
+    """
     def __init__(self, data):
+        """
+        :param data: dict: cwl formatted file info
+        """
         self.filename = os.path.basename(data.get('location'))
         self.checksum = data.get('checksum')
         self.size = data.get('size')
 
 
 def parse_yaml_or_json(path):
+    """
+    Return parsed YAML or JSON for a path to a file.
+    """
     with open(path) as infile:
         doc = yaml.load(infile)
     return doc
 
 
-def create_workflow_info(workflow_path):
-    doc = parse_yaml_or_json(workflow_path)
-    cwl_version = doc.get('cwlVersion')
-    graph = doc.get("$graph")
-    if graph:
-        for node in graph:
-            if node.get("id") == "#main":
-                return WorkflowInfo(workflow_path, cwl_version, node)
-    if doc.get("id") == "#main":
-        return WorkflowInfo(workflow_path, cwl_version, doc)
-    raise ValueError("Unable to find #main in {}".format(workflow_path))
-
-
 def main():
-
+    """
+    Method to allow easy testing of report contents with dummy job_data.
+    """
     workflow_info = create_workflow_info(workflow_path=sys.argv[1])
     workflow_info.update_with_job_order(job_order_path=sys.argv[2])
     workflow_info.update_with_job_output(job_output_path=sys.argv[3])
     job_data = {
         'id': 1,
         'started': "2017-03-08T21:36:58.491777Z",
-        'finished': "2017-03-08T21:36:58.491777Z",
+        'finished': "2017-03-08T21:43:51.491777Z",
         'run_time': '12 hours',
         'num_output_files': workflow_info.count_output_files(),
         'total_file_size_str': workflow_info.total_file_size_str()
