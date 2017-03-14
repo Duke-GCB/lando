@@ -201,6 +201,7 @@ class ResultsDirectory(object):
         logs/
             cwltool-output.json   #stdout from cwl-runner - json job results
             cwltool-output.log    #stderr from cwl-runner
+            job-data.json         # non-cwl job data used to create Bespin-Report.txt
         workflow/
           workflow.cwl            # cwl workflow we will run
           workflow.yml            # job order input file
@@ -268,5 +269,9 @@ class ResultsDirectory(object):
         self._save_job_data(job_data)
 
     def _save_job_data(self, job_data):
+        """
+        Save job data using in building the report into a JSON file under logs.
+        :param job_data: dict: non-cwl values used in the Report
+        """
         logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
         save_data_to_directory(logs_directory, JOB_DATA_FILENAME, json.dumps(job_data))
