@@ -259,21 +259,19 @@ def parse_yaml_or_json(path):
 
 def main():
     """
-    Method to allow easy testing of report contents with dummy job_data.
+    Method to allow easy testing of report contents.
     """
-    workflow_info = create_workflow_info(workflow_path=sys.argv[1])
-    workflow_info.update_with_job_order(job_order_path=sys.argv[2])
-    workflow_info.update_with_job_output(job_output_path=sys.argv[3])
-    job_data = {
-        'id': 1,
-        'started': "2017-03-08T21:36:58.491777Z",
-        'finished': "2017-03-08T21:43:51.491777Z",
-        'run_time': '12 hours',
-        'num_output_files': workflow_info.count_output_files(),
-        'total_file_size_str': workflow_info.total_file_size_str()
-    }
-    report = CwlReport(workflow_info, job_data)
-    print(report.render())
+    if len(sys.argv) != 5:
+        print("usage: python lando/worker/cwlreport.py <CWL_WORKFLOW_FILENAME> <CWL_JOB_ORDER_FILENAME> "
+              "<CWLTOOL_OUTPUT_FILENAME> <JOB_DATA_FILENAME>")
+        sys.exit(1)
+    else:
+        workflow_info = create_workflow_info(workflow_path=sys.argv[1])
+        workflow_info.update_with_job_order(job_order_path=sys.argv[2])
+        workflow_info.update_with_job_output(job_output_path=sys.argv[3])
+        job_data = parse_yaml_or_json(path=sys.argv[4])
+        report = CwlReport(workflow_info, job_data)
+        print(report.render())
 
 
 if __name__ == "__main__":
