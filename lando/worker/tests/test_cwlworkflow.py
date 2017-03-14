@@ -178,14 +178,16 @@ class TestCwlWorkflowProcess(TestCase):
 
     def test_run_stderr_bad_exit(self):
         """
-         Swap out cwl-runner for bogus wc that should fail
-         """
-        process = CwlWorkflowProcess(cwl_base_command=['wc'],
+        Testing that CwlWorkflowProcess traps stderr and the bad exit code.
+        Swap out cwl-runner for bogus ddsclient call that should fail.
+        ddsclient is installed for use as a module in staging.
+        """
+        process = CwlWorkflowProcess(cwl_base_command=['ddsclient'],
                                      local_output_directory='outdir',
                                      workflow_file='workflow',
                                      job_order_filename='joborder')
         process.run()
-        self.assertEqual(1, process.return_code)
+        self.assertEqual(2, process.return_code)
         self.assertIn("usage", process.error_output.strip())
 
 
