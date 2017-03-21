@@ -22,11 +22,15 @@ class TestJobApi(TestCase):
             'user_id': 23,
             'state': 'N',
             'step': '',
+            'name': 'myjob',
+            'created': '2017-03-21T13:29:09.123603Z',
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
             'job_order': '{ "value": 1 }',
             'workflow_version': {
+                'name': 'SomeWorkflow',
+                'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
             },
@@ -156,10 +160,14 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
+            'name': 'myjob',
+            'created': '2017-03-21T13:29:09.123603Z',
             'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
+                'name': 'SomeWorkflow',
+                'version': 1,
             },
             'output_dir': {
                 'dir_name': 'results',
@@ -204,6 +212,8 @@ class TestJobApi(TestCase):
                 'user_id': 23,
                 'state': 'N',
                 'step': '',
+                'name': 'SomeJob',
+                'created': '2017-03-21T13:29:09.123603Z',
                 'vm_flavor': 'm1.tiny',
                 'vm_instance_name': '',
                 "vm_project_name": 'jpb67',
@@ -211,6 +221,8 @@ class TestJobApi(TestCase):
                 'workflow_version': {
                     'url': 'file:///mnt/fastqc.cwl',
                     'object_name': '#main',
+                    'name': 'myworkflow',
+                    'version': 1,
                 },
                 'output_dir': {
                     'dir_name': 'results',

@@ -146,8 +146,9 @@ class JobActions(object):
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Staging data")
         credentials = self.job_api.get_credentials()
+        job = self.job_api.get_job()
         worker_client = self.make_worker_client(vm_instance_name)
-        worker_client.stage_job(credentials, self.job_id, self.job_api.get_input_files(), vm_instance_name)
+        worker_client.stage_job(credentials, job, self.job_api.get_input_files(), vm_instance_name)
 
     def stage_job_complete(self, payload):
         """
@@ -159,7 +160,7 @@ class JobActions(object):
         self._show_status("Running job")
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.run_job(payload.job_id, job.workflow, payload.vm_instance_name)
+        worker_client.run_job(job, job.workflow, payload.vm_instance_name)
 
     def run_job_complete(self, payload):
         """
@@ -172,7 +173,7 @@ class JobActions(object):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.store_job_output(credentials, payload.job_id, job.output_directory, payload.vm_instance_name)
+        worker_client.store_job_output(credentials, job, job.output_directory, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
         """

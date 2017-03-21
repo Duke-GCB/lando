@@ -212,6 +212,8 @@ class Job(object):
         """
         self.id = data['id']
         self.user_id = data['user_id']
+        self.created = data['created']
+        self.name = data['name']
         self.state = data['state']
         self.step = data['step']
         self.vm_flavor = data['vm_flavor']
@@ -232,6 +234,8 @@ class Workflow(object):
         self.job_order = data['job_order']
         workflow_version = data['workflow_version']
         self.url = workflow_version['url']
+        self.name = workflow_version['name']
+        self.version = workflow_version['version']
         self.object_name = workflow_version['object_name']
         self.output_directory = data['output_dir']['dir_name']
 
