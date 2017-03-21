@@ -12,6 +12,7 @@ from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
 from ddsc.core.fileuploader import FileUploader
 from ddsc.core.localstore import LocalFile
+from ddsc.core.upload import ProjectUpload
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
@@ -35,21 +36,27 @@ class Context(object):
         :param credentials: jobapi.Credentials
         """
         self.dds_user_credentials = credentials.dds_user_credentials
-        self.duke_ds = None
-        self.current_app_cred = None
-        self.current_user_cred = None
+        self.uploaded_file_ids = []
 
     def get_duke_data_service(self, user_id):
         """
         Create local DukeDataService after by creating DukeDS config.
         :param user_id: int: bespin user id
         """
+        return DukeDataService(self.get_duke_ds_config(user_id))
+
+    def get_duke_ds_config(self, user_id):
+        """
+        Create DukeDS configuration for a user id
+        :param user_id: int: bespin user id
+        :return: ddsc.config.Config
+        """
         config = ddsc.config.Config()
         credentials = self.dds_user_credentials[user_id]
         config.values[ddsc.config.Config.URL] = credentials.endpoint_api_root
         config.values[ddsc.config.Config.AGENT_KEY] = credentials.endpoint_agent_key
         config.values[ddsc.config.Config.USER_KEY] = credentials.token
-        return DukeDataService(config)
+        return config
 
 
 class DukeDataService(object):
@@ -84,75 +91,6 @@ class DukeDataService(object):
         :param increment_amt: int: allows for progress bar
         """
         logging.info('Transferring {} of {}', increment_amt, item.name)
-
-    def upload_file(self, project_id, parent_id, parent_kind, source_path, destination_path):
-        """
-        Upload into project_id the file at source_path and store it at destination_path in the project.
-        :param project_id:  str: DukeDS project uuid
-        :param parent_id: str: DukeDS uuid of the parent of this file: a folder or project(project_id above)
-        :param parent_kind: str: str type of parent ('dds-project' or 'dds-folder')
-        :param source_path: str: path to our file we will upload
-        :param destination_path: str: path to where we will save the file in the DukeDS project
-        """
-        local_file = LocalFile(source_path)
-        local_file.remote_id = self.get_file_id(parent_id, parent_kind, os.path.basename(destination_path))
-        local_file.need_to_send = True
-        file_content_sender = FileUploader(self.config, self.data_service, local_file, self)
-        file_content_sender.upload(project_id, parent_kind, parent_id)
-
-    def find_or_create_directory(self, parent_id, parent_kind, child_name):
-        """
-        Find project/folder object or directory in DukeDS.
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: kind of the parent (folder or project)
-        :param child_name: str: name of the directory to create
-        """
-        child_id, child_kind = self.find_child(parent_id, parent_kind, child_name)
-        if not child_id:
-            child = self.data_service.create_folder(folder_name=child_name, parent_uuid=parent_id,
-                                                    parent_kind_str=parent_kind).json()
-            return child['id'], child['kind']
-        return child_id, child_kind
-
-    def find_child(self, parent_id, parent_kind, child_name):
-        """
-        Search for a folder/file in with the specified parent and having child_name.
-        :param parent_id: unique id of the parent
-        :param parent_kind: kind of the parent (folder or project)
-        :param child_name: name of the child to find
-        """
-        children = None
-        if parent_kind == KindType.project_str:
-            children = self.data_service.get_project_children(parent_id, child_name).json()['results']
-        elif parent_kind == KindType.folder_str:
-            children = self.data_service.get_folder_children(parent_id, child_name).json()['results']
-        if len(children) > 0:
-            child = children[0]
-            return child['id'], child['kind']
-        else:
-            return None, None
-
-    def get_file_id(self, parent_id, parent_kind, filename):
-        """
-        Lookup unique file id for a filename with a given parent.
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of the parent (folder or project)
-        :param filename: str: name of the file
-        :return: str: unique id of this file
-        """
-        file_id, file_kind = self.find_child(parent_id, parent_kind, filename)
-        return file_id
-
-    def create_folder(self, parent_id, parent_kind, folder_name):
-        """
-        Create a folder with folder_name under the parent specified by parent_id/parent_kind.
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
-        :param folder_name: str: name of the folder to create
-        :return: str,str: uuid and kind of the folder
-        """
-        response = self.data_service.create_folder(folder_name,parent_kind, parent_id).json()
-        return response['id'], response['kind']
 
 
 class DownloadDukeDSFile(object):
@@ -205,68 +143,20 @@ class DownloadURLFile(object):
                     f.write(chunk)
 
 
-class UploadDukeDSFile(object):
+class UploadProject(object):
     """
-    Uploads a file to DukeDS.
+    Uploads files/folders into a specified project name.
     """
-    def __init__(self, project_id, parent_id, parent_kind, src, dest):
-        """
-        :param project_id: str: unique project id
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
-        :param src: str: path to the file we want to upload
-        :param dest: str: path to where we want to upload the file in the project
-        """
-        self.project_id = project_id
-        self.parent_id = parent_id
-        self.parent_kind = parent_kind
-        self.src = src
-        self.dest = dest
+    def __init__(self, project_name, file_folder_list):
+        self.project_name = project_name
+        self.file_folder_list = file_folder_list
 
-    def run(self, duke_data_service):
+    def run(self, config):
         """
-        Upload the file
-        :param duke_data_service: DukeDataService
+        Upload project and return local project with ids filled in
+        :param config: ddsc.config.Config: config settings to use
+        :return: ddsc.core.localproject.LocalProject
         """
-        duke_data_service.upload_file(self.project_id, self.parent_id, self.parent_kind, self.src, self.dest)
-
-
-class UploadDukeDSFolder(object):
-    """
-    Uploads a folder and the files it contains to DukeDS.
-    """
-    def __init__(self, project_id, parent_id, parent_kind, src, dest, user_id):
-        """
-
-        :param project_id: str: unique id of the project
-        :param parent_id: str: unique id of the parent
-        :param parent_kind: str: kind of the parent (dds-folder or dds-project)
-        :param src: str: path to folder on disk
-        :param dest: str: path to where in the project we will upload to
-        :param user_id: int: bespin user id
-        """
-        self.project_id = project_id
-        self.parent_id = parent_id
-        self.parent_kind = parent_kind
-        self.src = src
-        self.dest = dest
-        self.user_id = user_id
-
-    def run(self, context):
-        """
-        Upload folder and it's files.
-        :param context: Context
-        """
-        duke_data_service = context.get_duke_data_service(self.user_id)
-        folder_id, folder_kind = duke_data_service.create_folder(self.parent_id, self.parent_kind, self.dest)
-        for filename in os.listdir(self.src):
-            path = os.path.join(self.src, filename)
-            if os.path.isdir(path):
-                child_folder_name = os.path.basename(path)
-                child_folder = UploadDukeDSFolder(self.project_id, folder_id, folder_kind, path,
-                                                  child_folder_name, self.user_id)
-                child_folder.run(context)
-            else:
-                upload_file = UploadDukeDSFile(self.project_id, folder_id, folder_kind, path,
-                                               os.path.join(self.dest, filename))
-                upload_file.run(duke_data_service)
+        project_upload = ProjectUpload(config, self.project_name, self.file_folder_list)
+        project_upload.run()
+        return project_upload.local_project

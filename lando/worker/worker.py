@@ -5,8 +5,8 @@ Run via script with no arguments: lando_worker
 """
 from __future__ import print_function
 import os
-import sys
 import traceback
+import dateutil.parser
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
@@ -46,13 +46,8 @@ class LandoWorkerSettings(object):
         return cwlworkflow.CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
 
     @staticmethod
-    def make_upload_duke_ds_folder(project_id, source_directory, dest_directory, user_id):
-        return staging.UploadDukeDSFolder(project_id=project_id,
-                                          parent_id=project_id,
-                                          parent_kind=KindType.project_str,
-                                          src=source_directory,
-                                          dest=dest_directory,
-                                          user_id=user_id)
+    def make_upload_project(project_name, file_folder_list):
+        return staging.UploadProject(project_name, file_folder_list)
 
 
 class LandoWorkerActions(object):
@@ -102,12 +97,23 @@ class LandoWorkerActions(object):
         :param working_directory: str: path to working directory that contains the output directory
         :param payload: path to directory containing files we will run the workflow using
         """
+        project_name = self.create_project_name(payload)
         staging_context = self.settings.make_staging_context(payload.credentials)
         source_directory = os.path.join(working_directory, payload.dir_name)
-        upload_folder = self.settings.make_upload_duke_ds_folder(payload.project_id,
-                                                                 source_directory, payload.dir_name,
-                                                                 user_id=payload.dds_user_credentials)
-        upload_folder.run(staging_context)
+        upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
+        upload_project = self.settings.make_upload_project(project_name, upload_paths)
+        config = staging_context.get_duke_ds_config(payload.dds_user_credentials)
+        upload_project.run(config)
+
+    @staticmethod
+    def create_project_name(payload):
+        job_details = payload.job_details
+        job_name = job_details.name
+        job_created = dateutil.parser.parse(job_details.created).strftime("%Y-%M-%d")
+        workflow = job_details.workflow
+        workflow_name = workflow.name
+        workflow_version = workflow.version
+        return "Bespin {} v{} {} {}".format(workflow_name, workflow_version, job_name, job_created)
 
 
 class LandoWorker(object):
