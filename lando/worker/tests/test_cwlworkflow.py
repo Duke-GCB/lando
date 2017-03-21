@@ -1,12 +1,10 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
-import pwd
-import platform
 import tempfile
 import shutil
 from lando.testutil import text_to_file, file_to_text
-from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY_FILENAME
+from lando.worker.cwlworkflow import CwlWorkflow, OUTPUT_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory
 from mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
@@ -84,7 +82,7 @@ outputfile: results.txt
 
         result_file_content = file_to_text(os.path.join(working_directory,
                                                         output_directory,
-                                                        RESULTS_DIRECTORY_FILENAME,
+                                                        OUTPUT_DIRECTORY,
                                                         "results.txt"))
         self.assertEqual(result_file_content, "one\ntwo\n")
         shutil.rmtree(working_directory)
@@ -150,16 +148,16 @@ class TestCwlDirectory(TestCase):
         mock_save_data_to_directory.return_value = 'somepath'
         working_directory = '/tmp/fakedir/'
         user_directory_name = 'mystuff'
-        cwl_file_url = 'file://tmp/notreal.txt'
+        cwl_file_url = 'file://tmp/notreal.cwl'
         job_order = '{}'
 
-        cwl_directory = CwlDirectory(working_directory, user_directory_name, cwl_file_url, job_order)
+        cwl_directory = CwlDirectory(3, working_directory, user_directory_name, cwl_file_url, job_order)
 
         self.assertEqual(working_directory, cwl_directory.working_directory)
         self.assertEqual('/tmp/fakedir/mystuff', cwl_directory.result_directory)
         mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/mystuff')
-        self.assertEqual('/tmp/fakedir/mystuff/results', cwl_directory.output_directory)
-        self.assertEqual('/tmp/fakedir/workflow.cwl', cwl_directory.workflow_path)
+        self.assertEqual('/tmp/fakedir/mystuff/output', cwl_directory.output_directory)
+        self.assertEqual('/tmp/fakedir/notreal.cwl', cwl_directory.workflow_path)
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
 
 
@@ -197,11 +195,13 @@ class TestResultsDirectory(TestCase):
     @patch("lando.worker.cwlworkflow.shutil")
     @patch("lando.worker.cwlworkflow.create_workflow_info")
     @patch("lando.worker.cwlworkflow.CwlReport")
-    def test_add_files(self, mock_cwl_report, mock_create_workflow_info, mock_shutil, mock_save_data_to_directory,
-                       mock_create_dir_if_necessary):
+    @patch("lando.worker.cwlworkflow.ScriptsReadme")
+    def test_add_files(self, mock_scripts_readme, mock_cwl_report, mock_create_workflow_info, mock_shutil,
+                       mock_save_data_to_directory, mock_create_dir_if_necessary):
         job_id = 1
         cwl_directory = MagicMock(result_directory='/tmp/fakedir',
                                   workflow_path='/tmp/nosuchpath.cwl',
+                                  workflow_basename='nosuch.cwl',
                                   job_order_file_path='/tmp/alsonotreal.json')
         # Create directory
         results_directory = ResultsDirectory(job_id, cwl_directory)
@@ -219,21 +219,24 @@ class TestResultsDirectory(TestCase):
 
         mock_create_dir_if_necessary.assert_has_calls([
             call("/tmp/fakedir/logs"),
-            call("/tmp/fakedir/workflow")])
+            call("/tmp/fakedir/scripts")])
         mock_save_data_to_directory.assert_has_calls([
             call('/tmp/fakedir/logs', 'cwltool-output.json', 'stdoutdata'),
             call('/tmp/fakedir/logs', 'cwltool-output.log', 'stderrdata')])
         mock_shutil.copy.assert_has_calls([
-            call('/tmp/nosuchpath.cwl', '/tmp/fakedir/workflow/workflow.cwl'),
-            call('/tmp/alsonotreal.json', '/tmp/fakedir/workflow/workflow.yml')
+            call('/tmp/nosuchpath.cwl', '/tmp/fakedir/scripts/nosuch.cwl'),
+            call('/tmp/alsonotreal.json', '/tmp/fakedir/scripts/alsonotreal.json')
         ])
         mock_create_workflow_info.assert_has_calls([
-            call(workflow_path='/tmp/fakedir/workflow/workflow.cwl'),
-            call().update_with_job_order(job_order_path='/tmp/fakedir/workflow/workflow.yml'),
+            call(workflow_path='/tmp/fakedir/scripts/nosuch.cwl'),
+            call().update_with_job_order(job_order_path='/tmp/fakedir/scripts/alsonotreal.json'),
             call().update_with_job_output(job_output_path='/tmp/fakedir/logs/cwltool-output.json'),
             call().count_output_files(),
             call().total_file_size_str()
         ])
         mock_cwl_report().save.assert_has_calls([
-            call('/tmp/fakedir/Bespin-Report.txt')
+            call('/tmp/fakedir/README')
+        ])
+        mock_scripts_readme().save.assert_has_calls([
+            call('/tmp/fakedir/scripts/README')
         ])
