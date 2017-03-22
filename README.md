@@ -87,6 +87,7 @@ vm_settings:
   worker_image_name: lando_worker    # Name of the image that has lando installed and lando_worker setup to run as a service
   ssh_key_name: jpb67                # Name of the openstack SSH key to install on the worker
   network_name: selfservice          # Openstack network name to add the vm onto
+  allocate_floating_ips: false       # Should each worker VM get allocated a floating IP defaults to false
   floating_ip_pool_name: ext-net     # Pool of floating IP's that will have one assigned to the VM
   default_favor_name: m1.small       # Flavor of image to use by default when creating a VM
 
@@ -97,7 +98,7 @@ cloud_settings:
   password: secret3  
   user_domain_name: Default               
   project_name: jpb67               # name of the project we will add VMs to
-  project_domain_name: Default    
+  project_domain_name: Default
 
 # Bespin job API settings
 bespin_api:

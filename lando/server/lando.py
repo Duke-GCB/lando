@@ -3,15 +3,18 @@ Server that starts/terminates VMs based on messages received from a queue.
 """
 from __future__ import print_function, absolute_import
 from datetime import datetime
+import traceback
+import json
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.bootscript import BootScript
 from lando.server.cloudservice import CloudService, FakeCloudService
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
-
+from lando_messaging.workqueue import WorkProgressQueue
 
 CONFIG_FILE_NAME = '/etc/lando_config.yml'
 LANDO_QUEUE_NAME = 'lando'
+WORK_PROGRESS_EXCHANGE_NAME = 'job_status'
 
 
 class JobSettings(object):
@@ -54,6 +57,12 @@ class JobSettings(object):
         """
         return LandoWorkerClient(self.config, queue_name=queue_name)
 
+    def get_work_progress_queue(self):
+        """
+        Creates object for sending progress notifications to queue containing job progress info.
+        """
+        return WorkProgressQueue(self.config, WORK_PROGRESS_EXCHANGE_NAME)
+
 
 class JobActions(object):
     """
@@ -64,6 +73,7 @@ class JobActions(object):
         self.job_id = settings.job_id
         self.config = settings.config
         self.job_api = settings.get_job_api()
+        self.work_progress_queue = settings.get_work_progress_queue()
 
     def make_worker_client(self, vm_instance_name):
         """
@@ -98,6 +108,8 @@ class JobActions(object):
         vm_instance_name = job.vm_instance_name
         if vm_instance_name and job.state != JobStates.CANCELED:
             payload.vm_instance_name = vm_instance_name
+            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT]:
+                self._set_job_state(JobStates.RUNNING)
             if job.step == JobSteps.STAGING:
                 self.send_stage_job_message(job.vm_instance_name)
             elif job.step == JobSteps.RUNNING:
@@ -134,8 +146,9 @@ class JobActions(object):
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Staging data")
         credentials = self.job_api.get_credentials()
+        job = self.job_api.get_job()
         worker_client = self.make_worker_client(vm_instance_name)
-        worker_client.stage_job(credentials, self.job_id, self.job_api.get_input_files(), vm_instance_name)
+        worker_client.stage_job(credentials, job, self.job_api.get_input_files(), vm_instance_name)
 
     def stage_job_complete(self, payload):
         """
@@ -147,7 +160,7 @@ class JobActions(object):
         self._show_status("Running job")
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.run_job(payload.job_id, job.workflow, payload.vm_instance_name)
+        worker_client.run_job(job, job.workflow, payload.vm_instance_name)
 
     def run_job_complete(self, payload):
         """
@@ -160,7 +173,7 @@ class JobActions(object):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.store_job_output(credentials, payload.job_id, job.output_directory, payload.vm_instance_name)
+        worker_client.store_job_output(credentials, job, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
         """
@@ -169,12 +182,17 @@ class JobActions(object):
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
         self._set_job_step(JobSteps.TERMINATE_VM)
+        project_id = payload.output_project_info
+        self._show_status("Saving project id {}.".format(project_id))
+        self.job_api.save_project_id(project_id)
         self._show_status("Terminating VM and queue")
+
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         cloud_service.terminate_instance(payload.vm_instance_name)
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.delete_queue()
+        self._set_job_step(None)
         self._set_job_state(JobStates.FINISHED)
 
     def cancel_job(self, payload):
@@ -183,13 +201,15 @@ class JobActions(object):
         Sets status to canceled and terminates the associated VM and deletes the queue.
         :param payload: CancelJobPayload: contains job id we should cancel
         """
+        self._set_job_step(None)
         self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
         job = self.job_api.get_job()
-        cloud_service = self._get_cloud_service(job)
-        cloud_service.terminate_instance(job.vm_instance_name)
-        worker_client = self.make_worker_client(job.vm_instance_name)
-        worker_client.delete_queue()
+        if job.vm_instance_name:
+            cloud_service = self._get_cloud_service(job)
+            cloud_service.terminate_instance(job.vm_instance_name)
+            worker_client = self.make_worker_client(job.vm_instance_name)
+            worker_client.delete_queue()
 
     def stage_job_error(self, payload):
         """
@@ -224,9 +244,21 @@ class JobActions(object):
 
     def _set_job_state(self, state):
         self.job_api.set_job_state(state)
+        self._send_job_progress_notification()
 
     def _set_job_step(self, step):
         self.job_api.set_job_step(step)
+        if step:
+            self._send_job_progress_notification()
+
+    def _send_job_progress_notification(self):
+        job = self.job_api.get_job()
+        payload = json.dumps({
+            "job": job.id,
+            "state": job.state,
+            "step": job.step,
+        })
+        self.work_progress_queue.send(payload)
 
     def _get_cloud_service(self, job):
         return self.settings.get_cloud_service(job.vm_project_name)
@@ -234,6 +266,17 @@ class JobActions(object):
     def _show_status(self, message):
         format_str = "{}: {} for job: {}."
         print(format_str.format(datetime.now(), message, self.job_id))
+
+    def generic_job_error(self, action_name, details):
+        """
+        Sets current job state to error and creates a job error with the details.
+        :param action_name: str: name of the action that failed
+        :param details: str: details about what went wrong typically a stack trace
+        """
+        self._set_job_state(JobStates.ERRORED)
+        message = "Running {} failed with {}".format(action_name, details)
+        self._show_status(message)
+        self._log_error(message=message)
 
 
 class Lando(object):
@@ -268,8 +311,12 @@ class Lando(object):
         :return: func(payload): function that will call the appropriate JobActions method
         """
         def action_method(payload):
-            action = self._make_actions(payload.job_id)
-            getattr(action, name)(payload)
+            actions = self._make_actions(payload.job_id)
+            try:
+                getattr(actions, name)(payload)
+            except:  # Trap all exceptions
+                tb = traceback.format_exc()
+                actions.generic_job_error(name, tb)
         return action_method
 
     def worker_started(self, worker_started_payload):

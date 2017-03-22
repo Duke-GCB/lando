@@ -114,6 +114,19 @@ class BespinApi(object):
         json_data = resp.json()
         return json_data
 
+    def put_job_output_dir(self, job_output_dir_id, data):
+        """
+        Update a job with some fields.
+        :param job_output_dir_id: int: unique job_output_dir id
+        :param data: dict: params we want to update on the job_output_dir
+        :return: dict: put response
+        """
+        path = 'job-output-dirs/{}/'.format(job_output_dir_id)
+        url = self._make_url(path)
+        resp = requests.put(url, headers=self.headers(), json=data)
+        resp.raise_for_status()
+        return resp.json()
+
 
 class JobApi(object):
     """
@@ -188,6 +201,19 @@ class JobApi(object):
         """
         self.api.post_error(self.job_id, job_step, content)
 
+    def save_project_id(self, project_id):
+        """
+        Update the output directory with the specified project_id.
+        :param project_id: str: uuid of the project
+        """
+        job = self.get_job()
+        data = {
+            'id': job.output_project.id,
+            'job': self.job_id,
+            'project_id': project_id
+        }
+        self.api.put_job_output_dir(job.output_project.id, data)
+
     @staticmethod
     def get_jobs_for_vm_instance_name(config, vm_instance_name):
         """
@@ -212,13 +238,15 @@ class Job(object):
         """
         self.id = data['id']
         self.user_id = data['user_id']
+        self.created = data['created']
+        self.name = data['name']
         self.state = data['state']
         self.step = data['step']
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_project_name = data['vm_project_name']
         self.workflow = Workflow(data)
-        self.output_directory = OutputDirectory(data)
+        self.output_project = OutputProject(data)
 
 
 class Workflow(object):
@@ -229,24 +257,18 @@ class Workflow(object):
         """
         :param data: dict: workflow values returned from bespin.
         """
-        self.input_json = data['workflow_input_json']
+        self.job_order = data['job_order']
         workflow_version = data['workflow_version']
         self.url = workflow_version['url']
+        self.name = workflow_version['name']
+        self.version = workflow_version['version']
         self.object_name = workflow_version['object_name']
-        self.output_directory = data['output_dir']['dir_name']
 
 
-class OutputDirectory(object):
-    """
-    Information about the directory we should send the result of the workflow to.
-    """
+class OutputProject(object):
     def __init__(self, data):
-        """
-        :param data: dict: output directory values returned from bespin.
-        """
         output_dir = data['output_dir']
-        self.dir_name = output_dir['dir_name']
-        self.project_id = output_dir['project_id']
+        self.id = output_dir['id']
         self.dds_user_credentials = output_dir['dds_user_credentials']
 
 

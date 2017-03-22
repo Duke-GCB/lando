@@ -71,6 +71,7 @@ class VMSettings(object):
         self.worker_image_name = get_or_raise_config_exception(data, 'worker_image_name')
         self.ssh_key_name = get_or_raise_config_exception(data, 'ssh_key_name')
         self.network_name = get_or_raise_config_exception(data, 'network_name')
+        self.allocate_floating_ips = data.get('allocate_floating_ips', False)
         self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
         self.default_favor_name = get_or_raise_config_exception(data, 'default_favor_name')
 

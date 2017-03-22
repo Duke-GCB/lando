@@ -4,10 +4,11 @@ perform the expected actions.
 """
 from __future__ import absolute_import
 from unittest import TestCase
+import json
 from lando.server.lando import Lando
 from lando.server.jobapi import JobStates, JobSteps
-
 from mock import MagicMock, patch
+from novaclient.exceptions import NotFound
 
 
 LANDO_CONFIG = """
@@ -51,8 +52,9 @@ class Report(object):
     def __init__(self):
         self.text = ''
         self.job_state = 'N'
-        self.job_step = ''
+        self.job_step = None
         self.vm_instance_name = 'worker_x'
+        self.launch_instance_error = None
 
     def add(self, line):
         self.text += line + '\n'
@@ -62,10 +64,14 @@ class Report(object):
         return "worker_x"
 
     def launch_instance(self, server_name, flavor_name, script_contents):
+        if self.launch_instance_error:
+            raise self.launch_instance_error
         self.add("Launched vm {}.".format(server_name))
         return MagicMock(), MagicMock()
 
     def terminate_instance(self, server_name):
+        if not server_name:
+            raise ValueError("Can't delete empty server_name.")
         self.add("Terminated vm {}.".format(server_name))
 
     def get_job(self):
@@ -83,9 +89,11 @@ class Report(object):
 
     def set_job_state(self, state):
         self.add("Set job state to {}.".format(state))
+        self.job_state = state
 
     def set_job_step(self, step):
         self.add("Set job step to {}.".format(step))
+        self.job_step = step
 
     def set_vm_instance_name(self, instance_name):
         self.add("Set vm instance name to {}.".format(instance_name))
@@ -96,7 +104,7 @@ class Report(object):
     def run_job(self, job_id, workflow, vm_instance_name):
         self.add("Put run_job message in queue for {}.".format(vm_instance_name))
 
-    def store_job_output(self, credentials, job_id, output_directory, vm_instance_name):
+    def store_job_output(self, credentials, job_id, vm_instance_name):
         self.add("Put store_job_output message in queue for {}.".format(vm_instance_name))
 
     def delete_queue(self):
@@ -107,6 +115,12 @@ class Report(object):
         return [
             MagicMock(stuff='ok')
         ]
+
+    def work_progress_queue_send(self, payload):
+        data = json.loads(payload)
+        self.add("Send progress notification. Job:{} State:{} Step:{}".format(
+            data['job'], data['state'], data['step']))
+
 
 def make_mock_settings_and_report(job_id):
     report = Report()
@@ -129,9 +143,13 @@ def make_mock_settings_and_report(job_id):
     worker_client.delete_queue = report.delete_queue
     worker_client.store_job_output = report.store_job_output
 
+    work_progress_queue = MagicMock()
+    work_progress_queue.send = report.work_progress_queue_send
+
     settings.get_cloud_service.return_value = cloud_service
     settings.get_job_api.return_value = job_api
     settings.get_worker_client.return_value = worker_client
+    settings.get_work_progress_queue.return_value = work_progress_queue
     settings.job_id = job_id
     return settings, report
 
@@ -148,8 +166,10 @@ class TestLando(TestCase):
         lando.start_job(MagicMock(job_id=job_id))
         expected_report = """
 Set job state to R.
+Send progress notification. Job:1 State:R Step:None
 Created vm name for job 1.
 Set job step to V.
+Send progress notification. Job:1 State:R Step:V
 Launched vm worker_x.
 Set vm instance name to worker_x.
         """
@@ -168,6 +188,7 @@ Set vm instance name to worker_x.
         lando.worker_started(MagicMock(worker_queue_name='stuff'))
         expected_report = """
 Set job step to S.
+Send progress notification. Job:1 State:N Step:S
 Put stage message in queue for stuff.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -182,7 +203,9 @@ Put stage message in queue for stuff.
         lando = Lando(MagicMock())
         lando.cancel_job(MagicMock(job_id=job_id))
         expected_report = """
+Set job step to None.
 Set job state to C.
+Send progress notification. Job:1 State:C Step:None
 Terminated vm worker_x.
 Delete my worker's queue.
         """
@@ -199,6 +222,7 @@ Delete my worker's queue.
         lando.stage_job_complete(MagicMock(job_id=1, vm_instance_name='worker_x'))
         expected_report = """
 Set job step to R.
+Send progress notification. Job:1 State:N Step:R
 Put run_job message in queue for worker_x.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -214,6 +238,7 @@ Put run_job message in queue for worker_x.
         lando.run_job_complete(MagicMock(job_id=1, vm_instance_name='worker_x'))
         expected_report = """
 Set job step to O.
+Send progress notification. Job:1 State:N Step:O
 Put store_job_output message in queue for worker_x.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -229,6 +254,7 @@ Put store_job_output message in queue for worker_x.
         lando.stage_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops1'))
         expected_report = """
 Set job state to E.
+Send progress notification. Job:1 State:E Step:None
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -243,6 +269,7 @@ Set job state to E.
         lando.run_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops2'))
         expected_report = """
 Set job state to E.
+Send progress notification. Job:1 State:E Step:None
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -257,6 +284,7 @@ Set job state to E.
         lando.store_job_output_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops3'))
         expected_report = """
 Set job state to E.
+Send progress notification. Job:1 State:E Step:None
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -290,8 +318,10 @@ Set vm instance name to worker_x.
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
 Set job state to R.
+Send progress notification. Job:1 State:R Step:None
 Created vm name for job 1.
 Set job step to V.
+Send progress notification. Job:1 State:R Step:V
 Launched vm worker_x.
 Set vm instance name to worker_x.
         """
@@ -310,7 +340,10 @@ Set vm instance name to worker_x.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:S
 Set job step to S.
+Send progress notification. Job:1 State:R Step:S
 Put stage message in queue for some_vm.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -328,7 +361,10 @@ Put stage message in queue for some_vm.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:R
 Set job step to R.
+Send progress notification. Job:1 State:R Step:R
 Put run_job message in queue for some_vm.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -346,7 +382,10 @@ Put run_job message in queue for some_vm.
         lando = Lando(MagicMock())
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:O
 Set job step to O.
+Send progress notification. Job:1 State:R Step:O
 Put store_job_output message in queue for some_vm.
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -365,8 +404,54 @@ Put store_job_output message in queue for some_vm.
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
 Set job step to T.
+Send progress notification. Job:1 State:E Step:T
 Terminated vm some_vm.
 Delete my worker's queue.
+Set job step to None.
 Set job state to F.
+Send progress notification. Job:1 State:F Step:None
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_create_failing_vm(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.launch_instance_error = NotFound('some vm image')
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:None
+Created vm name for job 1.
+Set job step to V.
+Send progress notification. Job:1 State:R Step:V
+Set job state to E.
+Send progress notification. Job:1 State:E Step:V
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_cancel_job_with_no_vm_name(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        """
+        When canceling a job that doesn't have a VM yet just set the state to canceled.
+        There is no need to try to delete a VM or queue that doesn't exist.
+        """
+        job_id = 2
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.vm_instance_name = ''
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.cancel_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job step to None.
+Set job state to C.
+Send progress notification. Job:1 State:C Step:None
+
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())

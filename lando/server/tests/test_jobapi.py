@@ -22,19 +22,22 @@ class TestJobApi(TestCase):
             'user_id': 23,
             'state': 'N',
             'step': '',
+            'name': 'myjob',
+            'created': '2017-03-21T13:29:09.123603Z',
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
+                'name': 'SomeWorkflow',
+                'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
             },
             'output_dir': {
-                'dir_name': 'results',
-                'project_id': '1235123',
-                'dds_user_credentials': '123',
-            },
+                'id': 5,
+                'dds_user_credentials': 123
+            }
         }
         mock_response = MagicMock()
         mock_response.json.return_value = job_response_payload
@@ -50,14 +53,9 @@ class TestJobApi(TestCase):
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('jpb67', job.vm_project_name)
 
-        self.assertEqual('{ "value": 1 }', job.workflow.input_json)
+        self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.object_name)
-        self.assertEqual('results', job.workflow.output_directory)
-
-        self.assertEqual('results', job.output_directory.dir_name)
-        self.assertEqual('1235123', job.output_directory.project_id)
-        self.assertEqual('123', job.output_directory.dds_user_credentials)
 
     @patch('lando.server.jobapi.requests')
     def test_set_job_state(self, mock_requests):
@@ -156,17 +154,19 @@ class TestJobApi(TestCase):
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
             "vm_project_name": 'jpb67',
-            'workflow_input_json': '{ "value": 1 }',
+            'name': 'myjob',
+            'created': '2017-03-21T13:29:09.123603Z',
+            'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
+                'name': 'SomeWorkflow',
+                'version': 1,
             },
             'output_dir': {
-                'dir_name': 'results',
-                'project_id': '1235123',
-                'dds_app_credentials': '456',
-                'dds_user_credentials': '123',
-            },
+                'id': 5,
+                'dds_user_credentials': 123
+            }
         }
         user_credentials_response = [
             {
@@ -204,19 +204,22 @@ class TestJobApi(TestCase):
                 'user_id': 23,
                 'state': 'N',
                 'step': '',
+                'name': 'SomeJob',
+                'created': '2017-03-21T13:29:09.123603Z',
                 'vm_flavor': 'm1.tiny',
                 'vm_instance_name': '',
                 "vm_project_name": 'jpb67',
-                'workflow_input_json': '{ "value": 1 }',
+                'job_order': '{ "value": 1 }',
                 'workflow_version': {
                     'url': 'file:///mnt/fastqc.cwl',
                     'object_name': '#main',
+                    'name': 'myworkflow',
+                    'version': 1,
                 },
                 'output_dir': {
-                    'dir_name': 'results',
-                    'project_id': '1235123',
-                    'dds_user_credentials': '123',
-                },
+                    'id': 5,
+                    'dds_user_credentials': 123
+                }
             }
         ]
 
