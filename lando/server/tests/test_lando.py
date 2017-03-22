@@ -104,7 +104,7 @@ class Report(object):
     def run_job(self, job_id, workflow, vm_instance_name):
         self.add("Put run_job message in queue for {}.".format(vm_instance_name))
 
-    def store_job_output(self, credentials, job_id, output_directory, vm_instance_name):
+    def store_job_output(self, credentials, job_id, vm_instance_name):
         self.add("Put store_job_output message in queue for {}.".format(vm_instance_name))
 
     def delete_queue(self):

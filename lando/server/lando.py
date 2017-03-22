@@ -173,7 +173,7 @@ class JobActions(object):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.store_job_output(credentials, job, job.output_directory, payload.vm_instance_name)
+        worker_client.store_job_output(credentials, job, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
         """

@@ -35,10 +35,8 @@ class TestJobApi(TestCase):
                 'object_name': '#main',
             },
             'output_dir': {
-                'dir_name': 'results',
-                'project_id': '1235123',
-                'dds_user_credentials': '123',
-            },
+                'dds_user_credentials': 123
+            }
         }
         mock_response = MagicMock()
         mock_response.json.return_value = job_response_payload
@@ -57,11 +55,6 @@ class TestJobApi(TestCase):
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.object_name)
-        self.assertEqual('results', job.workflow.output_directory)
-
-        self.assertEqual('results', job.output_directory.dir_name)
-        self.assertEqual('1235123', job.output_directory.project_id)
-        self.assertEqual('123', job.output_directory.dds_user_credentials)
 
     @patch('lando.server.jobapi.requests')
     def test_set_job_state(self, mock_requests):
@@ -170,11 +163,8 @@ class TestJobApi(TestCase):
                 'version': 1,
             },
             'output_dir': {
-                'dir_name': 'results',
-                'project_id': '1235123',
-                'dds_app_credentials': '456',
-                'dds_user_credentials': '123',
-            },
+                'dds_user_credentials': 123
+            }
         }
         user_credentials_response = [
             {
@@ -225,10 +215,8 @@ class TestJobApi(TestCase):
                     'version': 1,
                 },
                 'output_dir': {
-                    'dir_name': 'results',
-                    'project_id': '1235123',
-                    'dds_user_credentials': '123',
-                },
+                    'dds_user_credentials': 123
+                }
             }
         ]
 

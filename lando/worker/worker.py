@@ -42,8 +42,8 @@ class LandoWorkerSettings(object):
         return staging.DownloadURLFile(url, destination_path)
 
     @staticmethod
-    def make_cwl_workflow(job_id, working_directory, output_directory, cwl_base_command):
-        return cwlworkflow.CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
+    def make_cwl_workflow(job_id, working_directory, cwl_base_command):
+        return cwlworkflow.CwlWorkflow(job_id, working_directory, cwl_base_command)
 
     @staticmethod
     def make_upload_project(project_name, file_folder_list):
@@ -54,13 +54,13 @@ class LandoWorkerActions(object):
     """
     Functions that handle the actual work for different job steps.
     """
-    def __init__(self, settings):
+    def __init__(self, settings, client):
         """
         Setup actions with configuration
-
         """
         self.config = settings.config
         self.settings = settings
+        self.client = client
 
     def stage_files(self, working_directory, payload):
         """
@@ -79,6 +79,7 @@ class LandoWorkerActions(object):
                 destination_path = os.path.join(working_directory, url_file.destination_path)
                 download_file = self.settings.make_download_url_file(url_file.url, destination_path)
                 download_file.run(staging_context)
+        self.client.job_step_complete(payload)
 
     def run_workflow(self, working_directory, payload):
         """
@@ -87,9 +88,9 @@ class LandoWorkerActions(object):
         :param payload: router.RunJobPayload: details about workflow to run
         """
         cwl_base_command = self.config.cwl_base_command
-        workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, payload.output_directory,
-                                                       cwl_base_command)
+        workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, cwl_base_command)
         workflow.run(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
+        self.client.job_step_complete(payload)
 
     def save_output(self, working_directory, payload):
         """
@@ -99,11 +100,12 @@ class LandoWorkerActions(object):
         """
         project_name = self.create_project_name(payload)
         staging_context = self.settings.make_staging_context(payload.credentials)
-        source_directory = os.path.join(working_directory, payload.dir_name)
+        source_directory = os.path.join(working_directory, cwlworkflow.CWL_WORKING_DIRECTORY)
         upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
         upload_project = self.settings.make_upload_project(project_name, upload_paths)
-        config = staging_context.get_duke_ds_config(payload.dds_user_credentials)
-        upload_project.run(config)
+        config = staging_context.get_duke_ds_config(payload.job_details.dds_user_credentials)
+        project = upload_project.run(config)
+        self.client.job_step_store_output_complete(payload, project.remote_id)
 
     @staticmethod
     def create_project_name(payload):
@@ -128,7 +130,7 @@ class LandoWorker(object):
         """
         self.config = settings.config
         self.client = settings.make_lando_client(self.config, outgoing_queue_name)
-        self.actions = LandoWorkerActions(settings)
+        self.actions = LandoWorkerActions(settings, self.client)
 
     def stage_job(self, payload):
         self.run_job_step_with_func(payload, self.actions.stage_files)
@@ -138,9 +140,6 @@ class LandoWorker(object):
 
     def store_job_output(self, payload):
         self.run_job_step_with_func(payload, self.actions.save_output)
-
-    def cancel_job(self, job_id):
-        print("TODO implement cancel")
 
     def run_job_step_with_func(self, payload, func):
         working_directory = WORKING_DIR_FORMAT.format(payload.job_id)
@@ -189,7 +188,6 @@ class JobStep(object):
         try:
             self.func(working_directory, self.payload)
             self.show_complete_message()
-            self.send_job_step_complete()
         except: # Trap all exceptions
             tb = traceback.format_exc()
             print("Job failed:{}".format(tb))
@@ -206,12 +204,6 @@ class JobStep(object):
         Shows message about this job step being completed.
         """
         print("{} complete for job {}.".format(self.job_description, self.job_id))
-
-    def send_job_step_complete(self):
-        """
-        Sends message back to server that this jobs step is complete.
-        """
-        self.client.job_step_complete(self.payload)
 
     def send_job_step_errored(self, message):
         """

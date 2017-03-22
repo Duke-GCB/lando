@@ -27,6 +27,9 @@ WORKFLOW_DIRECTORY = 'scripts'
 OUTPUT_DIRECTORY = 'output'
 
 
+CWL_WORKING_DIRECTORY = 'working'
+
+
 def create_dir_if_necessary(path):
     """
     Create a directory if one doesn't already exist.
@@ -62,17 +65,16 @@ class CwlDirectory(object):
         results/          # output_directory member
            ...output files from workflow
     """
-    def __init__(self, job_id, working_directory, user_directory_name, cwl_file_url, job_order):
+    def __init__(self, job_id, working_directory, cwl_file_url, job_order):
         """
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to directory cwl will be run in (data files may be relative to this path)
-        :param user_directory_name: str: name user has chosen for their result directory
         :param cwl_file_url: str: url to packed cwl file to run
         :param job_order: str: job order string data (JSON or YAML format)
         """
         self.job_id = job_id
         self.working_directory = working_directory
-        self.result_directory = os.path.join(working_directory, user_directory_name)
+        self.result_directory = os.path.join(working_directory, CWL_WORKING_DIRECTORY)
         create_dir_if_necessary(self.result_directory)
         self.output_directory = os.path.join(self.result_directory, OUTPUT_DIRECTORY)
         self.workflow_basename = os.path.basename(cwl_file_url)
@@ -106,17 +108,15 @@ class CwlWorkflow(object):
     3. Gathers stderr/stdout output from the process
     4. If exit status is not 0 raises JobStepFailed including output
     """
-    def __init__(self, job_id, working_directory, output_directory, cwl_base_command):
+    def __init__(self, job_id, working_directory, cwl_base_command):
         """
         Setup workflow
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to working directory that contains input files
-        :param output_directory: str: path to output directory
         :param cwl_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
         """
         self.job_id = job_id
         self.working_directory = working_directory
-        self.output_directory = output_directory
         self.cwl_base_command = cwl_base_command
 
     def run(self, cwl_file_url, workflow_object_name, job_order):
@@ -127,8 +127,7 @@ class CwlWorkflow(object):
         :param workflow_object_name: name of the object in our workflow to execute (typically '#main')
         :param job_order: str: json string of input parameters for our workflow
         """
-        cwl_directory = CwlDirectory(self.job_id, self.working_directory, self.output_directory,
-                                     cwl_file_url, job_order)
+        cwl_directory = CwlDirectory(self.job_id, self.working_directory, cwl_file_url, job_order)
         workflow_file = cwl_directory.workflow_path
         if workflow_object_name:
             workflow_file += workflow_object_name

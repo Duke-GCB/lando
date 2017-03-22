@@ -54,7 +54,6 @@ class TestCwlWorkflow(TestCase):
         """
         job_id = 1
         working_directory = tempfile.mkdtemp()
-        output_directory = 'result'
         cwl_base_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
@@ -74,14 +73,13 @@ outputfile: results.txt
         """.format(one_path, two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               output_directory,
                                cwl_base_command)
         workflow.run(cwl_file_url, workflow_object_name, input_json)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
 
         result_file_content = file_to_text(os.path.join(working_directory,
-                                                        output_directory,
+                                                        'working',
                                                         OUTPUT_DIRECTORY,
                                                         "results.txt"))
         self.assertEqual(result_file_content, "one\ntwo\n")
@@ -93,7 +91,6 @@ outputfile: results.txt
         """
         job_id = 1
         working_directory = tempfile.mkdtemp()
-        output_directory = 'result'
         cwl_base_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
@@ -115,7 +112,6 @@ outputfile: results.txt
         os.unlink(two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               output_directory,
                                cwl_base_command)
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, input_json)
@@ -130,12 +126,11 @@ outputfile: results.txt
         mock_cwl_workflow_process.return_code = 1
         job_id = '123'
         working_directory = '/tmp/job_123'
-        output_directory = 'mydata'
         cwl_base_command = 'cwl-runner'
         cwl_file_url = 'file://packed.cwl'
         workflow_object_name = '#main'
         job_order = {}
-        workflow = CwlWorkflow(job_id, working_directory, output_directory, cwl_base_command)
+        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command)
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
 
@@ -147,16 +142,15 @@ class TestCwlDirectory(TestCase):
     def test_constructor(self, mock_urllib, mock_create_dir_if_necessary, mock_save_data_to_directory):
         mock_save_data_to_directory.return_value = 'somepath'
         working_directory = '/tmp/fakedir/'
-        user_directory_name = 'mystuff'
         cwl_file_url = 'file://tmp/notreal.cwl'
         job_order = '{}'
 
-        cwl_directory = CwlDirectory(3, working_directory, user_directory_name, cwl_file_url, job_order)
+        cwl_directory = CwlDirectory(3, working_directory, cwl_file_url, job_order)
 
         self.assertEqual(working_directory, cwl_directory.working_directory)
-        self.assertEqual('/tmp/fakedir/mystuff', cwl_directory.result_directory)
-        mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/mystuff')
-        self.assertEqual('/tmp/fakedir/mystuff/output', cwl_directory.output_directory)
+        self.assertEqual('/tmp/fakedir/working', cwl_directory.result_directory)
+        mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/working')
+        self.assertEqual('/tmp/fakedir/working/output', cwl_directory.output_directory)
         self.assertEqual('/tmp/fakedir/notreal.cwl', cwl_directory.workflow_path)
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
 

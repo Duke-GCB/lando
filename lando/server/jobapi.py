@@ -220,7 +220,7 @@ class Job(object):
         self.vm_instance_name = data['vm_instance_name']
         self.vm_project_name = data['vm_project_name']
         self.workflow = Workflow(data)
-        self.output_directory = OutputDirectory(data)
+        self.dds_user_credentials = data['output_dir']['dds_user_credentials']
 
 
 class Workflow(object):
@@ -237,21 +237,6 @@ class Workflow(object):
         self.name = workflow_version['name']
         self.version = workflow_version['version']
         self.object_name = workflow_version['object_name']
-        self.output_directory = data['output_dir']['dir_name']
-
-
-class OutputDirectory(object):
-    """
-    Information about the directory we should send the result of the workflow to.
-    """
-    def __init__(self, data):
-        """
-        :param data: dict: output directory values returned from bespin.
-        """
-        output_dir = data['output_dir']
-        self.dir_name = output_dir['dir_name']
-        self.project_id = output_dir['project_id']
-        self.dds_user_credentials = output_dir['dds_user_credentials']
 
 
 class InputFile(object):

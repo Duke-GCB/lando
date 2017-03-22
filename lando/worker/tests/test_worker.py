@@ -45,7 +45,7 @@ class FakeSettings(object):
     def make_download_url_file(self, url, destination_path):
         return FakeObject("Download url {}.".format(url), self.report)
 
-    def make_cwl_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+    def make_cwl_workflow(self, job_id, working_directory, cwl_base_command):
         if self.raise_when_run_workflow:
             raise ValueError("Something went wrong.")
         obj = FakeObject("Run workflow for job {}.".format(job_id), self.report)
@@ -64,8 +64,12 @@ class FakeObject(object):
     def job_step_complete(self, payload):
         self.report.add("Send job step complete for job {}.".format(payload.job_id))
 
+    def job_step_store_output_complete(self, payload, output_project_info):
+        self.report.add("Send job step complete for job {} project:{}.".format(payload.job_id, output_project_info))
+
     def run(self, context):
         self.report.add(self.run_message)
+        return Mock(remote_id='2348')
 
     def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
         self.report.add(self.run_message)
@@ -106,13 +110,6 @@ class FakeWorkflow(object):
         self.job_order = "{'id':1}"
         self.output_directory = None
         self.object_name = "#main"
-
-
-class FakeOutputDirectory(object):
-    def __init__(self):
-        self.dir_name = 'output'
-        self.project_id = 1234
-        self.dds_user_credentials = 8
 
 
 class TestLandoWorker(TestCase):
@@ -164,19 +161,18 @@ Send job step complete for job 2.
     @patch('lando.worker.worker.os')
     def test_save_output(self, mock_os):
         worker = self._make_worker()
-        outdir = FakeOutputDirectory()
         job_details = MagicMock()
         job_details.id = 3
         job_details.workflow.name = 'SomeWorkflow'
         job_details.workflow.version = 2
         job_details.name = 'MyJob'
         job_details.created = '2017-03-21T13:29:09.123603Z'
-
+        job_details.output_dir.dds_user_credentials = '123';
         worker.store_job_output(StoreJobOutputPayload(credentials=None, job_details=job_details,
-                                                      output_directory=outdir, vm_instance_name='test3'))
+                                                      vm_instance_name='test3'))
         report = """
 Upload project.
-Send job step complete for job 3.
+Send job step complete for job 3 project:2348.
         """
         expected = report.strip()
         actual = self.settings.report.text.strip()
