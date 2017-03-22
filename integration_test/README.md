@@ -1,7 +1,9 @@
 
 # Integration Testing
 Allows testing lando with the exception of Openstack.
-Exercises basic functionality that uses rabbitmq, bespin-api and DukeDS.
+- runs rabbitmq inside docker container
+- clones [bespin-api](https://github.com/Duke-GCB/bespin-api)
+- requires DukeDS credentials and example project
 
 ## Initial Setup
 
