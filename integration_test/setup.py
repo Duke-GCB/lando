@@ -61,7 +61,7 @@ workflow = Workflow.objects.create(name=workflow_name)
 workflow_version = WorkflowVersion.objects.create(workflow=workflow, version='1', url=WORKFLOW_URL)
 ddsendpoint = DDSEndpoint.objects.create(name='DukeDS', agent_key=AGENT_KEY, api_root=API_ROOT)
 user_cred = DDSUserCredential.objects.create(endpoint=ddsendpoint, user=user, token=USER_KEY)
-job = Job.objects.create(workflow_version=workflow_version, user=user, vm_project_name='bespin_user1', workflow_input_json=JOB_INPUT_JSON)
+job = Job.objects.create(workflow_version=workflow_version, user=user, vm_project_name='bespin_user1', job_order=JOB_INPUT_JSON)
 job_output_dir = JobOutputDir.objects.create(job=job, dir_name='results', project_id=DDS_PROJECT_ID, dds_user_credentials=user_cred)
 
 sequence_input_file = JobInputFile.objects.create(job=job, file_type=JobInputFile.DUKE_DS_FILE, workflow_name='sequence')
