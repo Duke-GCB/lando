@@ -4,9 +4,9 @@ import os
 import shutil
 from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
-from lando.worker.worker import LandoWorker
+from lando.worker.worker import LandoWorker, LandoWorkerActions
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
-from mock import patch, MagicMock
+from mock import patch, Mock, MagicMock
 
 LANDO_WORKER_CONFIG = """
 host: 10.109.253.74
@@ -45,15 +45,16 @@ class FakeSettings(object):
     def make_download_url_file(self, url, destination_path):
         return FakeObject("Download url {}.".format(url), self.report)
 
-    def make_cwl_workflow(self, job_id, working_directory, output_directory, cwl_base_command):
+    def make_cwl_workflow(self, job_id, working_directory, cwl_base_command):
         if self.raise_when_run_workflow:
             raise ValueError("Something went wrong.")
         obj = FakeObject("Run workflow for job {}.".format(job_id), self.report)
         obj.run = obj.run_workflow
         return obj
 
-    def make_upload_duke_ds_folder(self, project_id, source_directory, dest_directory, user_id):
-        return FakeObject("Upload folder to DukeDS project: {} dir:{}.".format(project_id, dest_directory), self.report)
+    def make_upload_project(self, project_name, file_folder_list):
+        return FakeObject("Upload project.", self.report)
+
 
 class FakeObject(object):
     def __init__(self, run_message, report):
@@ -63,8 +64,12 @@ class FakeObject(object):
     def job_step_complete(self, payload):
         self.report.add("Send job step complete for job {}.".format(payload.job_id))
 
+    def job_step_store_output_complete(self, payload, output_project_info):
+        self.report.add("Send job step complete for job {} project:{}.".format(payload.job_id, output_project_info))
+
     def run(self, context):
         self.report.add(self.run_message)
+        return Mock(remote_id='2348')
 
     def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
         self.report.add(self.run_message)
@@ -74,6 +79,9 @@ class FakeObject(object):
 
     def worker_started(self, queue_name):
         self.report.add("Send worker started message for {}.".format(queue_name))
+
+    def get_duke_ds_config(self, user_id):
+        return MagicMock()
 
 
 class FakeInputFile(object):
@@ -104,13 +112,6 @@ class FakeWorkflow(object):
         self.object_name = "#main"
 
 
-class FakeOutputDirectory(object):
-    def __init__(self):
-        self.dir_name = 'results'
-        self.project_id = 1234
-        self.dds_user_credentials = 8
-
-
 class TestLandoWorker(TestCase):
     def _make_worker(self):
         config_filename = write_temp_return_filename(LANDO_WORKER_CONFIG)
@@ -126,7 +127,9 @@ class TestLandoWorker(TestCase):
             FakeInputFile('url_file')
 
         ]
-        worker.stage_job(StageJobPayload(credentials=None, job_id=1, input_files=input_files, vm_instance_name='test1'))
+        job_details = Mock(id=1)
+        worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
+                                         vm_instance_name='test1'))
         report = """
 Download file 42.
 Download url http:stuff.
@@ -137,7 +140,8 @@ Send job step complete for job 1.
     def test_run_job(self):
         worker = self._make_worker()
         workflow = FakeWorkflow()
-        worker.run_job(RunJobPayload(job_id=2, workflow=workflow, vm_instance_name='test2'))
+        job_details = Mock(id=2)
+        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
         report = """
 Run workflow for job 2.
 Send job step complete for job 2.
@@ -148,21 +152,31 @@ Send job step complete for job 2.
         worker = self._make_worker()
         self.settings.raise_when_run_workflow = True
         workflow = FakeWorkflow()
-        worker.run_job(RunJobPayload(job_id=2, workflow=workflow, vm_instance_name='test2'))
+        job_details = Mock(id=2)
+        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
         result = self.settings.report.text.strip()
         self.assertIn("Send job step error for job 2", result)
         self.assertIn("ValueError: Something went wrong.", result)
 
-    def test_save_output(self):
+    @patch('lando.worker.worker.os')
+    def test_save_output(self, mock_os):
         worker = self._make_worker()
-        outdir = FakeOutputDirectory()
-        worker.store_job_output(StoreJobOutputPayload(credentials=None, job_id=3, output_directory=outdir,
+        job_details = MagicMock()
+        job_details.id = 3
+        job_details.workflow.name = 'SomeWorkflow'
+        job_details.workflow.version = 2
+        job_details.name = 'MyJob'
+        job_details.created = '2017-03-21T13:29:09.123603Z'
+        job_details.output_dir.dds_user_credentials = '123';
+        worker.store_job_output(StoreJobOutputPayload(credentials=None, job_details=job_details,
                                                       vm_instance_name='test3'))
         report = """
-Upload folder to DukeDS project: 1234 dir:results.
-Send job step complete for job 3.
+Upload project.
+Send job step complete for job 3 project:2348.
         """
-        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
+        expected = report.strip()
+        actual = self.settings.report.text.strip()
+        self.assertMultiLineEqual(expected, actual)
 
     def test_stage_job_creates_working_directory(self):
         worker = self._make_worker()
@@ -174,7 +188,9 @@ Send job step complete for job 3.
         working_dir = "data_for_job_1"
         if os.path.exists(working_dir):
             shutil.rmtree(working_dir)
-        worker.stage_job(StageJobPayload(credentials=None, job_id=1, input_files=input_files, vm_instance_name='test1'))
+        job_details = Mock(id=1)
+        worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
+                                         vm_instance_name='test1'))
         self.assertEqual(True, os.path.exists(working_dir))
 
     @patch('lando.worker.worker.MessageRouter')
@@ -183,3 +199,12 @@ Send job step complete for job 3.
         worker = LandoWorker(settings, outgoing_queue_name='stuff')
         worker.listen_for_messages()
         settings.make_lando_client.return_value.worker_started.assert_called()
+
+    def test_worker_create_project_name(self):
+        payload = MagicMock()
+        payload.job_details.workflow.name = 'SomeWorkflow'
+        payload.job_details.workflow.version = 2
+        payload.job_details.name = 'MyJob'
+        payload.job_details.created = '2017-03-21T13:29:09.123603Z'
+        name = LandoWorkerActions.create_project_name(payload)
+        self.assertEqual("Bespin SomeWorkflow v2 MyJob 2017-29-21", name)

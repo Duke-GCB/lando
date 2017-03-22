@@ -4,8 +4,11 @@ from setuptools import setup, find_packages
 LANDO_REQUIREMENTS = [
       "cwlref-runner==1.0",
       "DukeDSClient",
+      "humanfriendly==2.4",
+      "Jinja2==2.9.5",
       "keystoneauth1>=2.11.0",
       "lando-messaging",
+      "python-dateutil==2.6.0",
       "python-novaclient>=2.21.0,!=2.27.0,!=2.32.0",
       "PyYAML==3.11",
       "requests==2.10.0",
