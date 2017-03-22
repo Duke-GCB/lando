@@ -114,6 +114,19 @@ class BespinApi(object):
         json_data = resp.json()
         return json_data
 
+    def put_job_output_dir(self, job_output_dir_id, data):
+        """
+        Update a job with some fields.
+        :param job_output_dir_id: int: unique job_output_dir id
+        :param data: dict: params we want to update on the job_output_dir
+        :return: dict: put response
+        """
+        path = 'job-output-dirs/{}/'.format(job_output_dir_id)
+        url = self._make_url(path)
+        resp = requests.put(url, headers=self.headers(), json=data)
+        resp.raise_for_status()
+        return resp.json()
+
 
 class JobApi(object):
     """
@@ -188,6 +201,19 @@ class JobApi(object):
         """
         self.api.post_error(self.job_id, job_step, content)
 
+    def save_project_id(self, project_id):
+        """
+        Update the output directory with the specified project_id.
+        :param project_id: str: uuid of the project
+        """
+        job = self.get_job()
+        data = {
+            'id': job.output_project.id,
+            'job': self.job_id,
+            'project_id': project_id
+        }
+        self.api.put_job_output_dir(job.output_project.id, data)
+
     @staticmethod
     def get_jobs_for_vm_instance_name(config, vm_instance_name):
         """
@@ -220,7 +246,7 @@ class Job(object):
         self.vm_instance_name = data['vm_instance_name']
         self.vm_project_name = data['vm_project_name']
         self.workflow = Workflow(data)
-        self.dds_user_credentials = data['output_dir']['dds_user_credentials']
+        self.output_project = OutputProject(data)
 
 
 class Workflow(object):
@@ -237,6 +263,13 @@ class Workflow(object):
         self.name = workflow_version['name']
         self.version = workflow_version['version']
         self.object_name = workflow_version['object_name']
+
+
+class OutputProject(object):
+    def __init__(self, data):
+        output_dir = data['output_dir']
+        self.id = output_dir['id']
+        self.dds_user_credentials = output_dir['dds_user_credentials']
 
 
 class InputFile(object):

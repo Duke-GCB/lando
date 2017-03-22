@@ -35,6 +35,7 @@ class TestJobApi(TestCase):
                 'object_name': '#main',
             },
             'output_dir': {
+                'id': 5,
                 'dds_user_credentials': 123
             }
         }
@@ -163,6 +164,7 @@ class TestJobApi(TestCase):
                 'version': 1,
             },
             'output_dir': {
+                'id': 5,
                 'dds_user_credentials': 123
             }
         }
@@ -215,6 +217,7 @@ class TestJobApi(TestCase):
                     'version': 1,
                 },
                 'output_dir': {
+                    'id': 5,
                     'dds_user_credentials': 123
                 }
             }

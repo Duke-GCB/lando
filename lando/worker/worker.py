@@ -103,7 +103,7 @@ class LandoWorkerActions(object):
         source_directory = os.path.join(working_directory, cwlworkflow.CWL_WORKING_DIRECTORY)
         upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
         upload_project = self.settings.make_upload_project(project_name, upload_paths)
-        config = staging_context.get_duke_ds_config(payload.job_details.dds_user_credentials)
+        config = staging_context.get_duke_ds_config(payload.job_details.output_project.dds_user_credentials)
         project = upload_project.run(config)
         self.client.job_step_store_output_complete(payload, project.remote_id)
 
