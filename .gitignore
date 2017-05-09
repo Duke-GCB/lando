@@ -87,3 +87,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Skip integration test DDS settings
+integration_test/dds.config
+integration_test/lando_config.yml
+integration_test/bespin-api
