@@ -2,4 +2,5 @@ dependencies:
   pre:
     - pip install mock
     - pip install pbr
+    - pip install shade
     - pip install --upgrade git+git://github.com/Duke-GCB/lando-messaging.git
