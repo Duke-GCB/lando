@@ -11,6 +11,7 @@ from lando.exceptions import JobStepFailed
 
 SAMPLE_WORKFLOW = """
 {
+    "cwlVersion": "v1.0",
     "class": "CommandLineTool",
     "baseCommand": "cat",
     "stdout": "$(inputs.outputfile)",
