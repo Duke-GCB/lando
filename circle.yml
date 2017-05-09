@@ -1,5 +1,6 @@
 dependencies:
   pre:
+    - pip install --upgrade setuptools
     - pip install mock
     - pip install pbr
     - pip install --upgrade git+git://github.com/Duke-GCB/lando-messaging.git
