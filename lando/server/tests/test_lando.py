@@ -8,7 +8,7 @@ import json
 from lando.server.lando import Lando
 from lando.server.jobapi import JobStates, JobSteps
 from mock import MagicMock, patch
-from novaclient.exceptions import NotFound
+from shade import OpenStackCloudException
 
 
 LANDO_CONFIG = """
@@ -419,7 +419,7 @@ Send progress notification. Job:1 State:F Step:None
     def test_create_failing_vm(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
         job_id = 1
         mock_settings, report = make_mock_settings_and_report(job_id)
-        report.launch_instance_error = NotFound('some vm image')
+        report.launch_instance_error = OpenStackCloudException('some vm image')
         MockJobSettings.return_value = mock_settings
         lando = Lando(MagicMock())
         lando.start_job(MagicMock(job_id=job_id))

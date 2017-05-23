@@ -1,40 +1,21 @@
 """
 Allows launching and terminating openstack virtual machines.
 """
-from keystoneauth1 import session
-from keystoneauth1 import loading
-import novaclient.exceptions
-from novaclient import client as nvclient
-from time import sleep
+import shade
 import logging
 import uuid
 
-WAIT_BEFORE_ATTACHING_IP = 5
 
-
-class NovaClient(object):
+class CloudClient(object):
     """
-    Wraps up openstack nova operations.
+    Wraps up openstack shade operations.
     """
     def __init__(self, credentials):
         """
-        Setup internal nova client based on credentials in cloud_settings
+        Setup internal client based on credentials in cloud_settings
         :credentials: dictionary of url, username, password, etc
         """
-        nova_session = NovaClient.get_session(credentials)
-        self.nova = nvclient.Client('2', session=nova_session)
-
-    @staticmethod
-    def get_session(credentials):
-        """
-        Returns a session from openstack credentials. Used by nova client
-        :credentials: dictionary of url, username, password, etc
-        :return: session.Session for the specified credentials
-        """
-        loader = loading.get_plugin_loader('password')
-        auth = loader.load_from_options(**credentials)
-        sess = session.Session(auth=auth)
-        return sess
+        self.cloud = shade.openstack_cloud(**credentials)
 
     def launch_instance(self, vm_settings, server_name, flavor_name, script_contents):
         """
@@ -45,40 +26,19 @@ class NovaClient(object):
         :param script_contents: str: contents of a bash script that will be run on startup
         :return: openstack instance created
         """
-        image = self.nova.images.find(name=vm_settings.worker_image_name)
         vm_flavor_name = flavor_name
         if not vm_flavor_name:
             vm_flavor_name = vm_settings.default_favor_name
-        flavor = self.nova.flavors.find(name=vm_flavor_name)
-        net = self.nova.networks.find(label=vm_settings.network_name)
-        nics = [{'net-id': net.id}]
-        instance = self.nova.servers.create(name=server_name, image=image, flavor=flavor,
-                                            key_name=vm_settings.ssh_key_name,
-                                            nics=nics, userdata=script_contents)
+        instance = self.cloud.create_server(
+            name=server_name,
+            image=vm_settings.worker_image_name,
+            flavor=vm_flavor_name,
+            key_name=vm_settings.ssh_key_name,
+            network=vm_settings.network_name,
+            auto_ip=vm_settings.allocate_floating_ips,
+            ip_pool=vm_settings.floating_ip_pool_name,
+            userdata=script_contents)
         return instance
-
-    def attach_floating_ip(self, instance, floating_ip_pool_name):
-        """
-        Attach a floating IP address to an openstack VM.
-        :param instance: openstack VM
-        :param floating_ip_pool_name: str: name of the pool of ip addresses
-        :return: str: ip address that was assigned
-        """
-        floating_ip = self.nova.floating_ips.create(floating_ip_pool_name)
-        instance.add_floating_ip(floating_ip)
-        return floating_ip.ip
-
-    def _delete_floating_ip(self, instance):
-        """
-        Delete floating ip address associated with the instance with server_name.
-        If not found will log as as warning.
-        :param instance: Server: VM we want to delete a floating IP from
-        """
-        try:
-            floating_ip = self.nova.floating_ips.find(instance_id=instance.id)
-            floating_ip.delete()
-        except novaclient.exceptions.NotFound:
-            logging.warn('No floating ip address found for {} ({})'.format(instance.name, instance.id))
 
     def terminate_instance(self, server_name, delete_floating_ip):
         """
@@ -86,10 +46,7 @@ class NovaClient(object):
         :param server_name: str: name of the VM to terminate
         :param delete_floating_ip: bool: should we try to delete an attached floating ip address
         """
-        instance = self.nova.servers.find(name=server_name)
-        if delete_floating_ip:
-            self._delete_floating_ip(instance)
-        self.nova.servers.delete(instance)
+        self.cloud.delete_server(server_name, delete_ips=delete_floating_ip)
 
 
 class CloudService(object):
@@ -103,7 +60,7 @@ class CloudService(object):
         :param project_name: name of the project(tenant) which will contain our VMs
         """
         self.config = config
-        self.nova_client = NovaClient(config.cloud_settings.credentials(project_name))
+        self.cloud_client = CloudClient(config.cloud_settings.credentials(project_name))
 
     def launch_instance(self, server_name, flavor_name, script_contents):
         """
@@ -114,15 +71,8 @@ class CloudService(object):
         :return: instance, ip address: openstack instance object and the floating ip address assigned
         """
         vm_settings = self.config.vm_settings
-        instance = self.nova_client.launch_instance(vm_settings, server_name, flavor_name, script_contents)
-        ip_address = None
-        if vm_settings.allocate_floating_ips:
-            sleep(WAIT_BEFORE_ATTACHING_IP)
-            ip_address = self.nova_client.attach_floating_ip(instance, vm_settings.floating_ip_pool_name)
-            logging.info('launched {} on floating ip {}'.format(server_name, ip_address))
-        else:
-            logging.info('launched {} with id'.format(server_name, instance.id))
-        return instance, ip_address
+        instance = self.cloud_client.launch_instance(vm_settings, server_name, flavor_name, script_contents)
+        return instance, instance.accessIPv4
 
     def terminate_instance(self, server_name):
         """
@@ -131,7 +81,7 @@ class CloudService(object):
         """
         vm_settings = self.config.vm_settings
         logging.info('terminating instance {}'.format(server_name))
-        self.nova_client.terminate_instance(server_name, delete_floating_ip=vm_settings.allocate_floating_ips)
+        self.cloud_client.terminate_instance(server_name, delete_floating_ip=vm_settings.allocate_floating_ips)
 
     def make_vm_name(self, job_id):
         """
