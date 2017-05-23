@@ -15,12 +15,7 @@ class CloudClient(object):
         Setup internal client based on credentials in cloud_settings
         :credentials: dictionary of url, username, password, etc
         """
-        self.cloud = shade.openstack_cloud(project_name=credentials['project_name'],
-            username=credentials['username'],
-            user_domain_name=credentials['user_domain_name'],
-            auth_url=credentials['auth_url'],
-            password=credentials['password'],
-            project_domain_name=credentials['project_domain_name'])
+        self.cloud = shade.openstack_cloud(**credentials)
 
     def launch_instance(self, vm_settings, server_name, flavor_name, script_contents):
         """
