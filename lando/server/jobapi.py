@@ -76,8 +76,7 @@ class BespinApi(object):
 
     def get_dds_user_credentials(self):
         """
-        Get the duke data service user credentials for a user id.
-        :param user_id: int: bespin user id
+        Get all duke data service user credentials.
         :return: dict: credentials details
         """
         path = 'dds-user-credentials/'
