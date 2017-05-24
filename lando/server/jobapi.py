@@ -74,13 +74,13 @@ class BespinApi(object):
     def _make_url(self, suffix):
         return '{}/admin/{}'.format(self.settings.url, suffix)
 
-    def get_dds_user_credentials(self, user_id):
+    def get_dds_user_credentials(self):
         """
         Get the duke data service user credentials for a user id.
         :param user_id: int: bespin user id
         :return: dict: credentials details
         """
-        path = 'dds-user-credentials/?user={}'.format(user_id)
+        path = 'dds-user-credentials/'
         url = self._make_url(path)
         return self._get_results(url)
 
@@ -181,14 +181,13 @@ class JobApi(object):
 
     def get_credentials(self):
         """
-        Get all dds user/app credentials attached to this job.
-        :return: Credentials: let's user lookup credential info based on bespin user/app ids.
+        Get all bespin service account credentials.
+        :return: Credentials: bespin DukeDS credentials
         """
         job = self.get_job()
-        user_id = job.user_id
         credentials = Credentials()
 
-        for user_credential_data in self.api.get_dds_user_credentials(user_id):
+        for user_credential_data in self.api.get_dds_user_credentials():
             credentials.add_user_credential(DDSUserCredential(user_credential_data))
 
         return credentials

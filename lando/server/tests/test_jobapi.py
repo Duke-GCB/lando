@@ -146,6 +146,9 @@ class TestJobApi(TestCase):
 
     @patch('lando.server.jobapi.requests')
     def test_get_credentials(self, mock_requests):
+        """
+        The only stored credentials are the bespin system credentials.
+        """
         job_response_payload = {
             'id': 4,
             'user_id': 23,
@@ -171,7 +174,7 @@ class TestJobApi(TestCase):
         user_credentials_response = [
             {
                 'id': 5,
-                'user': 23,
+                'user': 1,
                 'token': '1239109',
                 'endpoint': {
                     'id': 3,
@@ -188,7 +191,7 @@ class TestJobApi(TestCase):
 
         user_credentials = job_api.get_credentials()
         args, kwargs = mock_requests.get.call_args
-        self.assertEqual(args[0], 'APIURL/admin/dds-user-credentials/?user=23')
+        self.assertEqual(args[0], 'APIURL/admin/dds-user-credentials/')
 
         user_cred = user_credentials.dds_user_credentials[5]
         self.assertEqual('1239109', user_cred.token)
