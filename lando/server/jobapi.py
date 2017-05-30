@@ -235,7 +235,8 @@ class Job(object):
         :param data: dict: job values returned from bespin.
         """
         self.id = data['id']
-        self.user_id = data['user_id']
+        self.user_id = data['user']['id']
+        self.username = data['user']['username']
         self.created = data['created']
         self.name = data['name']
         self.state = data['state']
