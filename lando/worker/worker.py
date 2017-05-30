@@ -49,6 +49,10 @@ class LandoWorkerSettings(object):
     def make_upload_project(project_name, file_folder_list):
         return staging.UploadProject(project_name, file_folder_list)
 
+    @staticmethod
+    def make_save_job_output(payload):
+        return staging.SaveJobOutput(payload)
+
 
 class LandoWorkerActions(object):
     """
@@ -100,7 +104,7 @@ class LandoWorkerActions(object):
         """
         source_directory = os.path.join(working_directory, cwlworkflow.CWL_WORKING_DIRECTORY)
         upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
-        save_job_output = staging.SaveJobOutput(payload)
+        save_job_output = self.settings.make_save_job_output(payload)
         project = save_job_output.run(upload_paths)
         self.client.job_step_store_output_complete(payload, project.remote_id)
 

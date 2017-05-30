@@ -5,6 +5,7 @@ import shutil
 from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker, LandoWorkerActions
+from lando.worker.staging import SaveJobOutput
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
 from mock import patch, Mock, MagicMock
 
@@ -52,8 +53,8 @@ class FakeSettings(object):
         obj.run = obj.run_workflow
         return obj
 
-    def make_upload_project(self, project_name, file_folder_list):
-        return FakeObject("Upload project.", self.report)
+    def make_save_job_output(self, payload):
+        return FakeObject("Upload/share project.", self.report)
 
 
 class FakeObject(object):
@@ -167,11 +168,12 @@ Send job step complete for job 2.
         job_details.workflow.version = 2
         job_details.name = 'MyJob'
         job_details.created = '2017-03-21T13:29:09.123603Z'
-        job_details.output_dir.dds_user_credentials = '123';
-        worker.store_job_output(StoreJobOutputPayload(credentials=None, job_details=job_details,
+        job_details.output_dir.dds_user_credentials = '123'
+        job_details.username = 'jim@jim.com'
+        worker.store_job_output(StoreJobOutputPayload(credentials=MagicMock(), job_details=job_details,
                                                       vm_instance_name='test3'))
         report = """
-Upload project.
+Upload/share project.
 Send job step complete for job 3 project:2348.
         """
         expected = report.strip()
@@ -199,12 +201,3 @@ Send job step complete for job 3 project:2348.
         worker = LandoWorker(settings, outgoing_queue_name='stuff')
         worker.listen_for_messages()
         settings.make_lando_client.return_value.worker_started.assert_called()
-
-    def test_worker_create_project_name(self):
-        payload = MagicMock()
-        payload.job_details.workflow.name = 'SomeWorkflow'
-        payload.job_details.workflow.version = 2
-        payload.job_details.name = 'MyJob'
-        payload.job_details.created = '2017-03-21T13:29:09.123603Z'
-        name = LandoWorkerActions.create_project_name(payload)
-        self.assertEqual("Bespin SomeWorkflow v2 MyJob 2017-29-21", name)
