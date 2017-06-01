@@ -49,6 +49,10 @@ class LandoWorkerSettings(object):
     def make_upload_project(project_name, file_folder_list):
         return staging.UploadProject(project_name, file_folder_list)
 
+    @staticmethod
+    def make_save_job_output(payload):
+        return staging.SaveJobOutput(payload)
+
 
 class LandoWorkerActions(object):
     """
@@ -98,24 +102,11 @@ class LandoWorkerActions(object):
         :param working_directory: str: path to working directory that contains the output directory
         :param payload: path to directory containing files we will run the workflow using
         """
-        project_name = self.create_project_name(payload)
-        staging_context = self.settings.make_staging_context(payload.credentials)
         source_directory = os.path.join(working_directory, cwlworkflow.CWL_WORKING_DIRECTORY)
         upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
-        upload_project = self.settings.make_upload_project(project_name, upload_paths)
-        config = staging_context.get_duke_ds_config(payload.job_details.output_project.dds_user_credentials)
-        project = upload_project.run(config)
+        save_job_output = self.settings.make_save_job_output(payload)
+        project = save_job_output.run(upload_paths)
         self.client.job_step_store_output_complete(payload, project.remote_id)
-
-    @staticmethod
-    def create_project_name(payload):
-        job_details = payload.job_details
-        job_name = job_details.name
-        job_created = dateutil.parser.parse(job_details.created).strftime("%Y-%M-%d")
-        workflow = job_details.workflow
-        workflow_name = workflow.name
-        workflow_version = workflow.version
-        return "Bespin {} v{} {} {}".format(workflow_name, workflow_version, job_name, job_created)
 
 
 class LandoWorker(object):

@@ -19,7 +19,10 @@ class TestJobApi(TestCase):
         job_api = self.setup_job_api(1)
         job_response_payload = {
             'id': 1,
-            'user_id': 23,
+            'user': {
+                'id': 23,
+                'username': 'joe@joe.com'
+            },
             'state': 'N',
             'step': '',
             'name': 'myjob',
@@ -48,6 +51,7 @@ class TestJobApi(TestCase):
 
         self.assertEqual(1, job.id)
         self.assertEqual(23, job.user_id)
+        self.assertEqual('joe@joe.com', job.username)
         self.assertEqual('N', job.state)
         self.assertEqual('m1.tiny', job.vm_flavor)
         self.assertEqual('', job.vm_instance_name)
@@ -151,7 +155,10 @@ class TestJobApi(TestCase):
         """
         job_response_payload = {
             'id': 4,
-            'user_id': 23,
+            'user': {
+                'id': 1,
+                'username': 'joe@joe.com'
+            },
             'state': 'N',
             'step': '',
             'vm_flavor': 'm1.tiny',
@@ -204,7 +211,10 @@ class TestJobApi(TestCase):
         jobs_response = [
             {
                 'id': 1,
-                'user_id': 23,
+                'user': {
+                    'id': 1,
+                    'username': 'joe@joe.com'
+                },
                 'state': 'N',
                 'step': '',
                 'name': 'SomeJob',

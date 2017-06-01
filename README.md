@@ -53,7 +53,6 @@ Assumes you have installed Python 2.7, [Openstack](https://www.openstack.org/), 
 
 ### Install lando-messaging and lando.
 ```
-pip install git+git://github.com/Duke-GCB/lando-messaging.git 
 pip install git+git://github.com/Duke-GCB/lando.git
 ```
 

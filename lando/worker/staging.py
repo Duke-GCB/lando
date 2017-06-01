@@ -3,7 +3,9 @@ Downloads input files and uploads output directory.
 """
 from __future__ import print_function
 import os
+import re
 import requests
+import dateutil.parser
 import logging
 import ddsc.config
 from ddsc.core.remotestore import RemoteStore, RemoteFile
@@ -92,6 +94,11 @@ class DukeDataService(object):
         """
         logging.info('Transferring {} of {}', increment_amt, item.name)
 
+    def give_user_permissions(self, project_id, username, auth_role):
+        logging.info("give user permissions. project:{} username{}: auth_role:{}".format(project_id, username, auth_role))
+        remote_user = self.remote_store.lookup_user_by_username(username)
+        self.data_service.set_user_project_permission(project_id, remote_user.id, auth_role)
+
 
 class DownloadDukeDSFile(object):
     """
@@ -160,3 +167,57 @@ class UploadProject(object):
         project_upload = ProjectUpload(config, self.project_name, self.file_folder_list)
         project_upload.run()
         return project_upload.local_project
+
+
+class SaveJobOutput(object):
+    """
+    Saves the output files into a project that is shared with the user.
+    """
+    def __init__(self, payload):
+        """
+        :param payload: StoreJobOutputPayload: info about how to store our results
+        """
+        self.context = Context(payload.credentials)
+        self.project_name = SaveJobOutput.create_project_name(payload)
+        self.worker_credentials = payload.job_details.output_project.dds_user_credentials
+        self.share_with_username = payload.job_details.username
+
+    def run(self, upload_paths):
+        """
+        Upload files to DukeDS into a new project and share project with the user.
+        :param upload_paths: [str]: paths to folders that will be uploaded into the project
+        :return: LocalProject: project that was uploaded that now contains remote ids
+        """
+        config = self.context.get_duke_ds_config(self.worker_credentials)
+        upload_project = UploadProject(self.project_name, upload_paths)
+        project = upload_project.run(config)
+        self._share_project(project)
+        return project
+
+    def _share_project(self, project):
+        data_service = self.context.get_duke_data_service(self.worker_credentials)
+        data_service.give_user_permissions(project.remote_id,
+                                           self.get_dukeds_username(),
+                                           auth_role='project_admin')
+
+    def get_dukeds_username(self):
+        """
+        Formats the username provided by bespin-api for use with DukeDS (removes the domain).
+        :return: str: DukeDS format username
+        """
+        return re.sub("@.*", "", self.share_with_username)
+
+    @staticmethod
+    def create_project_name(payload):
+        """
+        Creates a unique project name for the output project.
+        :param payload: StoreJobOutputPayload: info about how to store our results
+        :return: str: name to use for the project
+        """
+        job_details = payload.job_details
+        job_name = job_details.name
+        job_created = dateutil.parser.parse(job_details.created).strftime("%Y-%M-%d")
+        workflow = job_details.workflow
+        workflow_name = workflow.name
+        workflow_version = workflow.version
+        return "Bespin {} v{} {} {}".format(workflow_name, workflow_version, job_name, job_created)
