@@ -229,19 +229,6 @@ class TestResultsDirectory(TestCase):
             call().count_output_files(),
             call().total_file_size_str()
         ])
-        args, kwargs = mock_cwl_report.call_args
-        job_details = args[1]
-        expected_job_details = {
-            'finished': '',
-            'id': 1,
-            'num_output_files': 1,
-            'run_time': '0 minutes',
-            'started': '',
-            'total_file_size_str': '1234',
-            'workflow_name': 'nosuch.cwl'
-        }
-        self.assertEqual(expected_job_details, job_details)
-
         mock_cwl_report().save.assert_has_calls([
             call('/tmp/fakedir/README')
         ])
