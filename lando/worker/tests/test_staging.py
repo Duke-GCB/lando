@@ -26,23 +26,23 @@ class TestSaveJobOutput(TestCase):
         save_job_output=SaveJobOutput(self.payload)
         self.assertEqual('bob123', save_job_output.get_dukeds_username())
 
+    @patch('lando.worker.staging.Context')
+    @patch('lando.worker.staging.os.listdir')
+    @patch('lando.worker.staging.WorkflowActivityFiles')
     @patch('lando.worker.staging.ProjectUpload')
-    @patch('lando.worker.staging.RemoteStore')
-    def test_run(self, mock_remote_store, mock_project_upload):
-        mock_project_upload().local_project = Mock(remote_id='1234')
-        mock_remote_store().lookup_user_by_username.return_value = Mock(id='4567')
-        self.payload.job_details.username = 'joe123@something.org'
-
+    def test_run(self, mock_project_upload, mock_activity_files, mock_listdir, mock_context):
+        mock_listdir.return_value = ['output', 'scripts']
         save_job_output = SaveJobOutput(self.payload)
-        save_job_output.run(['/tmp/jobresults'])
-
-        # We should upload the resulting directory into a new project
+        save_job_output.run('/tmp/jobresults')
         mock_project_upload().run.assert_called()
 
-        #TODO test create_activity and share_project
+        data_service = mock_context().get_duke_data_service()
+        # We should create an activity
+        data_service.create_activity.assert_called()
+        data_service.create_used_relations.assert_called()
+        data_service.create_generated_by_relations.assert_called()
+
         # We should give permissions to the user
-        #lookup_user_func = mock_remote_store().lookup_user_by_username
-        #lookup_user_func.assert_called_with('joe123')
-        #set_project_permission_func = mock_remote_store().data_service.set_user_project_permission
-        #set_project_permission_func.assert_called_with('1234',
-        #                                              '4567', 'project_admin')
+        give_user_permissions = data_service.give_user_permissions
+        give_user_permissions.assert_called_with(mock_project_upload().local_project.remote_id, 'john',
+                                                 auth_role='project_admin')

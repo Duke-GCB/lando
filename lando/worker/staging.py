@@ -199,18 +199,26 @@ class SaveJobOutput(object):
         self.share_with_username = payload.job_details.username
         self.job_details = payload.job_details
 
-    def run(self, upload_paths):
+    def run(self, working_directory):
         """
         Upload files to DukeDS into a new project.
-        :param upload_paths: [str]: paths to folders that will be uploaded into the project
+        :param working_directory: str: directory that contains our output files
         :return: LocalProject: project that was uploaded that now contains remote ids
         """
         config = self.context.get_duke_ds_config(self.worker_credentials)
+        upload_paths = [os.path.join(working_directory, path) for path in os.listdir(working_directory)]
         upload_project = UploadProject(self.project_name, upload_paths)
         project = upload_project.run(config)
+        self._create_activity(working_directory, project)
+        self._share_project(project)
         return project
 
-    def create_activity(self, working_directory, project):
+    def _create_activity(self, working_directory, project):
+        """
+        Create an activity and relationships for this uploaded project
+        :param working_directory: str: directory that contains our output files
+        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
+        """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
         activity_name = "{} - Bespin Job {}".format(self.job_details.name, self.job_details.id)
         desc = "Bespin Job {} - Workflow {} v{}".format(
@@ -234,7 +242,11 @@ class SaveJobOutput(object):
                 children_files.extend(self._gather_files(child))
             return children_files
 
-    def share_project(self, project):
+    def _share_project(self, project):
+        """
+        Share project with the appropriate user since it has been uploaded.
+        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
+        """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
         data_service.give_user_permissions(project.remote_id,
                                            self.get_dukeds_username(),
