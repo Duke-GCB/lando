@@ -274,7 +274,8 @@ class ResultsDirectory(object):
             'finished': cwl_process.finished.isoformat(),
             'run_time': cwl_process.total_runtime_str(),
             'num_output_files': workflow_info.count_output_files(),
-            'total_file_size_str': workflow_info.total_file_size_str()
+            'total_file_size_str': workflow_info.total_file_size_str(),
+            'workflow_name': self.workflow_basename
         }
         report = CwlReport(workflow_info, job_data)
         report.save(os.path.join(self.result_directory, README_FILENAME))
