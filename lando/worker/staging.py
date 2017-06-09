@@ -12,10 +12,7 @@ from ddsc.core.remotestore import RemoteStore, RemoteFile
 from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
-from ddsc.core.fileuploader import FileUploader
-from ddsc.core.localstore import LocalFile
 from ddsc.core.upload import ProjectUpload
-from lando.worker.cwlworkflow import LOGS_DIRECTORY, OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY
 from lando.worker.provenance import WorkflowFiles, WorkflowActivityFiles
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
