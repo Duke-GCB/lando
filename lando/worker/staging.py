@@ -15,6 +15,8 @@ from ddsc.core.util import KindType
 from ddsc.core.fileuploader import FileUploader
 from ddsc.core.localstore import LocalFile
 from ddsc.core.upload import ProjectUpload
+from lando.worker.cwlworkflow import LOGS_DIRECTORY, OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY
+from lando.worker.provenance import WorkflowFiles, WorkflowActivityFiles
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
@@ -99,6 +101,24 @@ class DukeDataService(object):
         remote_user = self.remote_store.lookup_user_by_username(username)
         self.data_service.set_user_project_permission(project_id, remote_user.id, auth_role)
 
+    def create_activity(self, activity_name, desc, started_on, ended_on):
+        resp = self.data_service.create_activity(activity_name, desc, started_on, ended_on)
+        return resp.json()["id"]
+
+    def create_used_relations(self, activity_id, used_file_ids):
+        for file_id in used_file_ids:
+            file_version_id = self.get_file_version_id(file_id)
+            self.data_service.create_used_relation(activity_id, KindType.file_str, file_version_id)
+
+    def create_generated_by_relations(self, activity_id, generated_file_ids):
+        for file_id in generated_file_ids:
+            file_version_id = self.get_file_version_id(file_id)
+            self.data_service.create_was_generated_by_relation(activity_id, KindType.file_str, file_version_id)
+
+    def get_file_version_id(self, file_id):
+        file_info = self.data_service.get_file(file_id).json()
+        return file_info['current_version']['id']
+
 
 class DownloadDukeDSFile(object):
     """
@@ -181,20 +201,44 @@ class SaveJobOutput(object):
         self.project_name = SaveJobOutput.create_project_name(payload)
         self.worker_credentials = payload.job_details.output_project.dds_user_credentials
         self.share_with_username = payload.job_details.username
+        self.job_details = payload.job_details
 
     def run(self, upload_paths):
         """
-        Upload files to DukeDS into a new project and share project with the user.
+        Upload files to DukeDS into a new project.
         :param upload_paths: [str]: paths to folders that will be uploaded into the project
         :return: LocalProject: project that was uploaded that now contains remote ids
         """
         config = self.context.get_duke_ds_config(self.worker_credentials)
         upload_project = UploadProject(self.project_name, upload_paths)
         project = upload_project.run(config)
-        self._share_project(project)
         return project
 
-    def _share_project(self, project):
+    def create_activity(self, working_directory, project):
+        data_service = self.context.get_duke_data_service(self.worker_credentials)
+        activity_name = "{} - Bespin Job {}".format(self.job_details.name, self.job_details.id)
+        desc = "Bespin Job {} - Workflow {} v{}".format(
+            self.job_details.id,
+            self.job_details.workflow.name,
+            self.job_details.workflow.version)
+        workflow_files = WorkflowFiles(working_directory, job_id=self.job_details.id,
+                                       workflow_filename=os.path.basename(self.job_details.workflow.url))
+        workflow_activity_files = WorkflowActivityFiles(workflow_files, project)
+        activity_id = data_service.create_activity(activity_name=activity_name, desc=desc,
+                                                   started_on=None, ended_on=None)
+        data_service.create_used_relations(activity_id, workflow_activity_files.get_used_file_ids())
+        data_service.create_generated_by_relations(activity_id, workflow_activity_files.get_generated_file_ids())
+
+    def _gather_files(self, project_node):
+        if KindType.is_file(project_node):
+            return [project_node]
+        else:
+            children_files = []
+            for child in project_node.children:
+                children_files.extend(self._gather_files(child))
+            return children_files
+
+    def share_project(self, project):
         data_service = self.context.get_duke_data_service(self.worker_credentials)
         data_service.give_user_permissions(project.remote_id,
                                            self.get_dukeds_username(),

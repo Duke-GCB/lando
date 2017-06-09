@@ -106,6 +106,8 @@ class LandoWorkerActions(object):
         upload_paths = [os.path.join(source_directory, path) for path in os.listdir(source_directory)]
         save_job_output = self.settings.make_save_job_output(payload)
         project = save_job_output.run(upload_paths)
+        save_job_output.create_activity(source_directory, project)
+        save_job_output.share_project(project)
         self.client.job_step_store_output_complete(payload, project.remote_id)
 
 
