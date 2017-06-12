@@ -28,9 +28,9 @@ class TestSaveJobOutput(TestCase):
 
     @patch('lando.worker.staging.Context')
     @patch('lando.worker.staging.os.listdir')
-    @patch('lando.worker.staging.WorkflowActivityFiles')
+    @patch('lando.worker.provenance.WorkflowActivity')
     @patch('lando.worker.staging.ProjectUpload')
-    def test_run(self, mock_project_upload, mock_activity_files, mock_listdir, mock_context):
+    def test_run(self, mock_project_upload, mock_activity, mock_listdir, mock_context):
         mock_listdir.return_value = ['output', 'scripts']
         save_job_output = SaveJobOutput(self.payload)
         save_job_output.run('/tmp/jobresults')

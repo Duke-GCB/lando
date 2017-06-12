@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.worker.provenance import WorkflowFiles, DukeDSProjectInfo, WorkflowActivityFiles
+from lando.worker.provenance import WorkflowFiles, DukeDSProjectInfo, WorkflowActivity
 from mock import patch, Mock, call
 
 
@@ -22,7 +22,7 @@ class TestWorkflowFiles(TestCase):
 
 
 class TestDukeDSProjectInfo(TestCase):
-    def test_stuff(self):
+    def test_file_id_lookup(self):
         mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/data.txt')
         mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/data2.txt')
         mock_folder = Mock(kind='dds-folder', children=[mock_file2])
@@ -32,21 +32,43 @@ class TestDukeDSProjectInfo(TestCase):
         self.assertEqual(expected_dictionary, project_info.file_id_lookup)
 
 
-class TestWorkflowActivityFiles(TestCase):
+class TestWorkflowActivity(TestCase):
     def setUp(self):
-        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/data.txt')
-        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/data2.txt')
-        mock_folder = Mock(kind='dds-folder', children=[mock_file2])
-        mock_project = Mock(kind='dds-project', children=[mock_file1, mock_folder])
-        workflow_files = Mock()
-        workflow_files.get_input_filenames.return_value = ['/tmp/data.txt']
-        workflow_files.get_output_filenames.return_value = ['/tmp/data2.txt']
-        self.workflow_activity_files = WorkflowActivityFiles(workflow_files, mock_project)
+        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/scripts/example.cwl')
+        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/scripts/job-444-input.yml')
+        mock_file3 = Mock(kind='dds-file', remote_id='125', path='/tmp/output/data.txt')
+        mock_folder1 = Mock(name='scripts', kind='dds-folder', children=[mock_file1, mock_file2])
+        mock_folder2 = Mock(name='output', kind='dds-folder', children=[mock_file3])
+        self.mock_project = Mock(kind='dds-project', children=[mock_folder1, mock_folder2])
 
-    def test_used_file_ids(self):
-        file_ids = self.workflow_activity_files.get_used_file_ids()
-        self.assertEqual(['123'], file_ids)
+    def test_getters(self):
+        workflow = Mock(version='1', url='http://something/example.cwl')
+        workflow.name = 'RnaSeq'
+        job_details = Mock(id='444', workflow=workflow)
+        job_details.name = 'Myjob'
+        workflow_activity = WorkflowActivity(
+            job_details=job_details,
+            working_directory='/tmp/',
+            project=self.mock_project)
+        self.assertEqual('Myjob - Bespin Job 444', workflow_activity.get_name())
+        self.assertEqual('Bespin Job 444 - Workflow RnaSeq v1', workflow_activity.get_description())
+        self.assertEqual(None, workflow_activity.get_started_on())
+        self.assertEqual(None, workflow_activity.get_ended_on())
 
-    def test_generated_file_ids(self):
-        file_ids = self.workflow_activity_files.get_generated_file_ids()
-        self.assertEqual(['124'], file_ids)
+    def test_used_file_ids_returns_job_input_and_cwl(self):
+        workflow_activity = WorkflowActivity(
+            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
+            working_directory='/tmp/',
+            project=self.mock_project)
+        file_ids = workflow_activity.get_used_file_ids()
+        self.assertEqual(['123', '124'], file_ids)
+
+    @patch('lando.worker.provenance.WorkflowFiles')
+    def test_generated_file_ids_returns_output_files(self, mock_workflow_files):
+        mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/output/data.txt']
+        workflow_activity = WorkflowActivity(
+            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
+            working_directory='/tmp/',
+            project=self.mock_project)
+        file_ids = workflow_activity.get_generated_file_ids()
+        self.assertEqual(['125'], file_ids)

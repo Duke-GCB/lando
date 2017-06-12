@@ -12,7 +12,7 @@ from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
 from ddsc.core.upload import ProjectUpload
-from lando.worker.provenance import WorkflowFiles, WorkflowActivityFiles
+from lando.worker.provenance import create_activity
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
@@ -220,27 +220,8 @@ class SaveJobOutput(object):
         :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
         """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
-        activity_name = "{} - Bespin Job {}".format(self.job_details.name, self.job_details.id)
-        desc = "Bespin Job {} - Workflow {} v{}".format(
-            self.job_details.id,
-            self.job_details.workflow.name,
-            self.job_details.workflow.version)
-        workflow_files = WorkflowFiles(working_directory, job_id=self.job_details.id,
-                                       workflow_filename=os.path.basename(self.job_details.workflow.url))
-        workflow_activity_files = WorkflowActivityFiles(workflow_files, project)
-        activity_id = data_service.create_activity(activity_name=activity_name, desc=desc,
-                                                   started_on=None, ended_on=None)
-        data_service.create_used_relations(activity_id, workflow_activity_files.get_used_file_ids())
-        data_service.create_generated_by_relations(activity_id, workflow_activity_files.get_generated_file_ids())
+        create_activity(data_service, self.job_details, working_directory, project)
 
-    def _gather_files(self, project_node):
-        if KindType.is_file(project_node):
-            return [project_node]
-        else:
-            children_files = []
-            for child in project_node.children:
-                children_files.extend(self._gather_files(child))
-            return children_files
 
     def _share_project(self, project):
         """
