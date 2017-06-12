@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import os
-from lando.worker.cwlworkflow import OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY
+import json
+from lando.worker.cwlworkflow import OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, JOB_DATA_FILENAME
 from ddsc.core.util import KindType
 
 
@@ -40,6 +41,11 @@ class WorkflowFiles(object):
             self._format_filename(workflow_path),
             self._format_filename(job_input_path)
         ]
+
+    def get_job_data(self):
+        job_data_path = os.path.join(self.working_directory, LOGS_DIRECTORY, JOB_DATA_FILENAME)
+        with open(job_data_path, 'r') as infile:
+            return json.load(infile)
 
     @staticmethod
     def _format_filename(filename):
@@ -104,10 +110,10 @@ class WorkflowActivity(object):
             self.job_details.workflow.version)
 
     def get_started_on(self):
-        return None
+        return self.workflow_files.get_job_data()['started']
 
     def get_ended_on(self):
-        return None
+        return self.workflow_files.get_job_data()['finished']
 
     def get_used_file_ids(self):
         """
