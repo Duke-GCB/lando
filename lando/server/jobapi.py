@@ -61,13 +61,13 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
-    def get_input_files(self, job_id):
+    def get_file_stage_group(self, stage_group):
         """
         Get the list of input files(files that need to be staged) for a job.
-        :param job_id: int: unique job id
-        :return: [dict]: list of input file data
+        :param stage_group: int: unique stage group id
+        :return: dict: details about files that need to be staged
         """
-        path = 'job-input-files/?job={}'.format(job_id)
+        path = 'job-file-stage-groups/{}'.format(stage_group)
         url = self._make_url(path)
         return self._get_results(url)
 
@@ -175,8 +175,9 @@ class JobApi(object):
         Get the list of input files(files that need to be staged) for a job.
         :return: [InputFile]: list of files to be downloaded.
         """
-        fields = self.api.get_input_files(self.job_id)
-        return [InputFile(field) for field in fields]
+        job = self.get_job()
+        stage_group = self.api.get_file_stage_group(job.stage_group)
+        return [InputFiles(stage_group)]
 
     def get_credentials(self):
         """
@@ -244,6 +245,7 @@ class Job(object):
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_project_name = data['vm_project_name']
+        self.stage_group = data['stage_group']
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
 
@@ -271,16 +273,14 @@ class OutputProject(object):
         self.dds_user_credentials = output_dir['dds_user_credentials']
 
 
-class InputFile(object):
+class InputFiles(object):
     """
-    Represents dds/url file or array of files.
+    Represents dds/url array of files that need to be staged.
     """
     def __init__(self, data):
         """
         :param data: dict: input file values returned from bespin.
         """
-        self.file_type = data['file_type']
-        self.workflow_name = data['workflow_name']
         self.dds_files = [DukeDSFile(field) for field in data['dds_files']]
         self.url_files = [URLFile(field) for field in data['url_files']]
 

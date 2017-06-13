@@ -5,19 +5,8 @@ from mock.mock import MagicMock, patch
 
 
 class TestJobApi(TestCase):
-    def setup_job_api(self, job_id):
-        mock_config = MagicMock()
-        mock_config.bespin_api_settings.url = 'APIURL'
-        job_api = JobApi(mock_config, job_id)
-        return job_api
-
-    @patch('lando.server.jobapi.requests')
-    def test_get_job_api(self, mock_requests):
-        """
-        Test requesting job status, etc
-        """
-        job_api = self.setup_job_api(1)
-        job_response_payload = {
+    def setUp(self):
+        self.job_response_payload = {
             'id': 1,
             'user': {
                 'id': 23,
@@ -40,10 +29,25 @@ class TestJobApi(TestCase):
             'output_dir': {
                 'id': 5,
                 'dds_user_credentials': 123
-            }
+            },
+            'stage_group': None,
         }
+
+    def setup_job_api(self, job_id):
+        mock_config = MagicMock()
+        mock_config.bespin_api_settings.url = 'APIURL'
+        job_api = JobApi(mock_config, job_id)
+        return job_api
+
+    @patch('lando.server.jobapi.requests')
+    def test_get_job_api(self, mock_requests):
+        """
+        Test requesting job status, etc
+        """
+        job_api = self.setup_job_api(1)
+
         mock_response = MagicMock()
-        mock_response.json.return_value = job_response_payload
+        mock_response.json.return_value = self.job_response_payload
         mock_requests.get.return_value = mock_response
         job = job_api.get_job()
         args, kwargs = mock_requests.get.call_args
@@ -96,10 +100,8 @@ class TestJobApi(TestCase):
 
     @patch('lando.server.jobapi.requests')
     def test_get_input_files(self, mock_requests):
-        input_files_response_payload = [
-            {
-                'file_type': 'dds_file',
-                'workflow_name': 'sequence',
+        self.job_response_payload['stage_group'] = '4'
+        stage_group_response_payload = {
                 'dds_files': [
                     {
                         'file_id': 123,
@@ -107,42 +109,33 @@ class TestJobApi(TestCase):
                         'dds_user_credentials': 823,
                     }
                 ],
-                'url_files': [],
-            },
-            {
-                'file_type': 'url_file_array',
-                'workflow_name': 'models',
-                'dds_files': [],
                 'url_files': [
                     {
                         'url': "https://stuff.com/file123.model",
                         'destination_path': "file123.model",
                     }
                 ],
-            },
+        }
+        get_job_response = MagicMock()
+        get_job_response.json.return_value = self.job_response_payload
+        stage_group_response = MagicMock()
+        stage_group_response.json.return_value = stage_group_response_payload
+        mock_requests.get.side_effect = [
+            get_job_response,
+            stage_group_response
         ]
-
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = input_files_response_payload
-        mock_requests.get.return_value = mock_response
         job_api = self.setup_job_api(4)
         files = job_api.get_input_files()
         args, kwargs = mock_requests.get.call_args
-        self.assertEqual(args[0], 'APIURL/admin/job-input-files/?job=4')
+        self.assertEqual(args[0], 'APIURL/admin/job-file-stage-groups/4')
 
-        self.assertEqual(2, len(files))
+        self.assertEqual(1, len(files))
         file = files[0]
-        self.assertEqual('dds_file', file.file_type)
         self.assertEqual(1, len(file.dds_files))
         dds_file = file.dds_files[0]
         self.assertEqual(123, dds_file.file_id)
         self.assertEqual('seq1.fasta', dds_file.destination_path)
         self.assertEqual(823, dds_file.user_id)
-
-        file = files[1]
-        self.assertEqual('url_file_array', file.file_type)
-        self.assertEqual(0, len(file.dds_files))
         self.assertEqual(1, len(file.url_files))
         url_file = file.url_files[0]
         self.assertEqual('https://stuff.com/file123.model', url_file.url)
@@ -176,7 +169,8 @@ class TestJobApi(TestCase):
             'output_dir': {
                 'id': 5,
                 'dds_user_credentials': 123
-            }
+            },
+            'stage_group': None,
         }
         user_credentials_response = [
             {
@@ -205,7 +199,6 @@ class TestJobApi(TestCase):
         self.assertEqual('2191230', user_cred.endpoint_agent_key)
         self.assertEqual('localhost/api/v1/', user_cred.endpoint_api_root)
 
-
     @patch('lando.server.jobapi.requests')
     def test_get_jobs_for_vm_instance_name(self, mock_requests):
         jobs_response = [
@@ -232,7 +225,8 @@ class TestJobApi(TestCase):
                 'output_dir': {
                     'id': 5,
                     'dds_user_credentials': 123
-                }
+                },
+                'stage_group': None,
             }
         ]
 
