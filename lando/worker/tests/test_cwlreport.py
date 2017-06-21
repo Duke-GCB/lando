@@ -30,6 +30,11 @@ SAMPLE_CWL_MAIN_DATA = {
             "type": "File",
             "id": "#main/aligned_read"
         },
+        {
+            "outputSource": "#main/trim/trim_report",
+            "type": "File",
+            "id": "#main/trim_reports"
+        }
     ],
 }
 
@@ -42,16 +47,41 @@ SAMPLE_JOB_ORDER = {
 }
 
 SAMPLE_JOB_OUTPUT = {
-    "align_log": {
-        "checksum": "sha1$0e724dda4c96d901af1ecd53d0cd5882d6b1a814",
-        "location": "/tmp/align_log.txt",
-        "size": 900
-    },
+    "align_log": [
+        {
+            "checksum": "sha1$0e724dda4c96d901af1ecd53d0cd5882d6b1a814",
+            "location": "/tmp/align_log.txt",
+            "size": 900,
+            "secondaryFiles": [
+                {
+                    "checksum": "sha1$6ec2f899946f8091693ce65cc6323958695dec21",
+                    "location": "/tmp/align_log.idx",
+                    "size": 123
+                }
+            ]
+        }
+    ],
     "aligned_read": {
         "checksum": "sha1$0e724dda4c96d901af1ecd53d0cd5882d6b1a814",
         "location": "/tmp/aligned_read.txt",
-        "size": 1010123
-    }
+        "size": 1010123,
+        "secondaryFiles": [
+            {
+                "checksum": "sha1$6ec2f899946f8091693ce65cc6323958695dec20",
+                "location": "/tmp/aligned_read.idx",
+                "size": 6613916
+            }
+        ]
+    },
+    "trim_reports": [
+        [
+            {
+                "checksum": "sha1$0e724dda4c96d901af1ecd53d0cd5882d6b1a815",
+                "location": "/tmp/trim_report.txt",
+                "size": 44,
+            }
+        ]
+    ]
 }
 
 
@@ -92,14 +122,14 @@ class TestCwlReportUtilities(TestCase):
         }
         workflow = create_workflow_info('/tmp/fakepath.cwl')
         self.assertEqual(2, len(workflow.input_params))
-        self.assertEqual(2, len(workflow.output_data))
+        self.assertEqual(3, len(workflow.output_data))
 
     @patch("lando.worker.cwlreport.parse_yaml_or_json")
     def test_create_workflow_info_with_no_graph(self, mock_parse_yaml_or_json):
         mock_parse_yaml_or_json.return_value = SAMPLE_CWL_MAIN_DATA
         workflow = create_workflow_info('/tmp/fakepath.cwl')
         self.assertEqual(2, len(workflow.input_params))
-        self.assertEqual(2, len(workflow.output_data))
+        self.assertEqual(3, len(workflow.output_data))
 
 
 class TestWorkflowInfo(TestCase):
@@ -128,12 +158,17 @@ class TestWorkflowInfo(TestCase):
         self.assertEqual('#main/threads', input_param.documentation)
         self.assertEqual('20', input_param.value)
 
-        self.assertEqual(2, len(workflow.output_data))
+        self.assertEqual(3, len(workflow.output_data))
         output_data = workflow.output_data[0]
         self.assertEqual('The Align Log', output_data.documentation)
-        self.assertEqual(1, len(output_data.files))
+        self.assertEqual(2, len(output_data.files))
         self.assertEqual("align_log.txt", output_data.files[0].filename)
+        self.assertEqual("align_log.idx", output_data.files[1].filename)
         output_data = workflow.output_data[1]
         self.assertEqual('#main/aligned_read', output_data.documentation)
-        self.assertEqual(1, len(output_data.files))
+        self.assertEqual(2, len(output_data.files))
         self.assertEqual("aligned_read.txt", output_data.files[0].filename)
+        self.assertEqual("aligned_read.idx", output_data.files[1].filename)
+        output_data = workflow.output_data[2]
+        self.assertEqual(1, len(output_data.files))
+        self.assertEqual("trim_report.txt", output_data.files[0].filename)
