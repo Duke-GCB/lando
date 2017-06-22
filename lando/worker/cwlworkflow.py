@@ -161,7 +161,9 @@ class CwlWorkflowProcess(object):
         if not base_command:
             base_command = [RUN_CWL_COMMAND]
         self.command = base_command[:]
-        self.command.extend([RUN_CWL_OUTDIR_ARG, local_output_directory, workflow_file, job_order_filename])
+        # cwltoil requires an absolute path for output directory
+        absolute_output_directory = os.path.abspath(local_output_directory)
+        self.command.extend([RUN_CWL_OUTDIR_ARG, absolute_output_directory, workflow_file, job_order_filename])
 
     def run(self):
         """

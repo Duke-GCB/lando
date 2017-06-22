@@ -167,7 +167,8 @@ class TestCwlWorkflowProcess(TestCase):
                                      job_order_filename='joborder')
         process.run()
         self.assertEqual(0, process.return_code)
-        self.assertEqual("--outdir outdir workflow joborder", process.output.strip())
+        absolute_output_dir = os.path.abspath('outdir')
+        self.assertEqual("--outdir {} workflow joborder".format(absolute_output_dir), process.output.strip())
 
     def test_run_stderr_bad_exit(self):
         """
