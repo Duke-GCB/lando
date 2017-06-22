@@ -162,14 +162,17 @@ class CwlWorkflowProcess(object):
             base_command = [RUN_CWL_COMMAND]
         self.command = base_command[:]
         # cwltoil requires an absolute path for output directory
-        absolute_output_directory = os.path.abspath(local_output_directory)
-        self.command.extend([RUN_CWL_OUTDIR_ARG, absolute_output_directory, workflow_file, job_order_filename])
+        self.absolute_output_directory = os.path.abspath(local_output_directory)
+        self.command.extend([RUN_CWL_OUTDIR_ARG, self.absolute_output_directory, workflow_file, job_order_filename])
 
     def run(self):
         """
         Run job saving results in process_output, process_error_output, and return_code members.
         :param command: [str]: array of strings representing a workflow command and its arguments
         """
+        # Create output directory for cwltoil
+        if not os.path.exists(self.absolute_output_directory):
+            os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
         p = Popen(self.command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
         self.output = ""
