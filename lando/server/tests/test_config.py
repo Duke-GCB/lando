@@ -49,6 +49,7 @@ class TestServerConfig(TestCase):
         self.assertEqual('jpb67', config.vm_settings.ssh_key_name)
         #  by default allocate_floating_ips is off
         self.assertEqual(False, config.vm_settings.allocate_floating_ips)
+        self.assertEqual(None, config.vm_settings.cwl_base_command)
 
         self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
         self.assertEqual("jpb67", config.cloud_settings.username)
@@ -119,3 +120,4 @@ username: lobot
 """
         result = config.make_worker_config_yml('worker_1')
         self.assertMultiLineEqual(expected.strip(), result.strip())
+        self.assertEqual(['cwltoil', '--not-strict'], config.vm_settings.cwl_base_command)
