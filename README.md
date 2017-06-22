@@ -143,7 +143,7 @@ The queue name `local_worker` is always used for workers when `fake_cloud_servic
 If you are running on osx you may need to specify custom `--tmpdir-prefix` and `--tmp-outdir-prefix` flags for cwl.
 You can replace the default `cwl-runner` command by adding lines similar to these:
 ```
-workflow_base_command:
+cwl_base_command:
   - "cwl-runner"
   - "--debug"
   - "--tmpdir-prefix=/Users/jpb67/Documents/work/tmp"

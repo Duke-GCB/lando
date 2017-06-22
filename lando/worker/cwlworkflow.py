@@ -108,16 +108,16 @@ class CwlWorkflow(object):
     3. Gathers stderr/stdout output from the process
     4. If exit status is not 0 raises JobStepFailed including output
     """
-    def __init__(self, job_id, working_directory, workflow_base_command):
+    def __init__(self, job_id, working_directory, cwl_base_command):
         """
         Setup workflow
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to working directory that contains input files
-        :param workflow_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
+        :param cwl_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
         """
         self.job_id = job_id
         self.working_directory = working_directory
-        self.workflow_base_command = workflow_base_command
+        self.cwl_base_command = cwl_base_command
 
     def run(self, cwl_file_url, workflow_object_name, job_order):
         """
@@ -131,7 +131,7 @@ class CwlWorkflow(object):
         workflow_file = cwl_directory.workflow_path
         if workflow_object_name:
             workflow_file += workflow_object_name
-        process = CwlWorkflowProcess(self.workflow_base_command,
+        process = CwlWorkflowProcess(self.cwl_base_command,
                                      cwl_directory.output_directory,
                                      workflow_file,
                                      cwl_directory.job_order_file_path)
@@ -144,10 +144,10 @@ class CwlWorkflow(object):
 
 
 class CwlWorkflowProcess(object):
-    def __init__(self, workflow_base_command, local_output_directory, workflow_file, job_order_filename):
+    def __init__(self, cwl_base_command, local_output_directory, workflow_file, job_order_filename):
         """
         Setup to run cwl workflow using the supplied parameters.
-        :param workflow_base_command:  [str] or None: array of cwl command and arguments (osx requires special arguments)
+        :param cwl_base_command:  [str] or None: array of cwl command and arguments (osx requires special arguments)
         :param local_output_directory: str: path to directory we will save output files into
         :param workflow_file: str: path to the cwl workflow
         :param job_order_filename: str: path to the cwl job order (input file)
@@ -157,7 +157,7 @@ class CwlWorkflowProcess(object):
         self.return_code = None
         self.started = None
         self.finished = None
-        base_command = workflow_base_command
+        base_command = cwl_base_command
         if not base_command:
             base_command = [RUN_CWL_COMMAND]
         self.command = base_command[:]

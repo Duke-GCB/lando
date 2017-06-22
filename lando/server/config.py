@@ -42,7 +42,7 @@ class ServerConfig(object):
         """
         work_queue = self.work_queue_config
         data = {
-            'workflow_base_command': self.vm_settings.workflow_base_command,
+            'cwl_base_command': self.vm_settings.cwl_base_command,
             'host': work_queue.host,
             'username': work_queue.worker_username,
             'password': work_queue.worker_password,
@@ -75,7 +75,7 @@ class VMSettings(object):
         self.allocate_floating_ips = data.get('allocate_floating_ips', False)
         self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
         self.default_favor_name = get_or_raise_config_exception(data, 'default_favor_name')
-        self.workflow_base_command = data.get("workflow_base_command")
+        self.cwl_base_command = data.get("cwl_base_command")
 
 
 class CloudSettings(object):
