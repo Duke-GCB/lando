@@ -16,7 +16,7 @@ class TestSaveJobOutput(TestCase):
 
     def test_create_project_name(self):
         name = SaveJobOutput.create_project_name(self.payload)
-        self.assertEqual("Bespin SomeWorkflow v2 MyJob 2017-29-21", name)
+        self.assertEqual("Bespin SomeWorkflow v2 MyJob 2017-03-21", name)
 
     def test_get_dukeds_username(self):
         self.payload.job_details.username = 'joe@joe.com'

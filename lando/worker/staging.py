@@ -216,7 +216,7 @@ class SaveJobOutput(object):
         """
         job_details = payload.job_details
         job_name = job_details.name
-        job_created = dateutil.parser.parse(job_details.created).strftime("%Y-%M-%d")
+        job_created = dateutil.parser.parse(job_details.created).strftime("%Y-%m-%d")
         workflow = job_details.workflow
         workflow_name = workflow.name
         workflow_version = workflow.version
