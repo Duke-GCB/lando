@@ -42,8 +42,8 @@ class LandoWorkerSettings(object):
         return staging.DownloadURLFile(url, destination_path)
 
     @staticmethod
-    def make_cwl_workflow(job_id, working_directory, cwl_base_command):
-        return cwlworkflow.CwlWorkflow(job_id, working_directory, cwl_base_command)
+    def make_cwl_workflow(job_id, working_directory, workflow_base_command):
+        return cwlworkflow.CwlWorkflow(job_id, working_directory, workflow_base_command)
 
     @staticmethod
     def make_upload_project(project_name, file_folder_list):
@@ -91,8 +91,8 @@ class LandoWorkerActions(object):
         :param working_directory: str: path to directory containing files we will run the workflow using
         :param payload: router.RunJobPayload: details about workflow to run
         """
-        cwl_base_command = self.config.cwl_base_command
-        workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, cwl_base_command)
+        workflow_base_command = self.config.workflow_base_command
+        workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, workflow_base_command)
         workflow.run(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
         self.client.job_step_complete(payload)
 

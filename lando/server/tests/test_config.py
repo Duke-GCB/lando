@@ -98,6 +98,24 @@ host: 10.109.253.74
 password: tobol
 queue_name: worker_1
 username: lobot
+workflow_base_command: null
+"""
+        result = config.make_worker_config_yml('worker_1')
+        self.assertMultiLineEqual(expected.strip(), result.strip())
+
+    def test_make_worker_config_yml_custom_workflow_base_command(self):
+        line = '  workflow_base_command:\n  - "cwltoil"\n  - "--not-strict"'
+        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
+        config = ServerConfig(filename)
+        os.unlink(filename)
+        expected = """
+host: 10.109.253.74
+password: tobol
+queue_name: worker_1
+username: lobot
+workflow_base_command:
+- cwltoil
+- --not-strict
 """
         result = config.make_worker_config_yml('worker_1')
         self.assertMultiLineEqual(expected.strip(), result.strip())

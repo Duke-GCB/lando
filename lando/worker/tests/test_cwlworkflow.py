@@ -55,7 +55,7 @@ class TestCwlWorkflow(TestCase):
         """
         job_id = 1
         working_directory = tempfile.mkdtemp()
-        cwl_base_command = None
+        workflow_base_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -74,7 +74,7 @@ outputfile: results.txt
         """.format(one_path, two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               cwl_base_command)
+                               workflow_base_command)
         workflow.run(cwl_file_url, workflow_object_name, input_json)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
@@ -92,7 +92,7 @@ outputfile: results.txt
         """
         job_id = 1
         working_directory = tempfile.mkdtemp()
-        cwl_base_command = None
+        workflow_base_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -113,7 +113,7 @@ outputfile: results.txt
         os.unlink(two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               cwl_base_command)
+                               workflow_base_command)
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, input_json)
         shutil.rmtree(workflow_directory)
@@ -127,11 +127,11 @@ outputfile: results.txt
         mock_cwl_workflow_process.return_code = 1
         job_id = '123'
         working_directory = '/tmp/job_123'
-        cwl_base_command = 'cwl-runner'
+        workflow_base_command = 'cwl-runner'
         cwl_file_url = 'file://packed.cwl'
         workflow_object_name = '#main'
         job_order = {}
-        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command)
+        workflow = CwlWorkflow(job_id, working_directory, workflow_base_command)
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
 
@@ -161,7 +161,7 @@ class TestCwlWorkflowProcess(TestCase):
         """
         Swap out cwl-runner for echo and check output
         """
-        process = CwlWorkflowProcess(cwl_base_command=['echo'],
+        process = CwlWorkflowProcess(workflow_base_command=['echo'],
                                      local_output_directory='outdir',
                                      workflow_file='workflow',
                                      job_order_filename='joborder')
@@ -175,7 +175,7 @@ class TestCwlWorkflowProcess(TestCase):
         Swap out cwl-runner for bogus ddsclient call that should fail.
         ddsclient is installed for use as a module in staging.
         """
-        process = CwlWorkflowProcess(cwl_base_command=['ddsclient'],
+        process = CwlWorkflowProcess(workflow_base_command=['ddsclient'],
                                      local_output_directory='outdir',
                                      workflow_file='workflow',
                                      job_order_filename='joborder')
