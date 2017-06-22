@@ -173,8 +173,9 @@ class WorkflowInfo(object):
         """
         if type(node) == dict:
             out_data.add_file(OutputFile(node))
-            if node.get("secondaryFiles"):
-                self._add_files_recursive(out_data, node.get("secondaryFiles"))
+            secondaryFiles = node.get("secondaryFiles")
+            if secondaryFiles:
+                self._add_files_recursive(out_data, secondaryFiles)
         else:
             for item in node:
                 self._add_files_recursive(out_data, item)
