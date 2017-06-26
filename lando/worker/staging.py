@@ -1,7 +1,6 @@
 """
 Downloads input files and uploads output directory.
 """
-from __future__ import print_function
 import os
 import re
 import requests
@@ -12,9 +11,8 @@ from ddsc.core.remotestore import RemoteStore, RemoteFile
 from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
-from ddsc.core.fileuploader import FileUploader
-from ddsc.core.localstore import LocalFile
 from ddsc.core.upload import ProjectUpload
+from lando.worker.provenance import create_activity
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
@@ -99,6 +97,24 @@ class DukeDataService(object):
         remote_user = self.remote_store.lookup_user_by_username(username)
         self.data_service.set_user_project_permission(project_id, remote_user.id, auth_role)
 
+    def create_activity(self, activity_name, desc, started_on, ended_on):
+        resp = self.data_service.create_activity(activity_name, desc, started_on, ended_on)
+        return resp.json()["id"]
+
+    def create_used_relations(self, activity_id, used_file_ids):
+        for file_id in used_file_ids:
+            file_version_id = self.get_file_version_id(file_id)
+            self.data_service.create_used_relation(activity_id, KindType.file_str, file_version_id)
+
+    def create_generated_by_relations(self, activity_id, generated_file_ids):
+        for file_id in generated_file_ids:
+            file_version_id = self.get_file_version_id(file_id)
+            self.data_service.create_was_generated_by_relation(activity_id, KindType.file_str, file_version_id)
+
+    def get_file_version_id(self, file_id):
+        file_info = self.data_service.get_file(file_id).json()
+        return file_info['current_version']['id']
+
 
 class DownloadDukeDSFile(object):
     """
@@ -181,20 +197,37 @@ class SaveJobOutput(object):
         self.project_name = SaveJobOutput.create_project_name(payload)
         self.worker_credentials = payload.job_details.output_project.dds_user_credentials
         self.share_with_username = payload.job_details.username
+        self.job_details = payload.job_details
 
-    def run(self, upload_paths):
+    def run(self, working_directory):
         """
-        Upload files to DukeDS into a new project and share project with the user.
-        :param upload_paths: [str]: paths to folders that will be uploaded into the project
+        Upload files to DukeDS into a new project.
+        :param working_directory: str: directory that contains our output files
         :return: LocalProject: project that was uploaded that now contains remote ids
         """
         config = self.context.get_duke_ds_config(self.worker_credentials)
+        upload_paths = [os.path.join(working_directory, path) for path in os.listdir(working_directory)]
         upload_project = UploadProject(self.project_name, upload_paths)
         project = upload_project.run(config)
+        self._create_activity(working_directory, project)
         self._share_project(project)
         return project
 
+    def _create_activity(self, working_directory, project):
+        """
+        Create an activity and relationships for this uploaded project
+        :param working_directory: str: directory that contains our output files
+        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
+        """
+        data_service = self.context.get_duke_data_service(self.worker_credentials)
+        create_activity(data_service, self.job_details, working_directory, project)
+
+
     def _share_project(self, project):
+        """
+        Share project with the appropriate user since it has been uploaded.
+        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
+        """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
         data_service.give_user_permissions(project.remote_id,
                                            self.get_dukeds_username(),
