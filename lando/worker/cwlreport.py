@@ -163,11 +163,22 @@ class WorkflowInfo(object):
             for key in doc.keys():
                 val = doc.get(key)
                 out_data = find_by_name(key, self.output_data)
-                if type(val) == dict:
-                    out_data.add_file(OutputFile(val))
-                else:
-                    for item in val:
-                        out_data.add_file(OutputFile(item))
+                self._add_files_recursive(out_data, val)
+
+    def _add_files_recursive(self, out_data, node):
+        """
+        Recursively adds files contained under node to out_data.
+        :param out_data: OutputData: contains all files for a workflow output name.
+        :param node: dict/array: either file location information or array(possibly nested)
+        """
+        if type(node) == dict:
+            out_data.add_file(OutputFile(node))
+            secondaryFiles = node.get("secondaryFiles")
+            if secondaryFiles:
+                self._add_files_recursive(out_data, secondaryFiles)
+        else:
+            for item in node:
+                self._add_files_recursive(out_data, item)
 
     def count_output_files(self):
         return len(self.output_data)
