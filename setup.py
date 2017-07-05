@@ -11,7 +11,7 @@ LANDO_REQUIREMENTS = [
       "lando-messaging==0.7.1",
       "python-dateutil==2.6.0",
       "PyYAML==3.11",
-      "requests==2.10.0",
+      "requests==2.18.1",
 ]
 
 setup(name='lando',
