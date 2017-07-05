@@ -2,16 +2,17 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
+      "ruamel.yaml==0.15.2",
       "Babel==2.3.4",
       "shade==1.20.0",
       "cwlref-runner==1.0",
-      "DukeDSClient",
+      "DukeDSClient==0.3.12",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
-      "lando-messaging",
+      "lando-messaging==0.7.1",
       "python-dateutil==2.6.0",
       "PyYAML==3.11",
-      "requests==2.10.0",
+      "requests==2.18.1",
 ]
 
 setup(name='lando',

@@ -84,6 +84,12 @@ class FakeObject(object):
     def get_duke_ds_config(self, user_id):
         return MagicMock()
 
+    def create_activity(self, source_directory, project):
+        self.report.add("Created activity.")
+
+    def share_project(self, project):
+        self.report.add("Share project.")
+
 
 class FakeInputFile(object):
     def __init__(self, file_type):
@@ -174,6 +180,8 @@ Send job step complete for job 2.
                                                       vm_instance_name='test3'))
         report = """
 Upload/share project.
+Created activity.
+Share project.
 Send job step complete for job 3 project:2348.
         """
         expected = report.strip()
