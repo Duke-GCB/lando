@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
+      "ruamel.yaml==0.15.2",
       "Babel==2.3.4",
       "shade==1.20.0",
       "cwlref-runner==1.0",
