@@ -180,8 +180,6 @@ Send job step complete for job 2.
                                                       vm_instance_name='test3'))
         report = """
 Upload/share project.
-Created activity.
-Share project.
 Send job step complete for job 3 project:2348.
         """
         expected = report.strip()

@@ -105,8 +105,6 @@ class LandoWorkerActions(object):
         source_directory = os.path.join(working_directory, cwlworkflow.CWL_WORKING_DIRECTORY)
         save_job_output = self.settings.make_save_job_output(payload)
         project = save_job_output.run(source_directory)
-        save_job_output.create_activity(source_directory, project)
-        save_job_output.share_project(project)
         self.client.job_step_store_output_complete(payload, project.remote_id)
 
 
