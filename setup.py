@@ -2,7 +2,6 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
-      "ruamel.yaml==0.15.2",
       "Babel==2.3.4",
       "shade==1.20.0",
       "cwlref-runner==1.0",
@@ -16,7 +15,7 @@ LANDO_REQUIREMENTS = [
 ]
 
 setup(name='lando',
-      version='0.1',
+      version='0.2',
       description='Cloud based bioinformatics workflow runner',
       url='https://github.com/Duke-GCB/lando',
       author='Dan Leehr, John Bradley',

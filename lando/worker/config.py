@@ -23,6 +23,7 @@ class WorkerConfig(object):
             self.work_queue_config = WorkQueue(data)
             self.cwl_base_command = data.get('cwl_base_command', None)
 
+
 class WorkQueue(object):
     """
     Settings for the AMQP used to reply to the lando server.

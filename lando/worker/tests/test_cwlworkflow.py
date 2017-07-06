@@ -157,7 +157,8 @@ class TestCwlDirectory(TestCase):
 
 
 class TestCwlWorkflowProcess(TestCase):
-    def test_run_stdout_good_exit(self):
+    @patch("lando.worker.cwlworkflow.os.mkdir")
+    def test_run_stdout_good_exit(self, mock_mkdir):
         """
         Swap out cwl-runner for echo and check output
         """
@@ -167,9 +168,11 @@ class TestCwlWorkflowProcess(TestCase):
                                      job_order_filename='joborder')
         process.run()
         self.assertEqual(0, process.return_code)
-        self.assertEqual("--outdir outdir workflow joborder", process.output.strip())
+        absolute_output_dir = os.path.abspath('outdir')
+        self.assertEqual("--outdir {} workflow joborder".format(absolute_output_dir), process.output.strip())
 
-    def test_run_stderr_bad_exit(self):
+    @patch("lando.worker.cwlworkflow.os.mkdir")
+    def test_run_stderr_bad_exit(self, mock_mkdir):
         """
         Testing that CwlWorkflowProcess traps stderr and the bad exit code.
         Swap out cwl-runner for bogus ddsclient call that should fail.

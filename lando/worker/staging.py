@@ -222,7 +222,6 @@ class SaveJobOutput(object):
         data_service = self.context.get_duke_data_service(self.worker_credentials)
         create_activity(data_service, self.job_details, working_directory, project)
 
-
     def _share_project(self, project):
         """
         Share project with the appropriate user since it has been uploaded.
