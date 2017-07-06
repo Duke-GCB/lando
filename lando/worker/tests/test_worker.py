@@ -84,12 +84,6 @@ class FakeObject(object):
     def get_duke_ds_config(self, user_id):
         return MagicMock()
 
-    def create_activity(self, source_directory, project):
-        self.report.add("Created activity.")
-
-    def share_project(self, project):
-        self.report.add("Share project.")
-
 
 class FakeInputFile(object):
     def __init__(self, file_type):
