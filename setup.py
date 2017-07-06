@@ -15,7 +15,7 @@ LANDO_REQUIREMENTS = [
 ]
 
 setup(name='lando',
-      version='0.1',
+      version='0.2',
       description='Cloud based bioinformatics workflow runner',
       url='https://github.com/Duke-GCB/lando',
       author='Dan Leehr, John Bradley',
