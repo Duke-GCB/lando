@@ -17,13 +17,14 @@ class CloudClient(object):
         """
         self.cloud = shade.openstack_cloud(**credentials)
 
-    def launch_instance(self, vm_settings, server_name, flavor_name, script_contents):
+    def launch_instance(self, vm_settings, server_name, flavor_name, script_contents, volume_size):
         """
         Start VM with the specified settings, name, and script to run on startup.
         :param vm_settings: config.VMSettings: settings for VM we want to create
         :param server_name: str: unique name for this VM
         :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
         :param script_contents: str: contents of a bash script that will be run on startup
+        :param volume_size: int: size of volume in GB we will create for this VM
         :return: openstack instance created
         """
         vm_flavor_name = flavor_name
@@ -31,6 +32,9 @@ class CloudClient(object):
             vm_flavor_name = vm_settings.default_favor_name
         instance = self.cloud.create_server(
             name=server_name,
+            boot_from_volume=True,
+            terminate_volume=True,
+            volume_size=volume_size,
             image=vm_settings.worker_image_name,
             flavor=vm_flavor_name,
             key_name=vm_settings.ssh_key_name,
@@ -62,16 +66,18 @@ class CloudService(object):
         self.config = config
         self.cloud_client = CloudClient(config.cloud_settings.credentials(project_name))
 
-    def launch_instance(self, server_name, flavor_name, script_contents):
+    def launch_instance(self, server_name, flavor_name, script_contents, volume_size):
         """
         Start a new VM with the specified name and script to run on start.
         :param server_name: str: unique name for the server.
         :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
         :param script_contents: str: bash script to be run when VM starts.
+        :param volume_size: int: size of volume in GB we will create for this VM
         :return: instance, ip address: openstack instance object and the floating ip address assigned
         """
         vm_settings = self.config.vm_settings
-        instance = self.cloud_client.launch_instance(vm_settings, server_name, flavor_name, script_contents)
+        instance = self.cloud_client.launch_instance(vm_settings, server_name, flavor_name, script_contents,
+                                                     volume_size)
         return instance, instance.accessIPv4
 
     def terminate_instance(self, server_name):

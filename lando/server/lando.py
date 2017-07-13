@@ -134,7 +134,8 @@ class JobActions(object):
         boot_script = BootScript(worker_config_yml)
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
-        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor, boot_script.content)
+        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor, boot_script.content,
+                                                             job.volume_size)
         self._show_status("Launched vm with ip {}".format(ip_address))
         self.job_api.set_vm_instance_name(vm_instance_name)
 

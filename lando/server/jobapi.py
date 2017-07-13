@@ -4,6 +4,7 @@ Allows reading and updating job information when talking to Bespin REST api.
 from __future__ import print_function
 import requests
 
+DEFAULT_VM_SIZE = 100
 
 class BespinApi(object):
     """
@@ -248,6 +249,7 @@ class Job(object):
         self.stage_group = data['stage_group']
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
+        self.volume_size = data.get('volume_size', DEFAULT_VM_SIZE)
 
 
 class Workflow(object):
