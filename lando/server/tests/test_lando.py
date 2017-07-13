@@ -63,7 +63,7 @@ class Report(object):
         self.add("Created vm name for job {}.".format(job_id))
         return "worker_x"
 
-    def launch_instance(self, server_name, flavor_name, script_contents):
+    def launch_instance(self, server_name, flavor_name, script_contents, volume_size):
         if self.launch_instance_error:
             raise self.launch_instance_error
         self.add("Launched vm {}.".format(server_name))

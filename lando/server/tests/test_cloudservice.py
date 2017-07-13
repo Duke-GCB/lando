@@ -10,7 +10,8 @@ class TestCwlWorkflow(TestCase):
         config = mock.MagicMock()
         config.vm_settings.default_favor_name = 'm1.xbig'
         cloud_service = CloudService(config, project_name='bespin_user1')
-        cloud_service.launch_instance(server_name="worker1", flavor_name='m1.GIANT', script_contents="")
+        cloud_service.launch_instance(server_name="worker1", flavor_name='m1.GIANT', script_contents="",
+                                      volume_size=100)
         mock_shade.openstack_cloud()
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
@@ -21,7 +22,8 @@ class TestCwlWorkflow(TestCase):
         config = mock.MagicMock()
         config.vm_settings.default_favor_name = 'm1.xbig'
         cloud_service = CloudService(config, project_name='bespin_user1')
-        cloud_service.launch_instance(server_name="worker1", flavor_name=None, script_contents="")
+        cloud_service.launch_instance(server_name="worker1", flavor_name=None, script_contents="",
+                                      volume_size=100)
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
         self.assertEqual(kw_args['flavor'], 'm1.xbig')
@@ -33,7 +35,8 @@ class TestCwlWorkflow(TestCase):
         config.vm_settings.allocate_floating_ips = False
         config.vm_settings.default_favor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
-        instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None, script_contents="")
+        instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None,
+                                                             script_contents="", volume_size=100)
         self.assertEqual('', ip_address)
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
@@ -47,7 +50,7 @@ class TestCwlWorkflow(TestCase):
         config.vm_settings.default_favor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
         instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None,
-                                                             script_contents="")
+                                                             script_contents="", volume_size=100)
         self.assertNotEqual(None, ip_address)
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
