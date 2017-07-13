@@ -30,13 +30,14 @@ class CloudClient(object):
         vm_flavor_name = flavor_name
         if not vm_flavor_name:
             vm_flavor_name = vm_settings.default_favor_name
+        # Create a VM with a new volume based on the worker image.
         instance = self.cloud.create_server(
             name=server_name,
-            boot_from_volume=True,
-            terminate_volume=True,
-            volume_size=volume_size,
+            boot_from_volume=True,    # Instead of a root disk create a volume to store data for this VM
+            terminate_volume=True,    # Automatically delete volume when the VM is terminated
+            volume_size=volume_size,  # this overrides the 'Root Disk' flavor setting.
             image=vm_settings.worker_image_name,
-            flavor=vm_flavor_name,
+            flavor=vm_flavor_name,    # The flavor 'Root Disk' value has no effect due to using a volume for storage
             key_name=vm_settings.ssh_key_name,
             network=vm_settings.network_name,
             auto_ip=vm_settings.allocate_floating_ips,
