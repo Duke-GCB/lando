@@ -258,6 +258,6 @@ class TestJobApi(TestCase):
     def test_job_constructor_volume_size(self):
         payload = dict(self.job_response_payload)
         payload['volume_size'] = 1000
-        job = Job(self.job_response_payload)
+        job = Job(payload)
         self.assertEqual(job.volume_size, 1000,
                          "A job payload with volume_size should result in that volume size.")
