@@ -248,6 +248,7 @@ class Job(object):
         self.stage_group = data['stage_group']
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
+        self.volume_size = data['volume_size']
 
 
 class Workflow(object):

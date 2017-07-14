@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.server.jobapi import JobApi, BespinApi
+from lando.server.jobapi import JobApi, BespinApi, Job
 from mock.mock import MagicMock, patch
 
 
@@ -31,6 +31,7 @@ class TestJobApi(TestCase):
                 'dds_user_credentials': 123
             },
             'stage_group': None,
+            'volume_size': 100
         }
 
     def setup_job_api(self, job_id):
@@ -171,6 +172,7 @@ class TestJobApi(TestCase):
                 'dds_user_credentials': 123
             },
             'stage_group': None,
+            'volume_size': 200,
         }
         user_credentials_response = [
             {
@@ -227,6 +229,7 @@ class TestJobApi(TestCase):
                     'dds_user_credentials': 123
                 },
                 'stage_group': None,
+                'volume_size': 200,
             }
         ]
 
@@ -251,3 +254,10 @@ class TestJobApi(TestCase):
         self.assertEqual(kwargs['json']['job'], 4)
         self.assertEqual(kwargs['json']['job_step'], 'V')
         self.assertEqual(kwargs['json']['content'], 'Out of memory')
+
+    def test_job_constructor_volume_size(self):
+        payload = dict(self.job_response_payload)
+        payload['volume_size'] = 1000
+        job = Job(payload)
+        self.assertEqual(job.volume_size, 1000,
+                         "A job payload with volume_size should result in that volume size.")

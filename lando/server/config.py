@@ -42,12 +42,13 @@ class ServerConfig(object):
         """
         work_queue = self.work_queue_config
         data = {
-            'cwl_base_command': self.vm_settings.cwl_base_command,
             'host': work_queue.host,
             'username': work_queue.worker_username,
             'password': work_queue.worker_password,
             'queue_name': queue_name
         }
+        if not self.fake_cloud_service:
+            data['cwl_base_command'] = self.vm_settings.cwl_base_command
         return yaml.safe_dump(data, default_flow_style=False)
 
 
