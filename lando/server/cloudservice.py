@@ -106,7 +106,7 @@ class FakeCloudService(object):
     def __init__(self, config):
         self.config = config
 
-    def launch_instance(self, server_name, flavor_name, script_contents):
+    def launch_instance(self, server_name, flavor_name, script_contents, volume_size):
         print("Pretend we create vm: {}".format(server_name))
         return None, '127.0.0.1'
 
