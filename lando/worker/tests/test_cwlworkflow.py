@@ -64,7 +64,7 @@ class TestCwlWorkflow(TestCase):
 
         input_file_directory = tempfile.mkdtemp()
         one_path, two_path = self.make_input_files(input_file_directory)
-        input_json = """
+        job_order = """
 files:
   - class: File
     path: {}
@@ -75,7 +75,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command)
-        workflow.run(cwl_file_url, workflow_object_name, input_json)
+        workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
 
@@ -101,7 +101,7 @@ outputfile: results.txt
 
         input_file_directory = tempfile.mkdtemp()
         one_path, two_path = self.make_input_files(input_file_directory)
-        input_json = """
+        job_order = """
         files:
           - class: File
             path: {}
@@ -115,7 +115,7 @@ outputfile: results.txt
                                working_directory,
                                cwl_base_command)
         with self.assertRaises(JobStepFailed):
-            workflow.run(cwl_file_url, workflow_object_name, input_json)
+            workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
         shutil.rmtree(working_directory)

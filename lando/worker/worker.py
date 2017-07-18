@@ -93,7 +93,7 @@ class LandoWorkerActions(object):
         """
         cwl_base_command = self.config.cwl_base_command
         workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory, cwl_base_command)
-        workflow.run(payload.cwl_file_url, payload.workflow_object_name, payload.input_json)
+        workflow.run(payload.cwl_file_url, payload.workflow_object_name, payload.job_order)
         self.client.job_step_complete(payload)
 
     def save_output(self, working_directory, payload):
