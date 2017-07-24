@@ -72,7 +72,7 @@ class FakeObject(object):
         self.report.add(self.run_message)
         return Mock(remote_id='2348')
 
-    def run_workflow(self, cwl_file_url, workflow_object_name, input_json):
+    def run_workflow(self, cwl_file_url, workflow_object_name, job_order):
         self.report.add(self.run_message)
 
     def job_step_error(self, payload, message):

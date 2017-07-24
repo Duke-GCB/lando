@@ -103,7 +103,7 @@ class CwlDirectory(object):
 class CwlWorkflow(object):
     """
     Runs a CWL workflow using the cwl-runner command line program.
-    1. Writes out input_json to a file
+    1. Writes out job_order to a file
     2. Runs cwl-runner in a separate process
     3. Gathers stderr/stdout output from the process
     4. If exit status is not 0 raises JobStepFailed including output
