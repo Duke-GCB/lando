@@ -132,7 +132,7 @@ class BespinApi(object):
         :param share_group: int: unique share group id
         :return: dict: details about users that need to have results shared with them
         """
-        path = 'share_group/{}'.format(share_group)
+        path = 'share-groups/{}'.format(share_group)
         url = self._make_url(path)
         return self._get_results(url)
 
@@ -242,7 +242,8 @@ class JobApi(object):
         :return: StoreOutputJobData
         """
         job_data = self.api.get_job(self.job_id)
-        share_dds_ids = self.api.get_share_dds_ids(job_data['share_group'])
+        share_group_data = self.api.get_share_dds_ids(job_data['share_group'])
+        share_dds_ids = [share_user['dds_id'] for share_user in share_group_data['users']]
         return StoreOutputJobData(job_data, share_dds_ids)
 
 

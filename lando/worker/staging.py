@@ -125,7 +125,7 @@ class DukeDataService(object):
         """
         d4s2_project = D4S2Project(self.config, self.remote_store,
                                    print_func=print)  # D4S2Project doesn't use print_func for share
-        remote_user = self.data_service.get_user_by_id(dds_user_id)
+        remote_user = self.remote_store.fetch_user(dds_user_id)
         d4s2_project.share(project_name,
                            remote_user,
                            force_send=False,
