@@ -126,6 +126,16 @@ class BespinApi(object):
         resp.raise_for_status()
         return resp.json()
 
+    def get_share_dds_ids(self, share_group):
+        """
+        Get the list of users who are part of a share_group (should have job results shared with them).
+        :param share_group: int: unique share group id
+        :return: dict: details about users that need to have results shared with them
+        """
+        path = 'share_group/{}'.format(share_group)
+        url = self._make_url(path)
+        return self._get_results(url)
+
 
 class JobApi(object):
     """
@@ -226,6 +236,15 @@ class JobApi(object):
             result.append(Job(job_dict))
         return result
 
+    def get_store_output_job_data(self):
+        """
+        Get Job data for use with storing output
+        :return: StoreOutputJobData
+        """
+        job_data = self.api.get_job(self.job_id)
+        share_dds_ids = self.api.get_share_dds_ids(job_data['share_group'])
+        return StoreOutputJobData(job_data, share_dds_ids)
+
 
 class Job(object):
     """
@@ -249,6 +268,15 @@ class Job(object):
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
         self.volume_size = data['volume_size']
+
+
+class StoreOutputJobData(Job):
+    """
+    Job data plus a list of dds user ids to share results with
+    """
+    def __init__(self, job_data, share_dds_ids):
+        super(StoreOutputJobData, self).__init__(job_data)
+        self.share_dds_ids = share_dds_ids
 
 
 class Workflow(object):

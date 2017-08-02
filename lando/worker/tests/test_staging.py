@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from lando.worker.staging import SaveJobOutput
-from mock import patch, Mock, MagicMock
+from mock import patch, Mock, MagicMock, call
 
 
 class TestSaveJobOutput(TestCase):
@@ -12,6 +12,7 @@ class TestSaveJobOutput(TestCase):
         payload.job_details.name = 'MyJob'
         payload.job_details.created = '2017-03-21T13:29:09.123603Z'
         payload.job_details.username = 'john@john.org'
+        payload.job_details.share_dds_ids = ['123','456']
         self.payload = payload
 
     def test_create_project_name(self):
@@ -43,6 +44,8 @@ class TestSaveJobOutput(TestCase):
         data_service.create_generated_by_relations.assert_called()
 
         # We should give permissions to the user
-        give_user_permissions = data_service.give_user_permissions
-        give_user_permissions.assert_called_with(mock_project_upload().local_project.remote_id, 'john',
-                                                 auth_role='project_admin')
+        share_project = data_service.share_project
+        share_project.assert_has_calls([
+            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
+            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
+        ])
