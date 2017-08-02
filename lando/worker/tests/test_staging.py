@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.worker.staging import SaveJobOutput
+from lando.worker.staging import SaveJobOutput, DukeDataService
 from mock import patch, Mock, MagicMock, call
 
 
@@ -49,3 +49,16 @@ class TestSaveJobOutput(TestCase):
             call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
             call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
         ])
+
+
+class TestDukeDataService(TestCase):
+    @patch('lando.worker.staging.D4S2Project')
+    @patch('lando.worker.staging.RemoteStore')
+    def test_share_project(self, mock_remote_store, mock_d4s2_project):
+        remote_user = Mock(id='132')
+        mock_remote_store.return_value.fetch_user.return_value = remote_user
+        data_service = DukeDataService(MagicMock())
+        data_service.share_project('my_project', remote_user.id)
+        mock_d4s2_project.return_value.share.assert_called_with('my_project', remote_user,
+                                                                auth_role='project_admin', force_send=False,
+                                                                user_message='Bespin job results.')
