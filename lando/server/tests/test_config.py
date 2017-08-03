@@ -18,7 +18,7 @@ vm_settings:
   ssh_key_name: jpb67
   network_name: selfservice
   floating_ip_pool_name: ext-net
-  default_favor_name: m1.small
+  default_flavor_name: m1.small
 {}
 
 cloud_settings:
