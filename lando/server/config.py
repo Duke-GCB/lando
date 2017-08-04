@@ -77,6 +77,7 @@ class VMSettings(object):
         self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
         self.default_favor_name = get_or_raise_config_exception(data, 'default_favor_name')
         self.cwl_base_command = data.get("cwl_base_command")
+        self.volume_mounts = data.get("volume_mounts", {})
 
 
 class CloudSettings(object):
