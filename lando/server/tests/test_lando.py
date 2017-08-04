@@ -468,5 +468,24 @@ Send progress notification. Job:1 State:C Step:None
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
-    def test_create_failing_volume(self):
-        self.fail('Not yet implemented')
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    def test_create_failing_volume(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        report.create_volume_error = OpenStackCloudException('unable to create volume')
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        expected_report = """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:None
+Created vm name for job 1.
+Created volume name for job 1.
+Set job step to V.
+Send progress notification. Job:1 State:R Step:V
+Set job state to E.
+Send progress notification. Job:1 State:E Step:V
+"""
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
