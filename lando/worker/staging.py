@@ -1,6 +1,7 @@
 """
 Downloads input files and uploads output directory.
 """
+from __future__ import print_function
 import os
 import re
 import requests
@@ -12,6 +13,7 @@ from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
 from ddsc.core.upload import ProjectUpload
+from ddsc.core.d4s2 import D4S2Project
 from lando.worker.provenance import create_activity
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
@@ -114,6 +116,21 @@ class DukeDataService(object):
     def get_file_version_id(self, file_id):
         file_info = self.data_service.get_file(file_id).json()
         return file_info['current_version']['id']
+
+    def share_project(self, project_name, dds_user_id):
+        """
+        Share a project with a specific dds user
+        :param project_name: str: unique name of the project
+        :param dds_user_id: str: DukeDS user id
+        """
+        d4s2_project = D4S2Project(self.config, self.remote_store,
+                                   print_func=print)  # D4S2Project doesn't use print_func for share
+        remote_user = self.remote_store.fetch_user(dds_user_id)
+        d4s2_project.share(project_name,
+                           remote_user,
+                           force_send=False,
+                           auth_role='project_admin',
+                           user_message='Bespin job results.')
 
 
 class DownloadDukeDSFile(object):
@@ -228,9 +245,8 @@ class SaveJobOutput(object):
         :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
         """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
-        data_service.give_user_permissions(project.remote_id,
-                                           self.get_dukeds_username(),
-                                           auth_role='project_admin')
+        for dds_user_id in  self.job_details.share_dds_ids:
+            data_service.share_project(self.project_name, dds_user_id)
 
     def get_dukeds_username(self):
         """
