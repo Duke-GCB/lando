@@ -4,7 +4,6 @@ This script configures disk partitioning and places a config file for the lando_
 
 """
 
-from __future__ import print_function
 from collections import defaultdict
 import yaml
 
@@ -57,6 +56,5 @@ class CloudConfigScript(object):
 
     @property
     def content(self):
-        print(self._content_dict)
         return '#cloud-config\n\n{}'.format(yaml.dump(dict(self._content_dict)))
 
