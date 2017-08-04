@@ -180,9 +180,9 @@ class JobActions(object):
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Storing job output")
         credentials = self.job_api.get_credentials()
-        job = self.job_api.get_job()
+        job_data = self.job_api.get_store_output_job_data()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.store_job_output(credentials, job, payload.vm_instance_name)
+        worker_client.store_job_output(credentials, job_data, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
         """

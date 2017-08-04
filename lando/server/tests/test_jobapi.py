@@ -32,6 +32,7 @@ class TestJobApi(TestCase):
                 'dds_user_credentials': 123
             },
             'stage_group': None,
+            'share_group': 42,
             'volume_size': 100
         }
 
@@ -276,3 +277,42 @@ class TestJobApi(TestCase):
         job = Job(payload)
         self.assertEqual(job.volume_size, 1000,
                          "A job payload with volume_size should result in that volume size.")
+
+    @patch('lando.server.jobapi.requests')
+    def test_get_store_output_job_data(self, mock_requests):
+        """
+        Test requesting job status, etc
+        """
+        job_api = self.setup_job_api(1)
+
+        mock_job_get_response = MagicMock()
+        mock_job_get_response.json.return_value = self.job_response_payload
+
+        mock_share_group_response = MagicMock()
+        mock_share_group_response.json.return_value = {
+            'users': [
+                {
+                    'dds_id': '123'
+                }
+            ]
+        }
+
+        mock_requests.get.side_effect = [
+            mock_job_get_response,
+            mock_share_group_response
+        ]
+        store_output_data = job_api.get_store_output_job_data()
+
+        self.assertEqual(1, store_output_data.id)
+        self.assertEqual(23, store_output_data.user_id)
+        self.assertEqual('joe@joe.com', store_output_data.username)
+        self.assertEqual('N', store_output_data.state)
+        self.assertEqual('m1.tiny', store_output_data.vm_flavor)
+        self.assertEqual('', store_output_data.vm_instance_name)
+        self.assertEqual('jpb67', store_output_data.vm_project_name)
+
+        self.assertEqual('{ "value": 1 }', store_output_data.workflow.job_order)
+        self.assertEqual('file:///mnt/fastqc.cwl', store_output_data.workflow.url)
+        self.assertEqual('#main', store_output_data.workflow.object_name)
+
+        self.assertEqual(['123'], store_output_data.share_dds_ids)
