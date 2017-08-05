@@ -130,7 +130,7 @@ class TestLandoWorker(TestCase):
         ]
         job_details = Mock(id=1)
         worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
-                                         vm_instance_name='test1'))
+                                         vm_instance_name='test1', vm_volume_name='vol1'))
         report = """
 Download file 42.
 Download url http:stuff.
@@ -142,7 +142,7 @@ Send job step complete for job 1.
         worker = self._make_worker()
         workflow = FakeWorkflow()
         job_details = Mock(id=2)
-        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
+        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2', vm_volume_name='vol2'))
         report = """
 Run workflow for job 2.
 Send job step complete for job 2.
@@ -154,7 +154,7 @@ Send job step complete for job 2.
         self.settings.raise_when_run_workflow = True
         workflow = FakeWorkflow()
         job_details = Mock(id=2)
-        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
+        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2', vm_volume_name='vol2'))
         result = self.settings.report.text.strip()
         self.assertIn("Send job step error for job 2", result)
         self.assertIn("ValueError: Something went wrong.", result)
@@ -171,7 +171,7 @@ Send job step complete for job 2.
         job_details.output_dir.dds_user_credentials = '123'
         job_details.username = 'jim@jim.com'
         worker.store_job_output(StoreJobOutputPayload(credentials=MagicMock(), job_details=job_details,
-                                                      vm_instance_name='test3'))
+                                                      vm_instance_name='test3', vm_volume_name='vol3'))
         report = """
 Upload/share project.
 Send job step complete for job 3 project:2348.
@@ -192,7 +192,7 @@ Send job step complete for job 3 project:2348.
             shutil.rmtree(working_dir)
         job_details = Mock(id=1)
         worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
-                                         vm_instance_name='test1'))
+                                         vm_instance_name='test1', vm_volume_name='vol1'))
         self.assertEqual(True, os.path.exists(working_dir))
 
     @patch('lando.worker.worker.MessageRouter')
