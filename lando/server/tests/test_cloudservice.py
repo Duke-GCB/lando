@@ -4,14 +4,14 @@ from lando.server.cloudservice import CloudService
 import mock
 
 
-class TestCwlWorkflow(TestCase):
+class TestCloudService(TestCase):
     @mock.patch('lando.server.cloudservice.shade')
     def test_that_flavor_overrides_default(self, mock_shade):
         config = mock.MagicMock()
         config.vm_settings.default_favor_name = 'm1.xbig'
         cloud_service = CloudService(config, project_name='bespin_user1')
         cloud_service.launch_instance(server_name="worker1", flavor_name='m1.GIANT', script_contents="",
-                                      volume_size=100)
+                                      volumes=['volume1'])
         mock_shade.openstack_cloud()
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
@@ -22,14 +22,11 @@ class TestCwlWorkflow(TestCase):
         config = mock.MagicMock()
         config.vm_settings.default_favor_name = 'm1.xbig'
         cloud_service = CloudService(config, project_name='bespin_user1')
-        cloud_service.launch_instance(server_name="worker1", flavor_name=None, script_contents="",
-                                      volume_size=100)
+        cloud_service.launch_instance(server_name="worker1", flavor_name=None, script_contents="",volumes=['volume1'])
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
         self.assertEqual(kw_args['flavor'], 'm1.xbig')
-        self.assertEqual(kw_args['boot_from_volume'], True)
-        self.assertEqual(kw_args['terminate_volume'], True)
-        self.assertEqual(kw_args['volume_size'], 100)
+        self.assertEqual(kw_args['volumes'], ['volume1'])
 
     @mock.patch('lando.server.cloudservice.shade')
     def test_launch_instance_no_floating_ip(self, mock_shade):
@@ -39,14 +36,12 @@ class TestCwlWorkflow(TestCase):
         config.vm_settings.default_favor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
         instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None,
-                                                             script_contents="", volume_size=200)
+                                                             script_contents="", volumes=['volume1'])
         self.assertEqual('', ip_address)
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
         self.assertEqual(kw_args['auto_ip'], False)
-        self.assertEqual(kw_args['boot_from_volume'], True)
-        self.assertEqual(kw_args['terminate_volume'], True)
-        self.assertEqual(kw_args['volume_size'], 200)
+        self.assertEqual(kw_args['volumes'], ['volume1'])
 
     @mock.patch('lando.server.cloudservice.shade')
     def test_launch_instance_with_floating_ip(self, mock_shade):
@@ -56,7 +51,7 @@ class TestCwlWorkflow(TestCase):
         config.vm_settings.default_favor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
         instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None,
-                                                             script_contents="", volume_size=100)
+                                                             script_contents="", volumes=['volume1'])
         self.assertNotEqual(None, ip_address)
         mock_shade.openstack_cloud().create_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_server.call_args
@@ -68,7 +63,7 @@ class TestCwlWorkflow(TestCase):
         config.vm_settings.allocate_floating_ips = False
         config.vm_settings.default_favor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
-        cloud_service.terminate_instance(server_name='worker1')
+        cloud_service.terminate_instance(server_name='worker1', volume_names=[])
         mock_shade.openstack_cloud().delete_server.assert_called()
         args, kw_args = mock_shade.openstack_cloud().delete_server.call_args
         self.assertEqual(kw_args['delete_ips'], False)
@@ -82,3 +77,38 @@ class TestCwlWorkflow(TestCase):
         cloud_service.terminate_instance(server_name='worker1')
         args, kw_args = mock_shade.openstack_cloud().delete_server.call_args
         self.assertEqual(kw_args['delete_ips'], True)
+
+    @mock.patch('lando.server.cloudservice.shade')
+    def test_create_volume(self, mock_shade):
+        mock_shade.openstack_cloud().create_volume.return_value = mock.Mock(id='volume-id1')
+        config = mock.MagicMock()
+        cloud_service = CloudService(config, project_name='bespin_user1')
+        volume, volume_id = cloud_service.create_volume(100, 'volume1')
+        self.assertIsNotNone(volume_id)
+        mock_shade.openstack_cloud().create_volume.assert_called()
+        args, kw_args = mock_shade.openstack_cloud().create_volume.call_args
+        self.assertEqual(args, (100, 'volume1',))
+
+    @mock.patch('lando.server.cloudservice.shade')
+    def test_terminate_instance_with_volumes(self, mock_shade):
+        config = mock.MagicMock()
+        config.vm_settings.default_favor_name = 'm1.large'
+        cloud_service = CloudService(config, project_name='bespin_user1')
+        cloud_service.terminate_instance(server_name='worker1', volume_names=['volume1'])
+        args, kw_args = mock_shade.openstack_cloud().delete_server.call_args
+        self.assertEqual(args, ('worker1',))
+        self.assertEqual(kw_args['wait'], True)
+        args, kw_args = mock_shade.openstack_cloud().delete_volume.call_args
+        self.assertEqual(args, ('volume1',))
+        self.assertEqual(mock_shade.openstack_cloud().delete_volume.call_count, 1)
+
+    @mock.patch('lando.server.cloudservice.shade')
+    @mock.patch('lando.server.cloudservice.uuid')
+    def test_make_volume_name(self, mock_uuid, mock_shade):
+        mock_uuid.uuid4 = mock.Mock(return_value='uuid-1234')
+        config = mock.MagicMock()
+        cloud_service = CloudService(config, project_name='bespin_user1')
+        volume_name = cloud_service.make_volume_name('6')
+        self.assertEqual(volume_name, 'vol-job6_uuid-1234')
+        self.assertTrue(mock_uuid.uuid4.called)
+

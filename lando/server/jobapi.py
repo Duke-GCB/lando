@@ -177,6 +177,13 @@ class JobApi(object):
         """
         self._set_job({'vm_instance_name': vm_instance_name})
 
+    def set_vm_volume_name(self, vm_volume_name):
+        """
+        Set the vm volume name that this job is being run on.
+        :param vm_volume_name: str: openstack volume name
+        """
+        self._set_job({'vm_volume_name': vm_volume_name})
+
     def _set_job(self, params):
         self.api.put_job(self.job_id, params)
 
@@ -264,6 +271,7 @@ class Job(object):
         self.step = data['step']
         self.vm_flavor = data['vm_flavor']
         self.vm_instance_name = data['vm_instance_name']
+        self.vm_volume_name = data['vm_volume_name']
         self.vm_project_name = data['vm_project_name']
         self.stage_group = data['stage_group']
         self.workflow = Workflow(data)

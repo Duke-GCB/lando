@@ -19,6 +19,8 @@ vm_settings:
   network_name: selfservice
   floating_ip_pool_name: ext-net
   default_favor_name: m1.small
+  volume_mounts:
+    /dev/vdb1: /work
 {}
 
 cloud_settings:
@@ -50,12 +52,14 @@ class TestServerConfig(TestCase):
         #  by default allocate_floating_ips is off
         self.assertEqual(False, config.vm_settings.allocate_floating_ips)
         self.assertEqual(None, config.vm_settings.cwl_base_command)
+        self.assertEqual({'/dev/vdb1':'/work'}, config.vm_settings.volume_mounts)
 
         self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
         self.assertEqual("jpb67", config.cloud_settings.username)
 
         self.assertEqual("http://localhost:8000/api", config.bespin_api_settings.url)
         self.assertEqual("10498124091240e", config.bespin_api_settings.token)
+
 
     def test_allocate_floating_ip_true(self):
         line = "  allocate_floating_ips: true"

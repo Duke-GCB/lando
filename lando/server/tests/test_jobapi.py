@@ -18,6 +18,7 @@ class TestJobApi(TestCase):
             'created': '2017-03-21T13:29:09.123603Z',
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
+            'vm_volume_name': '',
             "vm_project_name": 'jpb67',
             'job_order': '{ "value": 1 }',
             'workflow_version': {
@@ -61,6 +62,7 @@ class TestJobApi(TestCase):
         self.assertEqual('N', job.state)
         self.assertEqual('m1.tiny', job.vm_flavor)
         self.assertEqual('', job.vm_instance_name)
+        self.assertEqual('', job.vm_volume_name)
         self.assertEqual('jpb67', job.vm_project_name)
 
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
@@ -99,6 +101,17 @@ class TestJobApi(TestCase):
         args, kwargs = mock_requests.put.call_args
         self.assertEqual(args[0], 'APIURL/admin/jobs/3/')
         self.assertEqual(kwargs.get('json'), {'vm_instance_name': 'worker_123'})
+
+    @patch('lando.server.jobapi.requests')
+    def test_set_vm_volume_name(self, mock_requests):
+        job_api = self.setup_job_api(3)
+        mock_response = MagicMock()
+        mock_response.json.return_value = mock_response
+        mock_requests.put.return_value = mock_response
+        job_api.set_vm_volume_name('volume_765')
+        args, kwargs = mock_requests.put.call_args
+        self.assertEqual(args[0], 'APIURL/admin/jobs/3/')
+        self.assertEqual(kwargs.get('json'), {'vm_volume_name': 'volume_765'})
 
     @patch('lando.server.jobapi.requests')
     def test_get_input_files(self, mock_requests):
@@ -158,6 +171,7 @@ class TestJobApi(TestCase):
             'step': '',
             'vm_flavor': 'm1.tiny',
             'vm_instance_name': '',
+            'vm_volume_name': '',
             "vm_project_name": 'jpb67',
             'name': 'myjob',
             'created': '2017-03-21T13:29:09.123603Z',
@@ -217,6 +231,7 @@ class TestJobApi(TestCase):
                 'created': '2017-03-21T13:29:09.123603Z',
                 'vm_flavor': 'm1.tiny',
                 'vm_instance_name': '',
+                'vm_volume_name': '',
                 "vm_project_name": 'jpb67',
                 'job_order': '{ "value": 1 }',
                 'workflow_version': {
