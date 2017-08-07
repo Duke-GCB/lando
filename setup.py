@@ -8,7 +8,7 @@ LANDO_REQUIREMENTS = [
       "DukeDSClient==0.3.17",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
-      "lando-messaging==0.8.0",
+      "lando-messaging==0.7.2",
       "python-dateutil==2.6.0",
       "PyYAML==3.11",
       "requests==2.18.1",
