@@ -109,7 +109,6 @@ class JobActions(object):
         vm_instance_name = job.vm_instance_name
         if vm_instance_name and job.state != JobStates.CANCELED:
             payload.vm_instance_name = vm_instance_name
-            payload.vm_volume_name = job.vm_volume_name
             if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT]:
                 self._set_job_state(JobStates.RUNNING)
             if job.step == JobSteps.STAGING:
@@ -198,7 +197,7 @@ class JobActions(object):
 
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
-        cloud_service.terminate_instance(payload.vm_instance_name, [payload.vm_volume_name])
+        cloud_service.terminate_instance(payload.vm_instance_name, [job.vm_volume_name])
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.delete_queue()
         self._set_job_step(None)
