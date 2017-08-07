@@ -2,4 +2,3 @@ dependencies:
   pre:
     - pip install mock
     - pip install pbr
-    - pip install lando-messaging==0.7.2
