@@ -6,8 +6,9 @@ from datetime import datetime
 import traceback
 import json
 from lando.server.jobapi import JobApi, JobStates, JobSteps
-from lando.server.bootscript import BootScript
+from lando.server.cloudconfigscript import CloudConfigScript
 from lando.server.cloudservice import CloudService, FakeCloudService
+from lando.worker.worker import CONFIG_FILE_NAME as WORKER_CONFIG_FILE_NAME
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
 from lando_messaging.workqueue import WorkProgressQueue
@@ -94,7 +95,8 @@ class JobActions(object):
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         vm_instance_name = cloud_service.make_vm_name(self.job_id)
-        self.launch_vm(vm_instance_name)
+        vm_volume_name = cloud_service.make_volume_name(self.job_id)
+        self.launch_vm(vm_instance_name, vm_volume_name)
         # Once the VM launches it will send us the worker_started message
         # this will cause send_stage_job_message to be run.
 
@@ -123,21 +125,27 @@ class JobActions(object):
         else:
             self.start_job(StartJobPayload(payload.job_id))
 
-    def launch_vm(self, vm_instance_name):
+    def launch_vm(self, vm_instance_name, vm_volume_name):
         """
         Sets job state to creating vm, then creates a new VM with vm_instance_name and gives it a floating IP address.
         :param vm_instance_name: str: name we should assign to the new vm
+        :param vm_volume_name: str: name we should assign to the attached volume
         """
         self._set_job_step(JobSteps.CREATE_VM)
         self._show_status("Creating VM")
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name)
-        boot_script = BootScript(worker_config_yml)
+        cloud_config_script = CloudConfigScript()
+        cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
+        for partition, mount_point in self.config.vm_settings.volume_mounts.iteritems():
+            cloud_config_script.add_volume(partition, mount_point)
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
-        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor, boot_script.content,
-                                                             job.volume_size)
+        volume, volume_id = cloud_service.create_volume(job.volume_size, vm_volume_name)
+        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor, cloud_config_script.content,
+                                                             [volume_id])
         self._show_status("Launched vm with ip {}".format(ip_address))
         self.job_api.set_vm_instance_name(vm_instance_name)
+        self.job_api.set_vm_volume_name(vm_volume_name)
 
     def send_stage_job_message(self, vm_instance_name):
         """
@@ -172,9 +180,9 @@ class JobActions(object):
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Storing job output")
         credentials = self.job_api.get_credentials()
-        job = self.job_api.get_job()
+        job_data = self.job_api.get_store_output_job_data()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.store_job_output(credentials, job, payload.vm_instance_name)
+        worker_client.store_job_output(credentials, job_data, payload.vm_instance_name)
 
     def store_job_output_complete(self, payload):
         """
@@ -190,7 +198,7 @@ class JobActions(object):
 
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
-        cloud_service.terminate_instance(payload.vm_instance_name)
+        cloud_service.terminate_instance(payload.vm_instance_name, [job.vm_volume_name])
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.delete_queue()
         self._set_job_step(None)
@@ -208,7 +216,7 @@ class JobActions(object):
         job = self.job_api.get_job()
         if job.vm_instance_name:
             cloud_service = self._get_cloud_service(job)
-            cloud_service.terminate_instance(job.vm_instance_name)
+            cloud_service.terminate_instance(job.vm_instance_name, [job.vm_volume_name])
             worker_client = self.make_worker_client(job.vm_instance_name)
             worker_client.delete_queue()
 

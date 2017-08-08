@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.worker.staging import SaveJobOutput
-from mock import patch, Mock, MagicMock
+from lando.worker.staging import SaveJobOutput, DukeDataService
+from mock import patch, Mock, MagicMock, call
 
 
 class TestSaveJobOutput(TestCase):
@@ -12,6 +12,7 @@ class TestSaveJobOutput(TestCase):
         payload.job_details.name = 'MyJob'
         payload.job_details.created = '2017-03-21T13:29:09.123603Z'
         payload.job_details.username = 'john@john.org'
+        payload.job_details.share_dds_ids = ['123','456']
         self.payload = payload
 
     def test_create_project_name(self):
@@ -43,6 +44,21 @@ class TestSaveJobOutput(TestCase):
         data_service.create_generated_by_relations.assert_called()
 
         # We should give permissions to the user
-        give_user_permissions = data_service.give_user_permissions
-        give_user_permissions.assert_called_with(mock_project_upload().local_project.remote_id, 'john',
-                                                 auth_role='project_admin')
+        share_project = data_service.share_project
+        share_project.assert_has_calls([
+            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
+            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
+        ])
+
+
+class TestDukeDataService(TestCase):
+    @patch('lando.worker.staging.D4S2Project')
+    @patch('lando.worker.staging.RemoteStore')
+    def test_share_project(self, mock_remote_store, mock_d4s2_project):
+        remote_user = Mock(id='132')
+        mock_remote_store.return_value.fetch_user.return_value = remote_user
+        data_service = DukeDataService(MagicMock())
+        data_service.share_project('my_project', remote_user.id)
+        mock_d4s2_project.return_value.share.assert_called_with('my_project', remote_user,
+                                                                auth_role='project_admin', force_send=False,
+                                                                user_message='Bespin job results.')
