@@ -19,7 +19,6 @@ vm_settings:
   network_name: selfservice
   floating_ip_pool_name: ext-net
   default_flavor_name: m1.small
-  default_favor_name: m1.small
   volume_mounts:
     /dev/vdb1: /work
 {}

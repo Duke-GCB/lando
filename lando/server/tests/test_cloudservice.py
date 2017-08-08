@@ -92,7 +92,7 @@ class TestCloudService(TestCase):
     @mock.patch('lando.server.cloudservice.shade')
     def test_terminate_instance_with_volumes(self, mock_shade):
         config = mock.MagicMock()
-        config.vm_settings.default_favor_name = 'm1.large'
+        config.vm_settings.default_flavor_name = 'm1.large'
         cloud_service = CloudService(config, project_name='bespin_user1')
         cloud_service.terminate_instance(server_name='worker1', volume_names=['volume1'])
         args, kw_args = mock_shade.openstack_cloud().delete_server.call_args
