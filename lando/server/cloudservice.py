@@ -22,14 +22,14 @@ class CloudClient(object):
         Start VM with the specified settings, name, and script to run on startup.
         :param vm_settings: config.VMSettings: settings for VM we want to create
         :param server_name: str: unique name for this VM
-        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
+        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_flavor_name)
         :param script_contents: str: contents of a cloud-init script (bash or #cloud-config)
         :param volumes: [str]: list of volume ids to attach to the VM
         :return: openstack instance created
         """
         vm_flavor_name = flavor_name
         if not vm_flavor_name:
-            vm_flavor_name = vm_settings.default_favor_name
+            vm_flavor_name = vm_settings.default_flavor_name
         instance = self.cloud.create_server(
             name=server_name,
             image=vm_settings.worker_image_name,
@@ -81,7 +81,7 @@ class CloudService(object):
         """
         Start a new VM with the specified name and script to run on start.
         :param server_name: str: unique name for the server.
-        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_favor_name)
+        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_flavor_name)
         :param script_contents: str: bash script to be run when VM starts.
         :param volumes: [str]: list of volume ids to attach to the VM
         :return: instance, ip address: openstack instance object and the floating ip address assigned

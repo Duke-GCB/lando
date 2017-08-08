@@ -88,7 +88,7 @@ vm_settings:
   network_name: selfservice          # Openstack network name to add the vm onto
   allocate_floating_ips: false       # Should each worker VM get allocated a floating IP defaults to false
   floating_ip_pool_name: ext-net     # Pool of floating IP's that will have one assigned to the VM
-  default_favor_name: m1.small       # Flavor of image to use by default when creating a VM
+  default_flavor_name: m1.small       # Flavor of image to use by default when creating a VM
 
 # General Openstack settings
 cloud_settings:
