@@ -24,7 +24,7 @@ write_files:
 disk_setup:
   /dev/vdg: {layout: true, table_type: gpt}
 fs_setup:
-- {device: /dev/vdg, filesystem: ext3, partition: /dev/vdg1}
+- {device: /dev/vdg1, filesystem: ext3}
 mounts:
 - [/dev/vdg1, /mnt/data]
 """
