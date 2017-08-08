@@ -26,8 +26,8 @@ class CloudConfigScript(object):
 
         self._content_dict['disk_setup'][device] = disk_setup
 
-    def _add_fs_setup(self, device, label=None, fs_type='ext3', part_value='auto'):
-        fs_setup = {'filesystem': fs_type, 'device': device, 'partition': part_value}
+    def _add_fs_setup(self, device, label=None, fs_type='ext3'):
+        fs_setup = {'filesystem': fs_type, 'device': device}
         if label:
             fs_setup['label'] = label
         self._content_dict['fs_setup'].append(fs_setup)
@@ -47,7 +47,7 @@ class CloudConfigScript(object):
         """
         device = self.device_name(partition)
         self._set_disk_setup(device)
-        self._add_fs_setup(device, part_value=partition)
+        self._add_fs_setup(partition)
         self._add_mount(partition, mount_point)
 
     @staticmethod
