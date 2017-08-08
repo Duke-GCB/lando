@@ -8,11 +8,12 @@ import json
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.cloudconfigscript import CloudConfigScript
 from lando.server.cloudservice import CloudService, FakeCloudService
+from lando.worker.worker import CONFIG_FILE_NAME as WORKER_CONFIG_FILE_NAME
 from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
 from lando_messaging.workqueue import WorkProgressQueue
 
-CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
+CONFIG_FILE_NAME = '/etc/lando_config.yml'
 LANDO_QUEUE_NAME = 'lando'
 WORK_PROGRESS_EXCHANGE_NAME = 'job_status'
 
@@ -134,7 +135,7 @@ class JobActions(object):
         self._show_status("Creating VM")
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name)
         cloud_config_script = CloudConfigScript()
-        cloud_config_script.add_write_file(content=worker_config_yml, path=CONFIG_FILE_NAME)
+        cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
         for partition, mount_point in self.config.vm_settings.volume_mounts.iteritems():
             cloud_config_script.add_volume(partition, mount_point)
         job = self.job_api.get_job()
