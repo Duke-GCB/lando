@@ -12,7 +12,7 @@ from lando_messaging.clients import LandoWorkerClient, StartJobPayload
 from lando_messaging.messaging import MessageRouter
 from lando_messaging.workqueue import WorkProgressQueue
 
-CONFIG_FILE_NAME = '/etc/lando_config.yml'
+CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
 LANDO_QUEUE_NAME = 'lando'
 WORK_PROGRESS_EXCHANGE_NAME = 'job_status'
 
