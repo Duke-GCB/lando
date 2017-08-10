@@ -87,7 +87,8 @@ class TestCloudService(TestCase):
         self.assertIsNotNone(volume_id)
         mock_shade.openstack_cloud().create_volume.assert_called()
         args, kw_args = mock_shade.openstack_cloud().create_volume.call_args
-        self.assertEqual(args, (100, 'volume1',))
+        self.assertEqual(args, (100,))
+        self.assertEqual(kw_args['name'], 'volume1')
 
     @mock.patch('lando.server.cloudservice.shade')
     def test_terminate_instance_with_volumes(self, mock_shade):
