@@ -49,7 +49,7 @@ class CloudClient(object):
         :param name: str: unique name for this volume
         :return: openstack volume created
         """
-        volume = self.cloud.create_volume(size, name)
+        volume = self.cloud.create_volume(size, name=name)
         return volume
 
     def terminate_instance(self, server_name, delete_floating_ip, volume_names):
