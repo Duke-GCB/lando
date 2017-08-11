@@ -277,6 +277,7 @@ class Job(object):
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
         self.volume_size = data['volume_size']
+        self.cleanup_vm = data.get('cleanup_vm', False)
 
 
 class StoreOutputJobData(Job):
