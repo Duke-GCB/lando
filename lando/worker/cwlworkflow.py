@@ -174,22 +174,10 @@ class CwlWorkflowProcess(object):
         if not os.path.exists(self.absolute_output_directory):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
-        p = Popen(self.command, stdin=PIPE, stderr=PIPE, stdout=PIPE, bufsize=1)
-        self.output = ""
-        self.error_output = ""
-        while True:
-            line = p.stderr.readline()
-            if line:
-                self.error_output += line + "\n"
-            else:
-                break
-        while True:
-            line = p.stdout.readline()
-            if line:
-                self.output += line + "\n"
-            else:
-                break
-        p.wait()
+        p = Popen(self.command, stderr=PIPE, stdout=PIPE)
+        (stdout_data, stderr_data) = p.communicate()
+        self.output = stdout_data
+        self.error_output = stderr_data
         self.return_code = p.returncode
         self.finished = datetime.datetime.now()
 
