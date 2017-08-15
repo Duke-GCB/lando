@@ -5,9 +5,9 @@ perform the expected actions.
 from __future__ import absolute_import
 from unittest import TestCase
 import json
-from lando.server.lando import Lando
-from lando.server.jobapi import JobStates, JobSteps
-from mock import MagicMock, patch
+from lando.server.lando import Lando, JobActions
+from lando.server.jobapi import JobStates, JobSteps, Job
+from mock import MagicMock, patch, Mock
 from shade import OpenStackCloudException
 
 
@@ -489,3 +489,53 @@ Set job state to E.
 Send progress notification. Job:1 State:E Step:V
 """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+
+class TestJobActions(TestCase):
+    def test_store_job_output_complete_cleanup_vm_true(self):
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=True, vm_instance_name='vm1', vm_volume_name='vol1')
+        mock_job_api = MagicMock()
+        mock_job_api.get_job.return_value = mock_job
+        mock_cloud_service = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.get_job_api.return_value = mock_job_api
+        mock_settings.get_cloud_service.return_value = mock_cloud_service
+        job_actions = JobActions(mock_settings)
+        job_actions.store_job_output_complete(MagicMock())
+        mock_cloud_service.terminate_instance.assert_called_with('vm1', ['vol1'])
+
+    def test_store_job_output_complete_cleanup_vm_false(self):
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_instance_name='vm1', vm_volume_name='vol1')
+        mock_job_api = MagicMock()
+        mock_job_api.get_job.return_value = mock_job
+        mock_cloud_service = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.get_job_api.return_value = mock_job_api
+        mock_settings.get_cloud_service.return_value = mock_cloud_service
+        job_actions = JobActions(mock_settings)
+        job_actions.store_job_output_complete(MagicMock())
+        mock_cloud_service.terminate_instance.assert_not_called()
+
+    def test_cancel_job_cleanup_true(self):
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=True, vm_instance_name='vm1', vm_volume_name='vol1')
+        mock_job_api = MagicMock()
+        mock_job_api.get_job.return_value = mock_job
+        mock_cloud_service = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.get_job_api.return_value = mock_job_api
+        mock_settings.get_cloud_service.return_value = mock_cloud_service
+        job_actions = JobActions(mock_settings)
+        job_actions.cancel_job(MagicMock())
+        mock_cloud_service.terminate_instance.assert_called_with('vm1', ['vol1'])
+
+    def test_cancel_job_cleanup_vm_false(self):
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_instance_name='vm1', vm_volume_name='vol1')
+        mock_job_api = MagicMock()
+        mock_job_api.get_job.return_value = mock_job
+        mock_cloud_service = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.get_job_api.return_value = mock_job_api
+        mock_settings.get_cloud_service.return_value = mock_cloud_service
+        job_actions = JobActions(mock_settings)
+        job_actions.cancel_job(MagicMock())
+        mock_cloud_service.terminate_instance.assert_not_called()

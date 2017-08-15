@@ -33,7 +33,8 @@ class TestJobApi(TestCase):
             },
             'stage_group': None,
             'share_group': 42,
-            'volume_size': 100
+            'volume_size': 100,
+            'cleanup_vm': True
         }
 
     def setup_job_api(self, job_id):
@@ -63,6 +64,7 @@ class TestJobApi(TestCase):
         self.assertEqual('m1.tiny', job.vm_flavor)
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('', job.vm_volume_name)
+        self.assertEqual(True, job.cleanup_vm)
         self.assertEqual('jpb67', job.vm_project_name)
 
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
@@ -316,3 +318,53 @@ class TestJobApi(TestCase):
         self.assertEqual('#main', store_output_data.workflow.object_name)
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
+
+
+class TestJob(TestCase):
+    def setUp(self):
+        self.job_data = {
+            'id': 1,
+            'user': {
+                'id': 23,
+                'username': 'joe@joe.com'
+            },
+            'state': 'N',
+            'step': '',
+            'name': 'myjob',
+            'created': '2017-03-21T13:29:09.123603Z',
+            'vm_flavor': 'm1.tiny',
+            'vm_instance_name': '',
+            'vm_volume_name': '',
+            "vm_project_name": 'jpb67',
+            'job_order': '{ "value": 1 }',
+            'workflow_version': {
+                'name': 'SomeWorkflow',
+                'version': 1,
+                'url': 'file:///mnt/fastqc.cwl',
+                'object_name': '#main',
+            },
+            'output_dir': {
+                'id': 5,
+                'dds_user_credentials': 123
+            },
+            'stage_group': None,
+            'share_group': 42,
+            'volume_size': 100
+        }
+
+    def test_cleanup_vm_default(self):
+        mock_data = MagicMock()
+        job = Job(self.job_data)
+        self.assertEqual(job.cleanup_vm, True)
+
+    def test_cleanup_vm_true(self):
+        self.job_data['cleanup_vm'] = True
+        mock_data = MagicMock()
+        job = Job(self.job_data)
+        self.assertEqual(job.cleanup_vm, True)
+
+    def test_cleanup_vm_false(self):
+        self.job_data['cleanup_vm'] = False
+        mock_data = MagicMock()
+        job = Job(self.job_data)
+        self.assertEqual(job.cleanup_vm, False)

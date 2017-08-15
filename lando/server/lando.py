@@ -198,8 +198,9 @@ class JobActions(object):
 
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
-        cloud_service.terminate_instance(payload.vm_instance_name, [job.vm_volume_name])
-        worker_client = self.make_worker_client(payload.vm_instance_name)
+        if job.cleanup_vm:
+            cloud_service.terminate_instance(job.vm_instance_name, [job.vm_volume_name])
+        worker_client = self.make_worker_client(job.vm_instance_name)
         worker_client.delete_queue()
         self._set_job_step(None)
         self._set_job_state(JobStates.FINISHED)
@@ -216,7 +217,8 @@ class JobActions(object):
         job = self.job_api.get_job()
         if job.vm_instance_name:
             cloud_service = self._get_cloud_service(job)
-            cloud_service.terminate_instance(job.vm_instance_name, [job.vm_volume_name])
+            if job.cleanup_vm:
+                cloud_service.terminate_instance(job.vm_instance_name, [job.vm_volume_name])
             worker_client = self.make_worker_client(job.vm_instance_name)
             worker_client.delete_queue()
 
