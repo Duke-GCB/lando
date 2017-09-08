@@ -26,7 +26,6 @@ JOB_STDERR_FILENAME = 'cwltool-output.log'
 JOB_DATA_FILENAME = 'job-data.json'
 
 WORKFLOW_DIRECTORY = 'scripts'
-OUTPUT_DIRECTORY = 'output'
 
 
 CWL_WORKING_DIRECTORY = 'working'
@@ -78,7 +77,6 @@ class CwlDirectory(object):
         self.working_directory = working_directory
         self.result_directory = os.path.join(working_directory, CWL_WORKING_DIRECTORY)
         create_dir_if_necessary(self.result_directory)
-        self.output_directory = os.path.join(self.result_directory, OUTPUT_DIRECTORY)
         self.workflow_basename = os.path.basename(cwl_file_url)
         self.workflow_path = self._add_workflow_file(cwl_file_url)
         job_order_filename = self._get_job_order_filename(job_id)

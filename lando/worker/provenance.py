@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import os
 import json
-from lando.worker.cwlworkflow import OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, JOB_DATA_FILENAME
+from lando.worker.cwlworkflow import WORKFLOW_DIRECTORY, LOGS_DIRECTORY, JOB_DATA_FILENAME
 from ddsc.core.util import KindType
 
 
@@ -21,7 +21,7 @@ class WorkflowFiles(object):
         Get absolute paths for all files in the output directory.
         :return: [str]: list of file paths
         """
-        output_dirname = os.path.join(self.working_directory, OUTPUT_DIRECTORY)
+        output_dirname = os.path.join(self.working_directory)
         output_filenames = []
         for root, dirnames, filenames in os.walk(output_dirname):
             for filename in filenames:
