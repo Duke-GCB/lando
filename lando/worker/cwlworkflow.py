@@ -132,7 +132,7 @@ class CwlWorkflow(object):
         if workflow_object_name:
             workflow_file += workflow_object_name
         process = CwlWorkflowProcess(self.cwl_base_command,
-                                     cwl_directory.output_directory,
+                                     os.path.join(cwl_directory.result_directory, RESULTS_DIRECTORY),
                                      workflow_file,
                                      cwl_directory.job_order_file_path)
         process.run()
@@ -174,6 +174,7 @@ class CwlWorkflowProcess(object):
         if not os.path.exists(self.absolute_output_directory):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
+        print(self.command)
         p = Popen(self.command, stderr=PIPE, stdout=PIPE)
         (stdout_data, stderr_data) = p.communicate()
         self.output = stdout_data
