@@ -2,7 +2,6 @@ from setuptools import setup, find_packages
 
 
 LANDO_REQUIREMENTS = [
-      "Babel==2.3.4",
       "shade==1.23.0",
       "cwlref-runner==1.0",
       "DukeDSClient==0.3.17",
