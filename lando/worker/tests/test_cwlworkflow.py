@@ -4,7 +4,7 @@ import os
 import tempfile
 import shutil
 from lando.testutil import text_to_file, file_to_text
-from lando.worker.cwlworkflow import CwlWorkflow, OUTPUT_DIRECTORY
+from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory
 from mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
@@ -81,7 +81,7 @@ outputfile: results.txt
 
         result_file_content = file_to_text(os.path.join(working_directory,
                                                         'working',
-                                                        OUTPUT_DIRECTORY,
+                                                        RESULTS_DIRECTORY,
                                                         "results.txt"))
         self.assertEqual(result_file_content, "one\ntwo\n")
         shutil.rmtree(working_directory)
@@ -151,7 +151,6 @@ class TestCwlDirectory(TestCase):
         self.assertEqual(working_directory, cwl_directory.working_directory)
         self.assertEqual('/tmp/fakedir/working', cwl_directory.result_directory)
         mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/working')
-        self.assertEqual('/tmp/fakedir/working/output', cwl_directory.output_directory)
         self.assertEqual('/tmp/fakedir/notreal.cwl', cwl_directory.workflow_path)
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
 

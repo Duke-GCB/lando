@@ -13,11 +13,12 @@ class TestWorkflowFiles(TestCase):
         ]
         expected_filenames = ['/tmp/data.txt', '/tmp/data2.txt']
         self.assertEqual(expected_filenames, workflow_files.get_output_filenames())
-        mock_walk.assert_called_with('/tmp/output')
+        mock_walk.assert_called_with('/tmp/results')
 
     def test_get_input_filenames(self):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
-        expected_filenames = ['/tmp/scripts/fastqc.cwl', '/tmp/scripts/job-1-input.yml']
+        expected_filenames = ['/tmp/results/documentation/scripts/fastqc.cwl',
+                              '/tmp/results/documentation/scripts/job-1-input.yml']
         self.assertEqual(expected_filenames, workflow_files.get_input_filenames())
 
     def test_get_job_data(self):
@@ -45,9 +46,9 @@ class TestDukeDSProjectInfo(TestCase):
 
 class TestWorkflowActivity(TestCase):
     def setUp(self):
-        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/scripts/example.cwl')
-        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/scripts/job-444-input.yml')
-        mock_file3 = Mock(kind='dds-file', remote_id='125', path='/tmp/output/data.txt')
+        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/results/documentation/scripts/example.cwl')
+        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/results/documentation/scripts/job-444-input.yml')
+        mock_file3 = Mock(kind='dds-file', remote_id='125', path='/tmp/results/data.txt')
         mock_folder1 = Mock(name='scripts', kind='dds-folder', children=[mock_file1, mock_file2])
         mock_folder2 = Mock(name='output', kind='dds-folder', children=[mock_file3])
         self.mock_project = Mock(kind='dds-project', children=[mock_folder1, mock_folder2])
@@ -81,7 +82,7 @@ class TestWorkflowActivity(TestCase):
 
     @patch('lando.worker.provenance.WorkflowFiles')
     def test_generated_file_ids_returns_output_files(self, mock_workflow_files):
-        mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/output/data.txt']
+        mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/results/data.txt']
         workflow_activity = WorkflowActivity(
             job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
             working_directory='/tmp/',
