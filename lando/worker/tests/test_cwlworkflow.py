@@ -214,27 +214,28 @@ class TestResultsDirectory(TestCase):
 
         # Ask directory to add files based on a mock process
         results_directory.add_files(cwl_process)
+        documentation_directory = '/tmp/fakedir/results/documentation/'
 
         mock_create_dir_if_necessary.assert_has_calls([
-            call("/tmp/fakedir/logs"),
-            call("/tmp/fakedir/scripts")])
+            call(documentation_directory + "logs"),
+            call(documentation_directory + "scripts")])
         mock_save_data_to_directory.assert_has_calls([
-            call('/tmp/fakedir/logs', 'cwltool-output.json', 'stdoutdata'),
-            call('/tmp/fakedir/logs', 'cwltool-output.log', 'stderrdata')])
+            call(documentation_directory + 'logs', 'cwltool-output.json', 'stdoutdata'),
+            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata')])
         mock_shutil.copy.assert_has_calls([
-            call('/tmp/nosuchpath.cwl', '/tmp/fakedir/scripts/nosuch.cwl'),
-            call('/tmp/alsonotreal.json', '/tmp/fakedir/scripts/alsonotreal.json')
+            call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
+            call('/tmp/alsonotreal.json', documentation_directory + 'scripts/alsonotreal.json')
         ])
         mock_create_workflow_info.assert_has_calls([
-            call(workflow_path='/tmp/fakedir/scripts/nosuch.cwl'),
-            call().update_with_job_order(job_order_path='/tmp/fakedir/scripts/alsonotreal.json'),
-            call().update_with_job_output(job_output_path='/tmp/fakedir/logs/cwltool-output.json'),
+            call(workflow_path=(documentation_directory + 'scripts/nosuch.cwl')),
+            call().update_with_job_order(job_order_path=(documentation_directory + 'scripts/alsonotreal.json')),
+            call().update_with_job_output(job_output_path=(documentation_directory + 'logs/cwltool-output.json')),
             call().count_output_files(),
             call().total_file_size_str()
         ])
         mock_cwl_report().save.assert_has_calls([
-            call('/tmp/fakedir/README')
+            call(documentation_directory + 'README')
         ])
         mock_scripts_readme().save.assert_has_calls([
-            call('/tmp/fakedir/scripts/README')
+            call(documentation_directory + 'scripts/README')
         ])
