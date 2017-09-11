@@ -213,7 +213,7 @@ class TestResultsDirectory(TestCase):
 
         # Ask directory to add files based on a mock process
         results_directory.add_files(cwl_process)
-        documentation_directory = '/tmp/fakedir/results/documentation/'
+        documentation_directory = '/tmp/fakedir/results/docs/'
 
         mock_create_dir_if_necessary.assert_has_calls([
             call(documentation_directory + "logs"),

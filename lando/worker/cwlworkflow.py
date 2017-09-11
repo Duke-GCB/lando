@@ -17,7 +17,7 @@ RUN_CWL_COMMAND = "cwl-runner"
 RUN_CWL_OUTDIR_ARG = "--outdir"
 
 RESULTS_DIRECTORY = 'results'
-DOCUMENTATION_DIRECTORY = 'documentation'
+DOCUMENTATION_DIRECTORY = 'docs'
 README_FILENAME = 'README'
 
 LOGS_DIRECTORY = 'logs'
@@ -197,9 +197,9 @@ class ResultsDirectory(object):
 
     Fills in the following directory structure:
     working_directory/            # base directory for this job
-        results/           # this is a user specified name (this directory is uploaded in the store output stage)
+        results/           # this directory is uploaded in the store output stage
            ...output files from workflow
-           documentation/
+           docs/
               README         # describes contents of the upload_directory
               logs/
                   cwltool-output.json   #stdout from cwl-runner - json job results
