@@ -5,11 +5,17 @@ from mock import patch, Mock, call, mock_open
 
 
 class TestWorkflowFiles(TestCase):
+    def test_constructor_directory_properties(self):
+        workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
+        self.assertEqual('/tmp/results', workflow_files.results_directory)
+        self.assertEqual('/tmp/results/documentation', workflow_files.docs_directory)
+
     @patch('lando.worker.provenance.os.walk')
     def test_get_output_filenames(self, mock_walk):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
         mock_walk.return_value = [
-            ('/tmp', '', ['data.txt', 'data2.txt'])
+            ('/tmp', '', ['data.txt', 'data2.txt']),
+            ('/tmp/results/documentation', '', ['README'])
         ]
         expected_filenames = ['/tmp/data.txt', '/tmp/data2.txt']
         self.assertEqual(expected_filenames, workflow_files.get_output_filenames())
@@ -24,8 +30,11 @@ class TestWorkflowFiles(TestCase):
     def test_get_job_data(self):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
         read_data = '{"started": "2017-06-01:0800",  "finished": "2017-06-01:0830"}'
-        with patch("__builtin__.open", mock_open(read_data=read_data)) as mock_file:
+        fake_open = mock_open(read_data=read_data)
+        with patch("__builtin__.open", fake_open) as mock_file:
             job_data = workflow_files.get_job_data()
+            self.assertEqual(call('/tmp/results/documentation/logs/job-data.json', 'r'),
+                             fake_open.call_args_list[0])
         expected_job_data = {
             "started": "2017-06-01:0800",
             "finished": "2017-06-01:0830",
