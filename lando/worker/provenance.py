@@ -1,7 +1,8 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import json
-from lando.worker.cwlworkflow import OUTPUT_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, JOB_DATA_FILENAME
+from lando.worker.cwlworkflow import RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, \
+    JOB_DATA_FILENAME
 from ddsc.core.util import KindType
 
 
@@ -12,7 +13,8 @@ class WorkflowFiles(object):
         :param job_id: int: unique id for the job
         :param workflow_filename: str: name of the workflow file
         """
-        self.working_directory = working_directory
+        self.results_directory = os.path.join(working_directory, RESULTS_DIRECTORY)
+        self.docs_directory = os.path.join(self.results_directory, DOCUMENTATION_DIRECTORY)
         self.job_id = job_id
         self.workflow_filename = workflow_filename
 
@@ -21,9 +23,10 @@ class WorkflowFiles(object):
         Get absolute paths for all files in the output directory.
         :return: [str]: list of file paths
         """
-        output_dirname = os.path.join(self.working_directory, OUTPUT_DIRECTORY)
         output_filenames = []
-        for root, dirnames, filenames in os.walk(output_dirname):
+        for root, dirnames, filenames in os.walk(self.results_directory):
+            if root.startswith(self.docs_directory):
+                continue
             for filename in filenames:
                 full_filename = self._format_filename(os.path.join(root, filename))
                 output_filenames.append(full_filename)
@@ -34,7 +37,7 @@ class WorkflowFiles(object):
         Get absolute paths for the workflow and job input files.
         :return: [str]: list of file paths
         """
-        scripts_dirname = os.path.join(self.working_directory, WORKFLOW_DIRECTORY)
+        scripts_dirname = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
         workflow_path = os.path.join(scripts_dirname, self.workflow_filename)
         job_input_path = os.path.join(scripts_dirname, 'job-{}-input.yml'.format(self.job_id))
         return [
@@ -43,7 +46,7 @@ class WorkflowFiles(object):
         ]
 
     def get_job_data(self):
-        job_data_path = os.path.join(self.working_directory, LOGS_DIRECTORY, JOB_DATA_FILENAME)
+        job_data_path = os.path.join(self.docs_directory, LOGS_DIRECTORY, JOB_DATA_FILENAME)
         with open(job_data_path, 'r') as infile:
             return json.load(infile)
 

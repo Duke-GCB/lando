@@ -16,6 +16,8 @@ from lando.worker.scriptsreadme import ScriptsReadme
 RUN_CWL_COMMAND = "cwl-runner"
 RUN_CWL_OUTDIR_ARG = "--outdir"
 
+RESULTS_DIRECTORY = 'results'
+DOCUMENTATION_DIRECTORY = 'docs'
 README_FILENAME = 'README'
 
 LOGS_DIRECTORY = 'logs'
@@ -24,7 +26,6 @@ JOB_STDERR_FILENAME = 'cwltool-output.log'
 JOB_DATA_FILENAME = 'job-data.json'
 
 WORKFLOW_DIRECTORY = 'scripts'
-OUTPUT_DIRECTORY = 'output'
 
 
 CWL_WORKING_DIRECTORY = 'working'
@@ -76,7 +77,6 @@ class CwlDirectory(object):
         self.working_directory = working_directory
         self.result_directory = os.path.join(working_directory, CWL_WORKING_DIRECTORY)
         create_dir_if_necessary(self.result_directory)
-        self.output_directory = os.path.join(self.result_directory, OUTPUT_DIRECTORY)
         self.workflow_basename = os.path.basename(cwl_file_url)
         self.workflow_path = self._add_workflow_file(cwl_file_url)
         job_order_filename = self._get_job_order_filename(job_id)
@@ -132,7 +132,7 @@ class CwlWorkflow(object):
         if workflow_object_name:
             workflow_file += workflow_object_name
         process = CwlWorkflowProcess(self.cwl_base_command,
-                                     cwl_directory.output_directory,
+                                     os.path.join(cwl_directory.result_directory, RESULTS_DIRECTORY),
                                      workflow_file,
                                      cwl_directory.job_order_file_path)
         process.run()
@@ -174,6 +174,7 @@ class CwlWorkflowProcess(object):
         if not os.path.exists(self.absolute_output_directory):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
+        print(self.command)
         p = Popen(self.command, stderr=PIPE, stdout=PIPE)
         (stdout_data, stderr_data) = p.communicate()
         self.output = stdout_data
@@ -196,17 +197,17 @@ class ResultsDirectory(object):
 
     Fills in the following directory structure:
     working_directory/            # base directory for this job
-      upload_directory/           # this is a user specified name (this directory is uploaded in the store output stage)
-        Bespin-Report.txt         # describes contents of the upload_directory
-        results/
+        results/           # this directory is uploaded in the store output stage
            ...output files from workflow
-        logs/
-            cwltool-output.json   #stdout from cwl-runner - json job results
-            cwltool-output.log    #stderr from cwl-runner
-            job-data.json         # non-cwl job data used to create Bespin-Report.txt
-        workflow/
-          workflow.cwl            # cwl workflow we will run
-          workflow.yml            # job order input file
+           docs/
+              README         # describes contents of the upload_directory
+              logs/
+                  cwltool-output.json   #stdout from cwl-runner - json job results
+                  cwltool-output.log    #stderr from cwl-runner
+                  job-data.json         # non-cwl job data used to create Bespin-Report.txt
+              workflow/
+                  workflow.cwl            # cwl workflow we will run
+                  workflow.yml            # job order input file
     """
     def __init__(self, job_id, cwl_directory):
         """
@@ -214,7 +215,10 @@ class ResultsDirectory(object):
         :param cwl_directory: CwlDirectory: directory data for a job that has been run
         """
         self.job_id = job_id
-        self.result_directory = cwl_directory.result_directory
+        self.result_directory = os.path.join(cwl_directory.result_directory, RESULTS_DIRECTORY)
+        create_dir_if_necessary(self.result_directory)
+        self.docs_directory = os.path.join(self.result_directory, DOCUMENTATION_DIRECTORY)
+        create_dir_if_necessary(self.docs_directory)
         self.workflow_path = cwl_directory.workflow_path
         self.workflow_basename = cwl_directory.workflow_basename
         self.job_order_file_path = cwl_directory.job_order_file_path
@@ -236,7 +240,7 @@ class ResultsDirectory(object):
         :param output: str: stdout from cwl-runner
         :param error_output:  str: stderr from cwl-runner
         """
-        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
+        logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         create_dir_if_necessary(logs_directory)
         save_data_to_directory(logs_directory, JOB_STDOUT_FILENAME, output)
         save_data_to_directory(logs_directory, JOB_STDERR_FILENAME, error_output)
@@ -245,7 +249,7 @@ class ResultsDirectory(object):
         """
         Copies workflow input files to the 'workflow' directory.
         """
-        workflow_directory = os.path.join(self.result_directory, WORKFLOW_DIRECTORY)
+        workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
         create_dir_if_necessary(workflow_directory)
         shutil.copy(self.workflow_path, os.path.join(workflow_directory, self.workflow_basename))
         shutil.copy(self.job_order_file_path, os.path.join(workflow_directory, self.job_order_filename))
@@ -256,8 +260,8 @@ class ResultsDirectory(object):
         Also saves the json job-specific file into logs.
         :param cwl_process: CwlProcess: contains job start/stop info
         """
-        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
-        workflow_directory = os.path.join(self.result_directory, WORKFLOW_DIRECTORY)
+        logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
+        workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
         workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, self.workflow_basename))
         workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, self.job_order_filename))
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
@@ -270,7 +274,7 @@ class ResultsDirectory(object):
             'total_file_size_str': workflow_info.total_file_size_str()
         }
         report = CwlReport(workflow_info, job_data)
-        report.save(os.path.join(self.result_directory, README_FILENAME))
+        report.save(os.path.join(self.docs_directory, README_FILENAME))
         self._save_job_data(job_data)
 
     def _save_job_data(self, job_data):
@@ -278,11 +282,11 @@ class ResultsDirectory(object):
         Save job data using in building the report into a JSON file under logs.
         :param job_data: dict: non-cwl values used in the Report
         """
-        logs_directory = os.path.join(self.result_directory, LOGS_DIRECTORY)
+        logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         save_data_to_directory(logs_directory, JOB_DATA_FILENAME, json.dumps(job_data))
 
     def _create_running_instructions(self):
-        workflow_directory = os.path.join(self.result_directory, WORKFLOW_DIRECTORY)
+        workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
         output_filename = os.path.join(workflow_directory, README_FILENAME)
         scripts_readme = ScriptsReadme(self.workflow_basename, self.job_order_filename)
         scripts_readme.save(output_filename)

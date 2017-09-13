@@ -5,26 +5,36 @@ from mock import patch, Mock, call, mock_open
 
 
 class TestWorkflowFiles(TestCase):
+    def test_constructor_directory_properties(self):
+        workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
+        self.assertEqual('/tmp/results', workflow_files.results_directory)
+        self.assertEqual('/tmp/results/docs', workflow_files.docs_directory)
+
     @patch('lando.worker.provenance.os.walk')
     def test_get_output_filenames(self, mock_walk):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
         mock_walk.return_value = [
-            ('/tmp', '', ['data.txt', 'data2.txt'])
+            ('/tmp', '', ['data.txt', 'data2.txt']),
+            ('/tmp/results/docs', '', ['README'])
         ]
         expected_filenames = ['/tmp/data.txt', '/tmp/data2.txt']
         self.assertEqual(expected_filenames, workflow_files.get_output_filenames())
-        mock_walk.assert_called_with('/tmp/output')
+        mock_walk.assert_called_with('/tmp/results')
 
     def test_get_input_filenames(self):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
-        expected_filenames = ['/tmp/scripts/fastqc.cwl', '/tmp/scripts/job-1-input.yml']
+        expected_filenames = ['/tmp/results/docs/scripts/fastqc.cwl',
+                              '/tmp/results/docs/scripts/job-1-input.yml']
         self.assertEqual(expected_filenames, workflow_files.get_input_filenames())
 
     def test_get_job_data(self):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
         read_data = '{"started": "2017-06-01:0800",  "finished": "2017-06-01:0830"}'
-        with patch("__builtin__.open", mock_open(read_data=read_data)) as mock_file:
+        fake_open = mock_open(read_data=read_data)
+        with patch("__builtin__.open", fake_open) as mock_file:
             job_data = workflow_files.get_job_data()
+            self.assertEqual(call('/tmp/results/docs/logs/job-data.json', 'r'),
+                             fake_open.call_args_list[0])
         expected_job_data = {
             "started": "2017-06-01:0800",
             "finished": "2017-06-01:0830",
@@ -45,9 +55,9 @@ class TestDukeDSProjectInfo(TestCase):
 
 class TestWorkflowActivity(TestCase):
     def setUp(self):
-        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/scripts/example.cwl')
-        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/scripts/job-444-input.yml')
-        mock_file3 = Mock(kind='dds-file', remote_id='125', path='/tmp/output/data.txt')
+        mock_file1 = Mock(kind='dds-file', remote_id='123', path='/tmp/results/docs/scripts/example.cwl')
+        mock_file2 = Mock(kind='dds-file', remote_id='124', path='/tmp/results/docs/scripts/job-444-input.yml')
+        mock_file3 = Mock(kind='dds-file', remote_id='125', path='/tmp/results/data.txt')
         mock_folder1 = Mock(name='scripts', kind='dds-folder', children=[mock_file1, mock_file2])
         mock_folder2 = Mock(name='output', kind='dds-folder', children=[mock_file3])
         self.mock_project = Mock(kind='dds-project', children=[mock_folder1, mock_folder2])
@@ -81,7 +91,7 @@ class TestWorkflowActivity(TestCase):
 
     @patch('lando.worker.provenance.WorkflowFiles')
     def test_generated_file_ids_returns_output_files(self, mock_workflow_files):
-        mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/output/data.txt']
+        mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/results/data.txt']
         workflow_activity = WorkflowActivity(
             job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
             working_directory='/tmp/',
