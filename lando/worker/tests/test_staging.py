@@ -62,3 +62,16 @@ class TestDukeDataService(TestCase):
         mock_d4s2_project.return_value.share.assert_called_with('my_project', remote_user,
                                                                 auth_role='project_admin', force_send=False,
                                                                 user_message='Bespin job results.')
+
+    @patch('lando.worker.staging.D4S2Project')
+    @patch('lando.worker.staging.RemoteStore')
+    @patch('lando.worker.staging.RemoteFile')
+    @patch('lando.worker.staging.FileDownloader')
+    @patch('lando.worker.staging.ProjectDownload')
+    def test_download_file(self, mock_project_download, mock_file_downloader, mock_remote_file, mock_remote_store,
+                           mock_d4s2_project):
+        remote_user = Mock(id='132')
+        mock_remote_store.return_value.fetch_user.return_value = remote_user
+        data_service = DukeDataService(MagicMock())
+        data_service.download_file('123', '/tmp/data.txt')
+        mock_file_downloader.return_value.run.assert_called()

@@ -81,8 +81,7 @@ class DukeDataService(object):
         """
         file_data = self.data_service.get_file(file_id).json()
         remote_file = RemoteFile(file_data, '')
-        url_json = self.data_service.get_file_url(file_id).json()
-        downloader = FileDownloader(self.config, remote_file, url_json, destination_path, self)
+        downloader = FileDownloader(self.config, remote_file, destination_path, self)
         downloader.run()
         ProjectDownload.check_file_size(remote_file, destination_path)
 
