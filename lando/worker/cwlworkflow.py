@@ -7,6 +7,7 @@ import shutil
 import urllib
 import datetime
 import json
+import logging
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
@@ -174,7 +175,7 @@ class CwlWorkflowProcess(object):
         if not os.path.exists(self.absolute_output_directory):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
-        print(self.command)
+        logging.info('Running command: {}'.format(' '.join(self.command)))
         p = Popen(self.command, stderr=PIPE, stdout=PIPE)
         (stdout_data, stderr_data) = p.communicate()
         self.output = stdout_data
