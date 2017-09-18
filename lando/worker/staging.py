@@ -8,7 +8,7 @@ import requests
 import dateutil.parser
 import logging
 import ddsc.config
-from ddsc.core.remotestore import RemoteStore, RemoteFile
+from ddsc.core.remotestore import RemoteStore, RemoteFile, ProjectNameOrId
 from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
@@ -91,7 +91,7 @@ class DukeDataService(object):
         :param item: RemoteFile/RemoteFolder: that is being transferrred.
         :param increment_amt: int: allows for progress bar
         """
-        logging.info('Transferring {} of {}', increment_amt, item.name)
+        logging.info('Transferring {} of {}'.format(increment_amt, item.name))
 
     def give_user_permissions(self, project_id, username, auth_role):
         logging.info("give user permissions. project:{} username{}: auth_role:{}".format(project_id, username, auth_role))
@@ -197,7 +197,9 @@ class UploadProject(object):
         :param config: ddsc.config.Config: config settings to use
         :return: ddsc.core.localproject.LocalProject
         """
-        project_upload = ProjectUpload(config, self.project_name, self.file_folder_list)
+        project_upload = ProjectUpload(config,
+                                       ProjectNameOrId.create_from_name(self.project_name),
+                                       self.file_folder_list)
         project_upload.run()
         return project_upload.local_project
 

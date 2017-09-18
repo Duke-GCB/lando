@@ -7,3 +7,4 @@ cwl_base_command:
   - "--debug"
   - "--tmpdir-prefix=/Users/jpb67/Documents/work/tmp"
   - "--tmp-outdir-prefix=/Users/jpb67/Documents/work/tmp"
+log_level: INFO
