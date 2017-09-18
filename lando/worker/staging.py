@@ -153,7 +153,7 @@ class DownloadDukeDSFile(object):
         """
         create_parent_directory(self.dest)
         duke_data_service = context.get_duke_data_service(self.user_id)
-
+        logging.info("Downloading file id:{} to {}".format(self.file_id, self.dest))
         duke_data_service.download_file(self.file_id, self.dest)
 
 
@@ -175,6 +175,7 @@ class DownloadURLFile(object):
         :param context: Context
         """
         create_parent_directory(self.destination_path)
+        logging.info("Downloading file url:{} to {}".format(self.url, self.destination_path))
         r = requests.get(self.url, stream=True)
         with open(self.destination_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=DOWNLOAD_URL_CHUNK_SIZE):
