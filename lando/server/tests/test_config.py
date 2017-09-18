@@ -1,5 +1,6 @@
 from unittest import TestCase
 import os
+import logging
 from lando.testutil import write_temp_return_filename
 from lando.server.config import ServerConfig
 from lando.exceptions import InvalidConfigException
@@ -59,7 +60,7 @@ class TestServerConfig(TestCase):
 
         self.assertEqual("http://localhost:8000/api", config.bespin_api_settings.url)
         self.assertEqual("10498124091240e", config.bespin_api_settings.token)
-
+        self.assertEqual(logging.WARNING, config.log_level)
 
     def test_allocate_floating_ip_true(self):
         line = "  allocate_floating_ips: true"
@@ -125,3 +126,9 @@ username: lobot
         result = config.make_worker_config_yml('worker_1')
         self.assertMultiLineEqual(expected.strip(), result.strip())
         self.assertEqual(['cwltoil', '--not-strict'], config.vm_settings.cwl_base_command)
+
+    def test_log_level(self):
+        filename = write_temp_return_filename(GOOD_CONFIG.format('log_level: INFO'))
+        config = ServerConfig(filename)
+        self.assertEqual('INFO', config.log_level)
+        os.unlink(filename)
