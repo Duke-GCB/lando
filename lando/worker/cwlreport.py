@@ -18,6 +18,8 @@ Finished: {{ job.finished }}
 Run time: {{ job.run_time }}
 Output: {{ job.num_output_files }} files ({{ job.total_file_size_str }})
 
+{{ job.workflow_methods }}
+
 # Input
 {% for param in workflow.input_params %}
 {{ param.documentation }}
@@ -72,7 +74,7 @@ class CwlReport(object):
         :param destination_path: str: path to where we will write the report
         """
         with open(destination_path, 'w') as outfile:
-            outfile.write(self.render())
+            outfile.write(self.render().encode('utf8'))
 
 
 def get_documentation_str(node):
