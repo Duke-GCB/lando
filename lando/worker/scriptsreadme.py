@@ -1,5 +1,6 @@
 from __future__ import print_function
 import jinja2
+import markdown
 
 TEMPLATE = """
 # Instructions on running this workflow.
@@ -32,4 +33,4 @@ class ScriptsReadme(object):
         :param destination_path: str: path to where we will write the report
         """
         with open(destination_path, 'w') as outfile:
-            outfile.write(self.render())
+            outfile.write(markdown.markdown(self.render()).encode('utf8'))

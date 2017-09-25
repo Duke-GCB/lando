@@ -235,8 +235,8 @@ class TestResultsDirectory(TestCase):
             call().total_file_size_str()
         ])
         mock_cwl_report().save.assert_has_calls([
-            call(documentation_directory + 'README')
+            call(documentation_directory + 'README.html')
         ])
         mock_scripts_readme().save.assert_has_calls([
-            call(documentation_directory + 'scripts/README')
+            call(documentation_directory + 'scripts/README.html')
         ])
