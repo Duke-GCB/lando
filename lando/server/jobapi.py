@@ -136,6 +136,16 @@ class BespinApi(object):
         url = self._make_url(path)
         return self._get_results(url)
 
+    def get_workflow_methods_document(self, methods_document_id):
+        """
+        Get details about a workflow version's methods document
+        :param methods_document_id: int: unique methods document id
+        :return: dict: details of a methods document
+        """
+        path = 'workflow-methods-documents/{}'.format(methods_document_id)
+        url = self._make_url(path)
+        return self._get_results(url)
+
 
 class JobApi(object):
     """
@@ -243,6 +253,15 @@ class JobApi(object):
             result.append(Job(job_dict))
         return result
 
+    def get_run_job_data(self):
+        """
+        Get Job data for use with running the job
+        :return: RunJobData
+        """
+        job_data = self.api.get_job(self.job_id)
+        methods_document = self.get_workflow_methods_document(job_data['workflow_version']['methods_document'])
+        return RunJobData(job_data, methods_document)
+
     def get_store_output_job_data(self):
         """
         Get Job data for use with storing output
@@ -252,6 +271,17 @@ class JobApi(object):
         share_group_data = self.api.get_share_dds_ids(job_data['share_group'])
         share_dds_ids = [share_user['dds_id'] for share_user in share_group_data['users']]
         return StoreOutputJobData(job_data, share_dds_ids)
+
+    def get_workflow_methods_document(self, methods_document_id):
+        """
+        Returns the methods document for an id. If methods_document_id is empty returns None
+        :param methods_document_id: int: id of the methods document
+        :return: WorkflowMethodsDocument
+        """
+        if methods_document_id:
+            methods_document_data = self.api.get_workflow_methods_document(methods_document_id)
+            return WorkflowMethodsDocument(methods_document_data)
+        return None
 
 
 class Job(object):
@@ -280,6 +310,15 @@ class Job(object):
         self.cleanup_vm = data.get('cleanup_vm', True)
 
 
+class RunJobData(Job):
+    """
+    Job data plus a workflow methods document
+    """
+    def __init__(self, job_data, methods_document):
+        super(RunJobData, self).__init__(job_data)
+        self.workflow_methods_document = methods_document
+
+
 class StoreOutputJobData(Job):
     """
     Job data plus a list of dds user ids to share results with
@@ -303,6 +342,12 @@ class Workflow(object):
         self.name = workflow_version['name']
         self.version = workflow_version['version']
         self.object_name = workflow_version['object_name']
+        self.methods_document = workflow_version['methods_document']
+
+
+class WorkflowMethodsDocument(object):
+    def __init__(self, data):
+        self.content = data['content']
 
 
 class OutputProject(object):

@@ -167,9 +167,9 @@ class JobActions(object):
         """
         self._set_job_step(JobSteps.RUNNING)
         self._show_status("Running job")
-        job = self.job_api.get_job()
+        run_job_data = self.job_api.get_run_job_data()
         worker_client = self.make_worker_client(payload.vm_instance_name)
-        worker_client.run_job(job, job.workflow, payload.vm_instance_name)
+        worker_client.run_job(run_job_data, run_job_data.workflow, payload.vm_instance_name)
 
     def run_job_complete(self, payload):
         """

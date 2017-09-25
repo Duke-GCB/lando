@@ -26,6 +26,7 @@ class TestJobApi(TestCase):
                 'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
+                "methods_document": 7,
             },
             'output_dir': {
                 'id': 5,
@@ -34,7 +35,7 @@ class TestJobApi(TestCase):
             'stage_group': None,
             'share_group': 42,
             'volume_size': 100,
-            'cleanup_vm': True
+            'cleanup_vm': True,
         }
 
     def setup_job_api(self, job_id):
@@ -183,6 +184,7 @@ class TestJobApi(TestCase):
                 'object_name': '#main',
                 'name': 'SomeWorkflow',
                 'version': 1,
+                "methods_document": 7,
             },
             'output_dir': {
                 'id': 5,
@@ -241,6 +243,7 @@ class TestJobApi(TestCase):
                     'object_name': '#main',
                     'name': 'myworkflow',
                     'version': 1,
+                    "methods_document": 7,
                 },
                 'output_dir': {
                     'id': 5,
@@ -342,6 +345,7 @@ class TestJob(TestCase):
                 'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
+                "methods_document": 7,
             },
             'output_dir': {
                 'id': 5,
@@ -349,7 +353,7 @@ class TestJob(TestCase):
             },
             'stage_group': None,
             'share_group': 42,
-            'volume_size': 100
+            'volume_size': 100,
         }
 
     def test_cleanup_vm_default(self):

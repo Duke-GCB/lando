@@ -46,7 +46,7 @@ class FakeSettings(object):
     def make_download_url_file(self, url, destination_path):
         return FakeObject("Download url {}.".format(url), self.report)
 
-    def make_cwl_workflow(self, job_id, working_directory, cwl_base_command):
+    def make_cwl_workflow(self, job_id, working_directory, cwl_base_command, workflow_methods_markdown):
         if self.raise_when_run_workflow:
             raise ValueError("Something went wrong.")
         obj = FakeObject("Run workflow for job {}.".format(job_id), self.report)

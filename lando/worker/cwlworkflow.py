@@ -7,6 +7,7 @@ import shutil
 import urllib
 import datetime
 import json
+import markdown
 from subprocess import PIPE, Popen
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
@@ -24,6 +25,7 @@ LOGS_DIRECTORY = 'logs'
 JOB_STDOUT_FILENAME = 'cwltool-output.json'
 JOB_STDERR_FILENAME = 'cwltool-output.log'
 JOB_DATA_FILENAME = 'job-data.json'
+METHODS_DOCUMENT_FILENAME = 'Methods.html'
 
 WORKFLOW_DIRECTORY = 'scripts'
 
@@ -50,7 +52,7 @@ def save_data_to_directory(directory_path, filename, data):
     """
     file_path = os.path.join(directory_path, filename)
     with open(file_path, 'w') as outfile:
-        outfile.write(data)
+        outfile.write(data.encode('utf8'))
     return file_path
 
 
@@ -108,16 +110,18 @@ class CwlWorkflow(object):
     3. Gathers stderr/stdout output from the process
     4. If exit status is not 0 raises JobStepFailed including output
     """
-    def __init__(self, job_id, working_directory, cwl_base_command):
+    def __init__(self, job_id, working_directory, cwl_base_command, workflow_methods_markdown):
         """
         Setup workflow
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to working directory that contains input files
         :param cwl_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
+        :param workflow_methods_markdown: str: markdown about the methods used in this workflow
         """
         self.job_id = job_id
         self.working_directory = working_directory
         self.cwl_base_command = cwl_base_command
+        self.workflow_methods_markdown = workflow_methods_markdown
 
     def run(self, cwl_file_url, workflow_object_name, job_order):
         """
@@ -139,7 +143,7 @@ class CwlWorkflow(object):
         if process.return_code != 0:
             error_message = "CWL workflow failed with exit code: {}".format(process.return_code)
             raise JobStepFailed(error_message + process.error_output, process.output)
-        results_directory = ResultsDirectory(self.job_id, cwl_directory)
+        results_directory = ResultsDirectory(self.job_id, cwl_directory, self.workflow_methods_markdown)
         results_directory.add_files(process)
 
 
@@ -198,6 +202,7 @@ class ResultsDirectory(object):
     Fills in the following directory structure:
     working_directory/            # base directory for this job
         results/           # this directory is uploaded in the store output stage
+           Methods.md      # document detailing methods used in workflow
            ...output files from workflow
            docs/
               README         # describes contents of the upload_directory
@@ -209,10 +214,11 @@ class ResultsDirectory(object):
                   workflow.cwl            # cwl workflow we will run
                   workflow.yml            # job order input file
     """
-    def __init__(self, job_id, cwl_directory):
+    def __init__(self, job_id, cwl_directory, workflow_methods_markdown_content):
         """
         :param job_id: int: job id associated with this job
         :param cwl_directory: CwlDirectory: directory data for a job that has been run
+        :param workflow_methods_markdown_content: str: markdown
         """
         self.job_id = job_id
         self.result_directory = os.path.join(cwl_directory.result_directory, RESULTS_DIRECTORY)
@@ -223,6 +229,7 @@ class ResultsDirectory(object):
         self.workflow_basename = cwl_directory.workflow_basename
         self.job_order_file_path = cwl_directory.job_order_file_path
         self.job_order_filename = os.path.basename(cwl_directory.job_order_file_path)
+        self.workflow_methods_markdown_content = workflow_methods_markdown_content
 
     def add_files(self, cwl_process):
         """
@@ -233,6 +240,7 @@ class ResultsDirectory(object):
         self._copy_workflow_inputs()
         self._create_report(cwl_process)
         self._create_running_instructions()
+        self._add_methods_document()
 
     def _create_log_files(self, output, error_output):
         """
@@ -290,3 +298,7 @@ class ResultsDirectory(object):
         output_filename = os.path.join(workflow_directory, README_FILENAME)
         scripts_readme = ScriptsReadme(self.workflow_basename, self.job_order_filename)
         scripts_readme.save(output_filename)
+
+    def _add_methods_document(self):
+        html = markdown.markdown(self.workflow_methods_markdown_content)
+        save_data_to_directory(self.result_directory, METHODS_DOCUMENT_FILENAME, html)
