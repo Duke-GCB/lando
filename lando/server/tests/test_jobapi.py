@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from lando.server.jobapi import JobApi, BespinApi, Job
-from mock.mock import MagicMock, patch
+from mock.mock import MagicMock, patch, call
 
 
 class TestJobApi(TestCase):
@@ -39,9 +39,12 @@ class TestJobApi(TestCase):
         }
 
     def setup_job_api(self, job_id):
+        def empty_headers():
+            return {}
         mock_config = MagicMock()
         mock_config.bespin_api_settings.url = 'APIURL'
         job_api = JobApi(mock_config, job_id)
+        job_api.api.headers = empty_headers
         return job_api
 
     @patch('lando.server.jobapi.requests')
@@ -321,6 +324,35 @@ class TestJobApi(TestCase):
         self.assertEqual('#main', store_output_data.workflow.object_name)
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
+
+    @patch('lando.server.jobapi.requests')
+    def test_get_run_job_data(self, mock_requests):
+        mock_response1 = MagicMock()
+        mock_response1.json.return_value = self.job_response_payload
+        mock_response2 = MagicMock()
+        mock_response2.json.return_value = {'content': '#Markdown data'}
+        mock_requests.get.side_effect = [mock_response1, mock_response2]
+        job_api = self.setup_job_api(4)
+        run_job_data = job_api.get_run_job_data()
+        self.assertEqual('myjob', run_job_data.name)
+        self.assertEqual('#Markdown data', run_job_data.workflow_methods_document.content)
+        mock_requests.get.assert_has_calls([
+            call('APIURL/admin/jobs/4/', headers={}),
+            call('APIURL/admin/workflow-methods-documents/7', headers={})
+        ])
+        #args, kwargs = mock_requests.get.call_args
+        #self.assertEqual(args[0], 'APIURL/admin/workflow-methods-documents/123')
+
+    @patch('lando.server.jobapi.requests')
+    def test_get_workflow_methods_document(self, mock_requests):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'content': '#Markdown'}
+        mock_requests.get.return_value = mock_response
+        job_api = self.setup_job_api(4)
+        workflow_methods_document = job_api.get_workflow_methods_document('123')
+        self.assertEqual('#Markdown', workflow_methods_document.content)
+        args, kwargs = mock_requests.get.call_args
+        self.assertEqual(args[0], 'APIURL/admin/workflow-methods-documents/123')
 
 
 class TestJob(TestCase):
