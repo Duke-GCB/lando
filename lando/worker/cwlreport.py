@@ -7,6 +7,7 @@ import sys
 import yaml
 import jinja2
 import humanfriendly
+import markdown
 
 TEMPLATE = """
 # Summary
@@ -74,7 +75,8 @@ class CwlReport(object):
         :param destination_path: str: path to where we will write the report
         """
         with open(destination_path, 'w') as outfile:
-            outfile.write(self.render().encode('utf8'))
+            html = markdown.markdown(self.render())
+            outfile.write(html.encode('utf8'))
 
 
 def get_documentation_str(node):
