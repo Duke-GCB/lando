@@ -75,7 +75,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command,
-                               '# workflow markdown')
+                               '# Workflow Methods Markdown')
         workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
@@ -222,7 +222,9 @@ class TestResultsDirectory(TestCase):
             call(documentation_directory + "scripts")])
         mock_save_data_to_directory.assert_has_calls([
             call(documentation_directory + 'logs', 'cwltool-output.json', 'stdoutdata'),
-            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata')])
+            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata'),
+            call('/tmp/fakedir/results', 'Methods.html', '<h1>Methods Markdown</h1>'),
+        ], any_order=True)
         mock_shutil.copy.assert_has_calls([
             call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
             call('/tmp/alsonotreal.json', documentation_directory + 'scripts/alsonotreal.json')
