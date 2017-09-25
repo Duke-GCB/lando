@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info
-from mock import patch, MagicMock
+from mock import patch, MagicMock, mock_open, call
 
 SAMPLE_CWL_MAIN_DATA = {
     'cwlVersion': 'v1.0',
@@ -96,6 +96,15 @@ class TestCwlReport(TestCase):
         report = CwlReport(workflow_info, job_data, template)
         self.assertEqual('test 123', report.render())
 
+    def test_save_converts_to_html(self):
+        template = '{{workflow.data}} {{job.job_id}}'
+        workflow_info = MagicMock(data='test')
+        job_data = MagicMock(job_id=123)
+        report = CwlReport(workflow_info, job_data, template)
+        mocked_open = mock_open(read_data='file contents\nas needed\n')
+        with patch('lando.worker.cwlreport.open', mocked_open):
+            report.save('/tmp/fakedir/fakefile')
+        self.assertEqual(call("<p>test 123</p>"), mocked_open.return_value.write.call_args)
 
 class TestCwlReportUtilities(TestCase):
     def test_get_documentation_str(self):
