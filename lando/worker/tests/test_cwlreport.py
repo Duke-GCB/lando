@@ -104,7 +104,8 @@ class TestCwlReport(TestCase):
         mocked_open = mock_open(read_data='file contents\nas needed\n')
         with patch('lando.worker.cwlreport.open', mocked_open):
             report.save('/tmp/fakedir/fakefile')
-        self.assertEqual(call("<p>test 123</p>"), mocked_open.return_value.write.call_args)
+        mocked_open.return_value.write.assert_called_with("<p>test 123</p>")
+
 
 class TestCwlReportUtilities(TestCase):
     def test_get_documentation_str(self):
