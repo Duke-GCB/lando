@@ -5,6 +5,7 @@ from __future__ import print_function, absolute_import
 from datetime import datetime
 import traceback
 import json
+import logging
 from lando.server.jobapi import JobApi, JobStates, JobSteps
 from lando.server.cloudconfigscript import CloudConfigScript
 from lando.server.cloudservice import CloudService, FakeCloudService
@@ -276,7 +277,7 @@ class JobActions(object):
 
     def _show_status(self, message):
         format_str = "{}: {} for job: {}."
-        print(format_str.format(datetime.now(), message, self.job_id))
+        logging.info(format_str.format(datetime.now(), message, self.job_id))
 
     def generic_job_error(self, action_name, details):
         """
@@ -347,7 +348,7 @@ class Lando(object):
         Blocks and waits for messages on the queue specified in config.
         """
         router = self._make_router()
-        print("Lando listening for messages on queue '{}'.".format(router.queue_name))
+        logging.info("Lando listening for messages on queue '{}'.".format(router.queue_name))
         router.run()
 
     def _make_router(self):

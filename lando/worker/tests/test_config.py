@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
+import logging
 from lando.testutil import write_temp_return_filename
 from lando.worker.config import WorkerConfig
 from lando.exceptions import InvalidConfigException
@@ -30,6 +31,7 @@ class TestWorkerConfig(TestCase):
         self.assertEqual("worker", work_queue_config.username)
         self.assertEqual("workerpass", work_queue_config.password)
         self.assertEqual("task-queue", work_queue_config.queue_name)
+        self.assertEqual(logging.WARNING, config.log_level)
 
     def test_empty_config(self):
         filename = write_temp_return_filename("")
@@ -42,3 +44,9 @@ class TestWorkerConfig(TestCase):
         with self.assertRaises(InvalidConfigException):
             config = WorkerConfig(filename)
         os.unlink(filename)
+
+    def test_log_level(self):
+        filename = write_temp_return_filename('{}\nlog_level: INFO'.format(GOOD_CONFIG))
+        config = WorkerConfig(filename)
+        os.unlink(filename)
+        self.assertEqual('INFO', config.log_level)

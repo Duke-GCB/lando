@@ -4,6 +4,7 @@ Reads configuration settings from a YAML file for use with lando
 from __future__ import absolute_import
 import yaml
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
+import logging
 
 
 class ServerConfig(object):
@@ -25,6 +26,7 @@ class ServerConfig(object):
             self.vm_settings = self._optional_get(data, 'vm_settings', VMSettings)
             self.cloud_settings = self._optional_get(data, 'cloud_settings', CloudSettings)
             self.bespin_api_settings = self._optional_get(data, 'bespin_api', BespinApiSettings)
+            self.log_level = data.get('log_level', logging.WARNING)
 
     @staticmethod
     def _optional_get(data, name, constructor):
@@ -114,5 +116,3 @@ class BespinApiSettings(object):
     def __init__(self, data):
         self.url = get_or_raise_config_exception(data, 'url')
         self.token = get_or_raise_config_exception(data, 'token')
-
-

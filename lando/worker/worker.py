@@ -6,12 +6,11 @@ Run via script with no arguments: lando_worker
 from __future__ import print_function
 import os
 import traceback
-import dateutil.parser
+import logging
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
 from lando.worker import staging
-from ddsc.core.util import KindType
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
@@ -146,7 +145,7 @@ class LandoWorker(object):
         """
         router = self._make_router()
         self.client.worker_started(router.queue_name)
-        print("Lando worker listening for messages on queue '{}'.".format(router.queue_name))
+        logging.info("Lando worker listening for messages on queue '{}'.".format(router.queue_name))
         router.run()
 
     def _make_router(self):
@@ -182,20 +181,20 @@ class JobStep(object):
             self.show_complete_message()
         except: # Trap all exceptions
             tb = traceback.format_exc()
-            print("Job failed:{}".format(tb))
+            logging.info("Job failed:{}".format(tb))
             self.send_job_step_errored(tb)
 
     def show_start_message(self):
         """
         Shows message about starting this job step.
         """
-        print("{} started for job {}".format(self.job_description, self.job_id))
+        logging.info("{} started for job {}".format(self.job_description, self.job_id))
 
     def show_complete_message(self):
         """
         Shows message about this job step being completed.
         """
-        print("{} complete for job {}.".format(self.job_description, self.job_id))
+        logging.info("{} complete for job {}.".format(self.job_description, self.job_id))
 
     def send_job_step_errored(self, message):
         """

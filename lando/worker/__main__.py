@@ -7,6 +7,9 @@ import os
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import CONFIG_FILE_NAME, LandoWorker, LandoWorkerSettings
 from lando.server.lando import LANDO_QUEUE_NAME
+import logging
+
+ROOT_LOGFILE_NAME = '/tmp/lando-worker.log'
 
 
 def main():
@@ -14,6 +17,7 @@ def main():
     if not config_filename:
         config_filename = CONFIG_FILE_NAME
     config = WorkerConfig(config_filename)
+    logging.basicConfig(filename=ROOT_LOGFILE_NAME, level=config.log_level)
     settings = LandoWorkerSettings(config)
     worker = LandoWorker(settings, outgoing_queue_name=LANDO_QUEUE_NAME)
     worker.listen_for_messages()

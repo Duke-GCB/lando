@@ -8,7 +8,7 @@ import requests
 import dateutil.parser
 import logging
 import ddsc.config
-from ddsc.core.remotestore import RemoteStore, RemoteFile
+from ddsc.core.remotestore import RemoteStore, RemoteFile, ProjectNameOrId
 from ddsc.core.download import ProjectDownload
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.util import KindType
@@ -81,8 +81,7 @@ class DukeDataService(object):
         """
         file_data = self.data_service.get_file(file_id).json()
         remote_file = RemoteFile(file_data, '')
-        url_json = self.data_service.get_file_url(file_id).json()
-        downloader = FileDownloader(self.config, remote_file, url_json, destination_path, self)
+        downloader = FileDownloader(self.config, remote_file, destination_path, self)
         downloader.run()
         ProjectDownload.check_file_size(remote_file, destination_path)
 
@@ -92,7 +91,7 @@ class DukeDataService(object):
         :param item: RemoteFile/RemoteFolder: that is being transferrred.
         :param increment_amt: int: allows for progress bar
         """
-        logging.info('Transferring {} of {}', increment_amt, item.name)
+        logging.info('Transferring {} of {}'.format(increment_amt, item.name))
 
     def give_user_permissions(self, project_id, username, auth_role):
         logging.info("give user permissions. project:{} username{}: auth_role:{}".format(project_id, username, auth_role))
@@ -154,7 +153,7 @@ class DownloadDukeDSFile(object):
         """
         create_parent_directory(self.dest)
         duke_data_service = context.get_duke_data_service(self.user_id)
-
+        logging.info("Downloading file id:{} to {}".format(self.file_id, self.dest))
         duke_data_service.download_file(self.file_id, self.dest)
 
 
@@ -176,6 +175,7 @@ class DownloadURLFile(object):
         :param context: Context
         """
         create_parent_directory(self.destination_path)
+        logging.info("Downloading file url:{} to {}".format(self.url, self.destination_path))
         r = requests.get(self.url, stream=True)
         with open(self.destination_path, 'wb') as f:
             for chunk in r.iter_content(chunk_size=DOWNLOAD_URL_CHUNK_SIZE):
@@ -197,7 +197,9 @@ class UploadProject(object):
         :param config: ddsc.config.Config: config settings to use
         :return: ddsc.core.localproject.LocalProject
         """
-        project_upload = ProjectUpload(config, self.project_name, self.file_folder_list)
+        project_upload = ProjectUpload(config,
+                                       ProjectNameOrId.create_from_name(self.project_name),
+                                       self.file_folder_list)
         project_upload.run()
         return project_upload.local_project
 
