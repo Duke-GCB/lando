@@ -8,6 +8,7 @@ LANDO_REQUIREMENTS = [
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
       "lando-messaging==0.7.2",
+      "Markdown==2.6.9",
       "python-dateutil==2.6.0",
       "PyYAML==3.11",
       "requests==2.18.1",

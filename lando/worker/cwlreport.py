@@ -7,6 +7,7 @@ import sys
 import yaml
 import jinja2
 import humanfriendly
+import markdown
 
 TEMPLATE = """
 # Summary
@@ -17,6 +18,8 @@ Started: {{ job.started }}
 Finished: {{ job.finished }}
 Run time: {{ job.run_time }}
 Output: {{ job.num_output_files }} files ({{ job.total_file_size_str }})
+
+{{ job.workflow_methods }}
 
 # Input
 {% for param in workflow.input_params %}
@@ -72,7 +75,8 @@ class CwlReport(object):
         :param destination_path: str: path to where we will write the report
         """
         with open(destination_path, 'w') as outfile:
-            outfile.write(self.render())
+            html = markdown.markdown(self.render())
+            outfile.write(html.encode('utf8'))
 
 
 def get_documentation_str(node):

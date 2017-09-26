@@ -74,7 +74,8 @@ outputfile: results.txt
         """.format(one_path, two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               cwl_base_command)
+                               cwl_base_command,
+                               '# Workflow Methods Markdown')
         workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
@@ -113,7 +114,8 @@ outputfile: results.txt
         os.unlink(two_path)
         workflow = CwlWorkflow(job_id,
                                working_directory,
-                               cwl_base_command)
+                               cwl_base_command,
+                               "# markdown")
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
@@ -131,7 +133,7 @@ outputfile: results.txt
         cwl_file_url = 'file://packed.cwl'
         workflow_object_name = '#main'
         job_order = {}
-        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command)
+        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, "# markdown")
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
 
@@ -201,7 +203,7 @@ class TestResultsDirectory(TestCase):
                                   workflow_basename='nosuch.cwl',
                                   job_order_file_path='/tmp/alsonotreal.json')
         # Create directory
-        results_directory = ResultsDirectory(job_id, cwl_directory)
+        results_directory = ResultsDirectory(job_id, cwl_directory, '# Methods Markdown')
 
         # Make dummy data so we can serialize the values
         mock_create_workflow_info().total_file_size_str.return_value = '1234'
@@ -220,7 +222,9 @@ class TestResultsDirectory(TestCase):
             call(documentation_directory + "scripts")])
         mock_save_data_to_directory.assert_has_calls([
             call(documentation_directory + 'logs', 'cwltool-output.json', 'stdoutdata'),
-            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata')])
+            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata'),
+            call('/tmp/fakedir/results', 'Methods.html', '<h1>Methods Markdown</h1>'),
+        ], any_order=True)
         mock_shutil.copy.assert_has_calls([
             call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
             call('/tmp/alsonotreal.json', documentation_directory + 'scripts/alsonotreal.json')
@@ -233,8 +237,8 @@ class TestResultsDirectory(TestCase):
             call().total_file_size_str()
         ])
         mock_cwl_report().save.assert_has_calls([
-            call(documentation_directory + 'README')
+            call(documentation_directory + 'README.html')
         ])
         mock_scripts_readme().save.assert_has_calls([
-            call(documentation_directory + 'scripts/README')
+            call(documentation_directory + 'scripts/README.html')
         ])
