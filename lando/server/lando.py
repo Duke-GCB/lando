@@ -139,6 +139,7 @@ class JobActions(object):
         cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
         for partition, mount_point in self.config.vm_settings.volume_mounts.iteritems():
             cloud_config_script.add_volume(partition, mount_point)
+        cloud_config_script.add_manage_etc_hosts()
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         volume, volume_id = cloud_service.create_volume(job.volume_size, vm_volume_name)

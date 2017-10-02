@@ -30,3 +30,11 @@ mounts:
 """
         self.assertMultiLineEqual(expected, c.content)
 
+    def test_manage_etc_hosts(self):
+        c = CloudConfigScript()
+        c.add_manage_etc_hosts()
+        expected = """#cloud-config
+
+{manage_etc_hosts: localhost}
+"""
+        self.assertMultiLineEqual(expected, c.content)

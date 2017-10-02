@@ -43,6 +43,36 @@ job_api:
 fake_cloud_service: True
 """
 
+LANDO_WORKER_CONFIG = """
+host: 10.109.253.74
+username: worker
+password: workerpass
+queue_name: task-queue
+"""
+
+CLOUD_CONFIG = """#cloud-config
+
+disk_setup:
+  /dev/vdb: {layout: true, table_type: gpt}
+fs_setup:
+- {device: /dev/vdb1, filesystem: ext3}
+manage_etc_hosts: localhost
+mounts:
+- [/dev/vdb1, /work]
+write_files:
+- {content: '
+
+    host: 10.109.253.74
+
+    username: worker
+
+    password: workerpass
+
+    queue_name: task-queue
+
+    ', path: /etc/lando_worker_config.yml}
+"""
+
 
 class Report(object):
     """
@@ -539,3 +569,35 @@ class TestJobActions(TestCase):
         job_actions = JobActions(mock_settings)
         job_actions.cancel_job(MagicMock())
         mock_cloud_service.terminate_instance.assert_not_called()
+
+    def test_launch_vm(self):
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor='flavor1')
+        mock_job_api = MagicMock()
+        mock_job_api.get_job.return_value = mock_job
+
+        mock_cloud_service = MagicMock()
+        mock_cloud_service.create_volume = MagicMock(return_value=(MagicMock(), 'vol-id-123',))
+        mock_cloud_service.launch_instance = MagicMock(return_value=(MagicMock(), '1.2.3.4',))
+        mock_settings = MagicMock()
+        mock_settings.get_job_api.return_value = mock_job_api
+        mock_settings.get_cloud_service.return_value = mock_cloud_service
+        mock_make_worker_config_yml = MagicMock()
+        mock_make_worker_config_yml.return_value = LANDO_WORKER_CONFIG
+        mock_settings.config.make_worker_config_yml = mock_make_worker_config_yml
+        mock_settings.config.vm_settings.volume_mounts = {'/dev/vdb1':'/work'}
+        job_actions = JobActions(mock_settings)
+        job_actions.launch_vm('vm1', 'vol1')
+
+        name, args, kwargs = mock_cloud_service.launch_instance.mock_calls[0]
+        # Easier to debug this assertion
+        self.assertMultiLineEqual(args[2], CLOUD_CONFIG)
+
+        mock_cloud_service.launch_instance.assert_called_with(
+            'vm1', # Should call launch_instance with Instance name from launch_vm
+            'flavor1', # Should call launch_instance with flavor from job.vm_flavor
+            CLOUD_CONFIG, # Should generate a cloud config with manage_etc_hosts, fs_setup, and write_files
+            ['vol-id-123'] # Should call launch_instance with list of vol ids from create_volume
+        )
+
+        mock_job_api.set_vm_instance_name.assert_called_with('vm1')
+        mock_job_api.set_vm_volume_name.assert_called_with('vol1')
