@@ -50,6 +50,16 @@ class CloudConfigScript(object):
         self._add_fs_setup(partition)
         self._add_mount(partition, mount_point)
 
+    def add_manage_etc_hosts(self, value='localhost'):
+        """
+        Adds an entry for manage_etc_hosts
+        The default is 'localhost', which ensures that the /etc/hosts file has an entry
+        resolving the hostname to localhost.
+        :param value: true, false, or 'localhost'
+        :return: None
+        """
+        self._content_dict['manage_etc_hosts'] = value
+
     @staticmethod
     def device_name(partition_name):
         return partition_name.rstrip('1234567890')
