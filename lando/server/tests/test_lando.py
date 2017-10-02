@@ -582,10 +582,13 @@ class TestJobActions(TestCase):
         job_actions.launch_vm('vm1', 'vol1')
 
         name, args, kwargs = mock_cloud_service.launch_instance.mock_calls[0]
-        self.assertEqual(args[0], 'vm1', 'Should call launch_instance with Instance name from launch_vm')
-        self.assertEqual(args[1], 'flavor1', 'Should call launch_instance with flavor from job.vm_flavor')
-        self.assertEqual(args[2], CLOUD_CONFIG)
-        self.assertEqual(args[3], ['vol-id-123'], 'Should call launch_instance with list of vol ids from create_volume')
+
+        mock_cloud_service.launch_instance.assert_called_with(
+            'vm1', # Should call launch_instance with Instance name from launch_vm
+            'flavor1', # Should call launch_instance with flavor from job.vm_flavor
+            CLOUD_CONFIG, # Should generate a cloud config with manage_etc_hosts, fs_setup, and write_files
+            ['vol-id-123'] # Should call launch_instance with list of vol ids from create_volume
+        )
 
         mock_job_api.set_vm_instance_name.assert_called_with('vm1')
         mock_job_api.set_vm_volume_name.assert_called_with('vol1')
