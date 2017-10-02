@@ -52,7 +52,13 @@ queue_name: task-queue
 
 CLOUD_CONFIG = """#cloud-config
 
+disk_setup:
+  /dev/vdb: {layout: true, table_type: gpt}
+fs_setup:
+- {device: /dev/vdb1, filesystem: ext3}
 manage_etc_hosts: localhost
+mounts:
+- [/dev/vdb1, /work]
 write_files:
 - {content: '
 
@@ -578,10 +584,13 @@ class TestJobActions(TestCase):
         mock_make_worker_config_yml = MagicMock()
         mock_make_worker_config_yml.return_value = LANDO_WORKER_CONFIG
         mock_settings.config.make_worker_config_yml = mock_make_worker_config_yml
+        mock_settings.config.vm_settings.volume_mounts = {'/dev/vdb1':'/work'}
         job_actions = JobActions(mock_settings)
         job_actions.launch_vm('vm1', 'vol1')
 
         name, args, kwargs = mock_cloud_service.launch_instance.mock_calls[0]
+        # Easier to debug this assertion
+        self.assertMultiLineEqual(args[2], CLOUD_CONFIG)
 
         mock_cloud_service.launch_instance.assert_called_with(
             'vm1', # Should call launch_instance with Instance name from launch_vm
