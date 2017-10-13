@@ -129,7 +129,7 @@ class Report(object):
         job.vm_volume_name = self.vm_volume_name
         job.vm_project_name = 'bespin_user1'
         job.workflow = MagicMock()
-        job.output_directory = MagicMock()
+        job.output_project = MagicMock()
         return job
 
     def set_job_state(self, state):
