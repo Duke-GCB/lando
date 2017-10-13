@@ -176,10 +176,14 @@ class WorkflowInfo(object):
         :param node: dict/array: either file location information or array(possibly nested)
         """
         if type(node) == dict:
-            out_data.add_file(OutputFile(node))
-            secondaryFiles = node.get("secondaryFiles")
-            if secondaryFiles:
-                self._add_files_recursive(out_data, secondaryFiles)
+            if node.get('class') == 'File':
+                out_data.add_file(OutputFile(node))
+                secondaryFiles = node.get("secondaryFiles")
+                if secondaryFiles:
+                    self._add_files_recursive(out_data, secondaryFiles)
+            elif node.get('class') == 'Directory':
+                for listing_item in node.get("listing", []):
+                    self._add_files_recursive(out_data, listing_item)
         else:
             for item in node:
                 self._add_files_recursive(out_data, item)
@@ -260,7 +264,7 @@ class OutputFile(object):
         """
         self.filename = os.path.basename(data.get('location'))
         self.checksum = data.get('checksum')
-        self.size = data.get('size')
+        self.size = data.get('size', 0)
 
 
 def parse_yaml_or_json(path):
