@@ -1,8 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from data.models import DDSEndpoint, DDSUserCredential, Workflow, WorkflowVersion, Job
-from data.models import JobOutputDir, JobInputFile, DDSJobInputFile, URLJobInputFile
-from data.models import LandoConnection
+from data.models import JobDDSOutputProject, DDSJobInputFile, URLJobInputFile
+from data.models import LandoConnection, ShareGroup
 import os
 
 DDS_PROJECT_ID = os.environ['DDS_PROJECT_ID']
@@ -61,13 +61,13 @@ workflow = Workflow.objects.create(name=workflow_name)
 workflow_version = WorkflowVersion.objects.create(workflow=workflow, version='1', url=WORKFLOW_URL)
 ddsendpoint = DDSEndpoint.objects.create(name='DukeDS', agent_key=AGENT_KEY, api_root=API_ROOT)
 user_cred = DDSUserCredential.objects.create(endpoint=ddsendpoint, user=user, token=USER_KEY)
-job = Job.objects.create(workflow_version=workflow_version, user=user, vm_project_name='bespin_user1', job_order=JOB_ORDER)
+
+share_group = ShareGroup.objects.create(name='somegroup', email='eval@checkit.com')
+job = Job.objects.create(workflow_version=workflow_version, user=user, vm_project_name='bespin_user1', job_order=JOB_ORDER, share_group=share_group)
 job_output_project = JobDDSOutputProject.objects.create(job=job, project_id=DDS_PROJECT_ID, dds_user_credentials=user_cred)
 
-sequence_input_file = JobInputFile.objects.create(job=job, file_type=JobInputFile.DUKE_DS_FILE, workflow_name='sequence')
 DDSJobInputFile.objects.create(job_input_file=sequence_input_file, project_id=DDS_PROJECT_ID, file_id=SEQ_DDS_FILE_ID, dds_user_credentials=user_cred,
       destination_path='sequence.fa', index='1')
-models_input_file = JobInputFile.objects.create(job=job, file_type=JobInputFile.URL_FILE_ARRAY, workflow_name='models')
 URLJobInputFile.objects.create(job_input_file=models_input_file, url=MODEL1_URL,
     destination_path='E2F1_250nM_Bound_filtered_normalized_logistic_transformed_20bp_GCGC_1a2a3mer_format.model',
     index='1')
