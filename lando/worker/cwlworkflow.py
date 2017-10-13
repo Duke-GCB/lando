@@ -30,8 +30,9 @@ METHODS_DOCUMENT_FILENAME = 'Methods.html'
 
 WORKFLOW_DIRECTORY = 'scripts'
 
-
 CWL_WORKING_DIRECTORY = 'working'
+
+JOB_STDERR_OUTPUT_MAX_LINES = 5000
 
 
 def create_dir_if_necessary(path):
@@ -123,6 +124,7 @@ class CwlWorkflow(object):
         self.working_directory = working_directory
         self.cwl_base_command = cwl_base_command
         self.workflow_methods_markdown = workflow_methods_markdown
+        self.max_stderr_output_lines = JOB_STDERR_OUTPUT_MAX_LINES
 
     def run(self, cwl_file_url, workflow_object_name, job_order):
         """
@@ -142,10 +144,21 @@ class CwlWorkflow(object):
                                      cwl_directory.job_order_file_path)
         process.run()
         if process.return_code != 0:
-            error_message = "CWL workflow failed with exit code: {}".format(process.return_code)
-            raise JobStepFailed(error_message + process.error_output, process.output)
+            tail_error_output = self._tail_stderr_output(process.error_output)
+            error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
+            raise JobStepFailed(error_message, process.output)
         results_directory = ResultsDirectory(self.job_id, cwl_directory, self.workflow_methods_markdown)
         results_directory.add_files(process)
+
+    def _tail_stderr_output(self, stderr_data):
+        """
+        Trim stderr data to the last JOB_STDERR_OUTPUT_MAX_LINES lines
+        :param stderr_data: str: stderr data to be trimmed
+        :return: str
+        """
+        lines = stderr_data.splitlines()
+        last_lines = lines[-self.max_stderr_output_lines:]
+        return '\n'.join(last_lines)
 
 
 class CwlWorkflowProcess(object):
