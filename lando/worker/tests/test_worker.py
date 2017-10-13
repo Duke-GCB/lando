@@ -168,7 +168,7 @@ Send job step complete for job 2.
         job_details.workflow.version = 2
         job_details.name = 'MyJob'
         job_details.created = '2017-03-21T13:29:09.123603Z'
-        job_details.output_dir.dds_user_credentials = '123'
+        job_details.output_project.dds_user_credentials = '123'
         job_details.username = 'jim@jim.com'
         worker.store_job_output(StoreJobOutputPayload(credentials=MagicMock(), job_details=job_details,
                                                       vm_instance_name='test3'))

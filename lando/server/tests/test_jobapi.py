@@ -28,7 +28,7 @@ class TestJobApi(TestCase):
                 'object_name': '#main',
                 "methods_document": 7,
             },
-            'output_dir': {
+            'output_project': {
                 'id': 5,
                 'dds_user_credentials': 123
             },
@@ -189,7 +189,7 @@ class TestJobApi(TestCase):
                 'version': 1,
                 "methods_document": 7,
             },
-            'output_dir': {
+            'output_project': {
                 'id': 5,
                 'dds_user_credentials': 123
             },
@@ -248,7 +248,7 @@ class TestJobApi(TestCase):
                     'version': 1,
                     "methods_document": 7,
                 },
-                'output_dir': {
+                'output_project': {
                     'id': 5,
                     'dds_user_credentials': 123
                 },
@@ -379,7 +379,7 @@ class TestJob(TestCase):
                 'object_name': '#main',
                 "methods_document": 7,
             },
-            'output_dir': {
+            'output_project': {
                 'id': 5,
                 'dds_user_credentials': 123
             },

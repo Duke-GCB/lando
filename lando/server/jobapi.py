@@ -113,14 +113,14 @@ class BespinApi(object):
         json_data = resp.json()
         return json_data
 
-    def put_job_output_dir(self, job_output_dir_id, data):
+    def put_job_output_project(self, job_dds_output_project_id, data):
         """
         Update a job with some fields.
-        :param job_output_dir_id: int: unique job_output_dir id
-        :param data: dict: params we want to update on the job_output_dir
+        :param job_dds_output_project_id: int: unique job_dds_output_project id
+        :param data: dict: params we want to update on the job_output_project
         :return: dict: put response
         """
-        path = 'job-output-dirs/{}/'.format(job_output_dir_id)
+        path = 'job-dds-output-projects/{}/'.format(job_dds_output_project_id)
         url = self._make_url(path)
         resp = requests.put(url, headers=self.headers(), json=data)
         resp.raise_for_status()
@@ -238,7 +238,7 @@ class JobApi(object):
             'job': self.job_id,
             'project_id': project_id
         }
-        self.api.put_job_output_dir(job.output_project.id, data)
+        self.api.put_job_output_project(job.output_project.id, data)
 
     @staticmethod
     def get_jobs_for_vm_instance_name(config, vm_instance_name):
@@ -352,9 +352,9 @@ class WorkflowMethodsDocument(object):
 
 class OutputProject(object):
     def __init__(self, data):
-        output_dir = data['output_dir']
-        self.id = output_dir['id']
-        self.dds_user_credentials = output_dir['dds_user_credentials']
+        output_project = data['output_project']
+        self.id = output_project['id']
+        self.dds_user_credentials = output_project['dds_user_credentials']
 
 
 class InputFiles(object):
@@ -395,7 +395,7 @@ class URLFile(object):
         """
         self.url = data['url']
         self.destination_path = data['destination_path']
-        
+
 
 class Credentials(object):
     """
