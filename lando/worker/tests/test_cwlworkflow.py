@@ -5,7 +5,7 @@ import tempfile
 import shutil
 from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
-from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory
+from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory, JOB_STDERR_OUTPUT_MAX_LINES
 from mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
 
@@ -126,7 +126,10 @@ outputfile: results.txt
     @patch("lando.worker.cwlworkflow.CwlWorkflowProcess")
     @patch("lando.worker.cwlworkflow.ResultsDirectory")
     def test_workflow_bad_exit_status(self, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory):
-        mock_cwl_workflow_process.return_code = 1
+        process_instance = mock_cwl_workflow_process.return_value
+        process_instance.return_code = 127
+        process_instance.error_output = '1\n2\n3\n4\n5\n6\n7\n8\n9\n10'
+        expected_error_message = "CWL workflow failed with exit code: 127\n8\n9\n10"
         job_id = '123'
         working_directory = '/tmp/job_123'
         cwl_base_command = 'cwl-runner'
@@ -134,8 +137,11 @@ outputfile: results.txt
         workflow_object_name = '#main'
         job_order = {}
         workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, "# markdown")
-        with self.assertRaises(JobStepFailed):
+        self.assertEqual(workflow.max_stderr_output_lines, JOB_STDERR_OUTPUT_MAX_LINES)
+        workflow.max_stderr_output_lines = 3
+        with self.assertRaises(JobStepFailed) as raised_error:
             workflow.run(cwl_file_url, workflow_object_name, job_order)
+        self.assertEqual(expected_error_message, raised_error.exception.value)
 
 
 class TestCwlDirectory(TestCase):
