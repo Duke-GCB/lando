@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-PYTHON=/usr/local/bin/python
+PYTHON=/usr/bin/python
 
 source dds.config
 

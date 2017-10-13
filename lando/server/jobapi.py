@@ -227,16 +227,18 @@ class JobApi(object):
         """
         self.api.post_error(self.job_id, job_step, content)
 
-    def save_project_id(self, project_id):
+    def save_project_details(self, project_id, readme_file_id):
         """
-        Update the output directory with the specified project_id.
+        Update the output project with the specified project_id/readme_file_id
         :param project_id: str: uuid of the project
+        :param readme_file_id: str: uuid of the readme file
         """
         job = self.get_job()
         data = {
             'id': job.output_project.id,
             'job': self.job_id,
-            'project_id': project_id
+            'project_id': project_id,
+            'readme_file_id': readme_file_id
         }
         self.api.put_job_output_project(job.output_project.id, data)
 

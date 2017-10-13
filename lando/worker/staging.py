@@ -15,6 +15,7 @@ from ddsc.core.util import KindType
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.d4s2 import D4S2Project
 from lando.worker.provenance import create_activity
+from lando.worker.cwlworkflow import RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, README_MARKDOWN_FILENAME
 
 DOWNLOAD_URL_CHUNK_SIZE = 5 * 1024 # 5KB
 
@@ -217,6 +218,7 @@ class SaveJobOutput(object):
         self.worker_credentials = payload.job_details.output_project.dds_user_credentials
         self.share_with_username = payload.job_details.username
         self.job_details = payload.job_details
+        self.project = None
 
     def run(self, working_directory):
         """
@@ -227,21 +229,23 @@ class SaveJobOutput(object):
         config = self.context.get_duke_ds_config(self.worker_credentials)
         upload_paths = [os.path.join(working_directory, path) for path in os.listdir(working_directory)]
         upload_project = UploadProject(self.project_name, upload_paths)
-        project = upload_project.run(config)
-        self._create_activity(working_directory, project)
-        self._share_project(project)
-        return project
+        self.project = upload_project.run(config)
+        self._create_activity(working_directory)
+        self._share_project()
+        return self.project
 
-    def _create_activity(self, working_directory, project):
+    def get_details(self):
+        return ProjectDetails(self.project)
+
+    def _create_activity(self, working_directory):
         """
-        Create an activity and relationships for this uploaded project
+        Create an activity and relationships for the uploaded project
         :param working_directory: str: directory that contains our output files
-        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
         """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
-        create_activity(data_service, self.job_details, working_directory, project)
+        create_activity(data_service, self.job_details, working_directory, self.project)
 
-    def _share_project(self, project):
+    def _share_project(self):
         """
         Share project with the appropriate user since it has been uploaded.
         :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
@@ -271,3 +275,31 @@ class SaveJobOutput(object):
         workflow_name = workflow.name
         workflow_version = workflow.version
         return "Bespin {} v{} {} {}".format(workflow_name, workflow_version, job_name, job_created)
+
+
+class ProjectDetails(object):
+    def __init__(self, project):
+        """
+        :param project: LocalProject: project that was uploaded that now contains remote ids
+        """
+        self.project_id = project.remote_id
+        self.readme_file_id = ProjectDetails._find_project_file(project, [
+            RESULTS_DIRECTORY,
+            DOCUMENTATION_DIRECTORY,
+            README_MARKDOWN_FILENAME,
+        ])
+
+    @staticmethod
+    def _find_project_file(node, child_names):
+        child_name = child_names.pop()
+        if node.kind in [KindType.project_str, KindType.folder_str]:
+            items = [child for child in node.children if child.name == child_name]
+            if items:
+                return ProjectDetails._find_project_file(items[0], child_names)
+            else:
+                return None
+        else:
+            if node.name == child_name and not child_names:
+                return node.remote_id
+            return None
+

@@ -19,7 +19,7 @@ class ScriptsReadme(object):
         self.job_order_filename = job_order_filename
         self.template = template
 
-    def render(self):
+    def render_markdown(self):
         """
         Make the report
         :return: str: report contents
@@ -27,10 +27,9 @@ class ScriptsReadme(object):
         template = jinja2.Template(self.template)
         return template.render(workflow_filename=self.workflow_filename, job_order_filename=self.job_order_filename)
 
-    def save(self, destination_path):
+    def render_html(self):
         """
-        Save the report to destination_path
-        :param destination_path: str: path to where we will write the report
+        Return README content in html format
+        :return: str: report contents
         """
-        with open(destination_path, 'w') as outfile:
-            outfile.write(markdown.markdown(self.render()).encode('utf8'))
+        return markdown.markdown(self.render_markdown()).encode('utf8')

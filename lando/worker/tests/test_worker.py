@@ -66,7 +66,8 @@ class FakeObject(object):
         self.report.add("Send job step complete for job {}.".format(payload.job_id))
 
     def job_step_store_output_complete(self, payload, output_project_info):
-        self.report.add("Send job step complete for job {} project:{}.".format(payload.job_id, output_project_info))
+        self.report.add("Send job step complete for job {} project:{}.".format(
+            payload.job_id, output_project_info.project_id))
 
     def run(self, context):
         self.report.add(self.run_message)
@@ -83,6 +84,9 @@ class FakeObject(object):
 
     def get_duke_ds_config(self, user_id):
         return MagicMock()
+
+    def get_details(self):
+        return Mock(project_id='2348', readme_file_id='456')
 
 
 class FakeInputFile(object):

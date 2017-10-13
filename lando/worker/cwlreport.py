@@ -61,22 +61,20 @@ class CwlReport(object):
         self.job_data = job_data
         self.template = template
 
-    def render(self):
+    def render_markdown(self):
         """
-        Make the report
+        Return README content in markdown format
         :return: str: report contents
         """
         template = jinja2.Template(self.template)
         return template.render(workflow=self.workflow_info, job=self.job_data)
 
-    def save(self, destination_path):
+    def render_html(self):
         """
-        Save the report to destination_path
-        :param destination_path: str: path to where we will write the report
+        Return README content in html format
+        :return: str: report contents
         """
-        with open(destination_path, 'w') as outfile:
-            html = markdown.markdown(self.render())
-            outfile.write(html.encode('utf8'))
+        return markdown.markdown(self.render_markdown()).encode('utf8')
 
 
 def get_documentation_str(node):

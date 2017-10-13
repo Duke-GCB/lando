@@ -20,7 +20,8 @@ RUN_CWL_OUTDIR_ARG = "--outdir"
 
 RESULTS_DIRECTORY = 'results'
 DOCUMENTATION_DIRECTORY = 'docs'
-README_FILENAME = 'README.html'
+README_MARKDOWN_FILENAME = 'README.md'
+README_HTML_FILENAME = 'README.html'
 
 LOGS_DIRECTORY = 'logs'
 JOB_STDOUT_FILENAME = 'cwltool-output.json'
@@ -297,7 +298,8 @@ class ResultsDirectory(object):
             'workflow_methods': self.workflow_methods_markdown_content
         }
         report = CwlReport(workflow_info, job_data)
-        report.save(os.path.join(self.docs_directory, README_FILENAME))
+        save_data_to_directory(self.docs_directory, README_MARKDOWN_FILENAME, report.render_markdown())
+        save_data_to_directory(self.docs_directory, README_HTML_FILENAME, report.render_html())
         self._save_job_data(job_data)
 
     def _save_job_data(self, job_data):
@@ -310,9 +312,9 @@ class ResultsDirectory(object):
 
     def _create_running_instructions(self):
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
-        output_filename = os.path.join(workflow_directory, README_FILENAME)
         scripts_readme = ScriptsReadme(self.workflow_basename, self.job_order_filename)
-        scripts_readme.save(output_filename)
+        save_data_to_directory(workflow_directory, README_MARKDOWN_FILENAME, scripts_readme.render_markdown())
+        save_data_to_directory(workflow_directory, README_HTML_FILENAME, scripts_readme.render_html())
 
     def _add_methods_document(self):
         html = markdown.markdown(self.workflow_methods_markdown_content)
