@@ -32,7 +32,7 @@ WORKFLOW_DIRECTORY = 'scripts'
 
 CWL_WORKING_DIRECTORY = 'working'
 
-JOB_STDERR_OUTPUT_MAX_LINES = 5000
+JOB_STDERR_OUTPUT_MAX_LINES = 100
 
 
 def create_dir_if_necessary(path):
