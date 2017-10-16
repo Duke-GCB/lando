@@ -531,8 +531,10 @@ class TestJobActions(TestCase):
         mock_settings.get_job_api.return_value = mock_job_api
         mock_settings.get_cloud_service.return_value = mock_cloud_service
         job_actions = JobActions(mock_settings)
-        job_actions.store_job_output_complete(MagicMock())
+        mock_output_project_info = Mock(project_id='123', readme_file_id='456')
+        job_actions.store_job_output_complete(MagicMock(output_project_info=mock_output_project_info))
         mock_cloud_service.terminate_instance.assert_called_with('vm1', ['vol1'])
+        mock_job_api.save_project_details.assert_called_with('123', '456')
 
     def test_store_job_output_complete_cleanup_vm_false(self):
         mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_instance_name='vm1', vm_volume_name='vol1')

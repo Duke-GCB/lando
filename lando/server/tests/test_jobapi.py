@@ -366,7 +366,12 @@ class TestJobApi(TestCase):
         job_api.save_project_details(dds_project_id, dds_readme_file_id)
         mock_requests.put.assert_has_calls([
             call('APIURL/admin/job-dds-output-projects/{}/'.format(output_project_id), headers={},
-                 json={'readme_file_id': '456', 'job': 1, 'project_id': '123', 'id': output_project_id})
+                 json={
+                     'readme_file_id': dds_readme_file_id,
+                     'job': 1,
+                     'project_id': dds_project_id,
+                     'id': output_project_id
+                 })
         ])
 
 

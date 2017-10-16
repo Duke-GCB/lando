@@ -47,27 +47,19 @@ You can compare the output from this tool against {{ workflow.job_output_filenam
 """
 
 
-class CwlReport(object):
+class BaseReport(object):
     """
-    Report detailing inputs and outputs of a cwl workflow that has been run.
+    Base report class that assumes subclass will implement render_markdown() that returns markdown format
     """
-    def __init__(self, workflow_info, job_data, template=TEMPLATE):
-        """
-        :param workflow_info: WorkflowInfo: info derived from cwl input/output files
-        :param job_data: dict: data used in report from non-cwl sources
-        :param template: str: template to use for rendering
-        """
-        self.workflow_info = workflow_info
-        self.job_data = job_data
-        self.template = template
+    def __init__(self, template_str):
+        self.template = jinja2.Template(template_str)
 
     def render_markdown(self):
         """
-        Return README content in markdown format
+        This method should be overridden in a subclass
         :return: str: report contents
         """
-        template = jinja2.Template(self.template)
-        return template.render(workflow=self.workflow_info, job=self.job_data)
+        return ''
 
     def render_html(self):
         """
@@ -75,6 +67,28 @@ class CwlReport(object):
         :return: str: report contents
         """
         return markdown.markdown(self.render_markdown()).encode('utf8')
+
+
+class CwlReport(BaseReport):
+    """
+    Report detailing inputs and outputs of a cwl workflow that has been run.
+    """
+    def __init__(self, workflow_info, job_data, template_str=TEMPLATE):
+        """
+        :param workflow_info: WorkflowInfo: info derived from cwl input/output files
+        :param job_data: dict: data used in report from non-cwl sources
+        :param template_str: str: template to use for rendering
+        """
+        super(CwlReport, self).__init__(template_str)
+        self.workflow_info = workflow_info
+        self.job_data = job_data
+
+    def render_markdown(self):
+        """
+        Return README content in markdown format
+        :return: str: report contents
+        """
+        return self.template.render(workflow=self.workflow_info, job=self.job_data)
 
 
 def get_documentation_str(node):

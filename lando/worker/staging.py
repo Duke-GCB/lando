@@ -291,15 +291,12 @@ class ProjectDetails(object):
 
     @staticmethod
     def _find_project_file(node, child_names):
-        child_name = child_names.pop()
-        if node.kind in [KindType.project_str, KindType.folder_str]:
-            items = [child for child in node.children if child.name == child_name]
-            if items:
-                return ProjectDetails._find_project_file(items[0], child_names)
-            else:
-                return None
+        if not child_names and node.kind == KindType.file_str:
+            return node.remote_id
         else:
-            if node.name == child_name and not child_names:
-                return node.remote_id
-            return None
-
+            child_name = child_names.pop(0)
+            if node.kind in [KindType.project_str, KindType.folder_str]:
+                items = [child for child in node.children if child.name == child_name]
+                if items:
+                    return ProjectDetails._find_project_file(items[0], child_names)
+        return None
