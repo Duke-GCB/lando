@@ -193,9 +193,10 @@ class JobActions(object):
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
         self._set_job_step(JobSteps.TERMINATE_VM)
-        project_id = payload.output_project_info
-        self._show_status("Saving project id {}.".format(project_id))
-        self.job_api.save_project_id(project_id)
+        project_id = payload.output_project_info.project_id
+        readme_file_id = payload.output_project_info.readme_file_id
+        self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
+        self.job_api.save_project_details(project_id, readme_file_id)
         self._show_status("Terminating VM and queue")
 
         job = self.job_api.get_job()

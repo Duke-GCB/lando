@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.worker.staging import SaveJobOutput, DukeDataService
+from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, \
+    RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, README_MARKDOWN_FILENAME
+from ddsc.core.util import KindType
 from mock import patch, Mock, MagicMock, call
 
 
@@ -35,6 +37,7 @@ class TestSaveJobOutput(TestCase):
         mock_listdir.return_value = ['output', 'scripts']
         save_job_output = SaveJobOutput(self.payload)
         save_job_output.run('/tmp/jobresults')
+        self.assertEqual(mock_project_upload.return_value.local_project, save_job_output.project)
         mock_project_upload().run.assert_called()
 
         data_service = mock_context().get_duke_data_service()
@@ -49,6 +52,13 @@ class TestSaveJobOutput(TestCase):
             call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
             call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
         ])
+
+    def test_get_details(self):
+        save_job_output = SaveJobOutput(self.payload)
+        save_job_output.project = MagicMock(remote_id='112233')
+        details = save_job_output.get_details()
+        self.assertEqual(details.project_id, '112233')
+        self.assertEqual(details.readme_file_id, None)
 
 
 class TestDukeDataService(TestCase):
@@ -75,3 +85,37 @@ class TestDukeDataService(TestCase):
         data_service = DukeDataService(MagicMock())
         data_service.download_file('123', '/tmp/data.txt')
         mock_file_downloader.return_value.run.assert_called()
+
+
+class TestProjectDetails(TestCase):
+    def test_constructor(self):
+        readme_file = Mock(
+            kind=KindType.file_str,
+            remote_id='556677'
+        )
+        readme_file.name = README_MARKDOWN_FILENAME
+        docs_folder = Mock(
+            kind=KindType.folder_str,
+
+            children=[
+                readme_file
+            ]
+        )
+        docs_folder.name = DOCUMENTATION_DIRECTORY
+        results_folder = Mock(
+            kind=KindType.folder_str,
+            children=[
+                docs_folder
+            ]
+        )
+        results_folder.name = RESULTS_DIRECTORY
+        project_tree = Mock(
+            remote_id='112233',
+            kind=KindType.project_str,
+            children=[
+                results_folder
+            ]
+        )
+        project_details = ProjectDetails(project_tree)
+        self.assertEqual(project_details.project_id, '112233')
+        self.assertEqual(project_details.readme_file_id, '556677')

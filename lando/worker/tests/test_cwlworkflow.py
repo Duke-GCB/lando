@@ -219,6 +219,12 @@ class TestResultsDirectory(TestCase):
         cwl_process.finished.isoformat.return_value = ''
         cwl_process.total_runtime_str.return_value = '0 minutes'
 
+        # Specify README data
+        mock_cwl_report.return_value.render_markdown.return_value = '#Markdown'
+        mock_cwl_report.return_value.render_html.return_value = '<html></html>'
+        mock_scripts_readme.return_value.render_markdown.return_value = '#Markdown2'
+        mock_scripts_readme.return_value.render_html.return_value = '<html>2</html>'
+
         # Ask directory to add files based on a mock process
         results_directory.add_files(cwl_process)
         documentation_directory = '/tmp/fakedir/results/docs/'
@@ -230,6 +236,11 @@ class TestResultsDirectory(TestCase):
             call(documentation_directory + 'logs', 'cwltool-output.json', 'stdoutdata'),
             call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata'),
             call('/tmp/fakedir/results', 'Methods.html', '<h1>Methods Markdown</h1>'),
+            call('/tmp/fakedir/results/docs', 'README.html', '<html></html>'),
+            call('/tmp/fakedir/results/docs', 'README.md', '#Markdown'),
+            call('/tmp/fakedir/results/docs/scripts', 'README.html', '<html>2</html>'),
+            call('/tmp/fakedir/results/docs/scripts', 'README.md', '#Markdown2'),
+
         ], any_order=True)
         mock_shutil.copy.assert_has_calls([
             call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
@@ -241,10 +252,4 @@ class TestResultsDirectory(TestCase):
             call().update_with_job_output(job_output_path=(documentation_directory + 'logs/cwltool-output.json')),
             call().count_output_files(),
             call().total_file_size_str()
-        ])
-        mock_cwl_report().save.assert_has_calls([
-            call(documentation_directory + 'README.html')
-        ])
-        mock_scripts_readme().save.assert_has_calls([
-            call(documentation_directory + 'scripts/README.html')
         ])

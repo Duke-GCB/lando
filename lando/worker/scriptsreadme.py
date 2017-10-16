@@ -1,6 +1,7 @@
 from __future__ import print_function
 import jinja2
 import markdown
+from lando.worker.cwlreport import BaseReport
 
 TEMPLATE = """
 # Instructions on running this workflow.
@@ -10,27 +11,25 @@ TEMPLATE = """
 """
 
 
-class ScriptsReadme(object):
+class ScriptsReadme(BaseReport):
     """
     Instructions on how to run the workflow in the scripts directory.
     """
-    def __init__(self, workflow_filename, job_order_filename, template=TEMPLATE):
+    def __init__(self, workflow_filename, job_order_filename, template_str=TEMPLATE):
+        """
+        :param workflow_filename: str: name of the cwl workflow a user should run
+        :param job_order_filename: str: name of the job order file a user should include
+        :param template_str: str: template to use for rendering
+        """
+        super(ScriptsReadme, self).__init__(template_str)
         self.workflow_filename = workflow_filename
         self.job_order_filename = job_order_filename
-        self.template = template
 
-    def render(self):
+    def render_markdown(self):
         """
         Make the report
         :return: str: report contents
         """
-        template = jinja2.Template(self.template)
-        return template.render(workflow_filename=self.workflow_filename, job_order_filename=self.job_order_filename)
-
-    def save(self, destination_path):
-        """
-        Save the report to destination_path
-        :param destination_path: str: path to where we will write the report
-        """
-        with open(destination_path, 'w') as outfile:
-            outfile.write(markdown.markdown(self.render()).encode('utf8'))
+        return self.template.render(
+            workflow_filename=self.workflow_filename,
+            job_order_filename=self.job_order_filename)

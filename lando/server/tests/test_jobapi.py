@@ -354,6 +354,26 @@ class TestJobApi(TestCase):
         args, kwargs = mock_requests.get.call_args
         self.assertEqual(args[0], 'APIURL/admin/workflow-methods-documents/123')
 
+    @patch('lando.server.jobapi.requests')
+    def test_save_project_details(self, mock_requests):
+        mock_response = MagicMock()
+        mock_response.json.return_value = self.job_response_payload
+        mock_requests.get.return_value = mock_response
+        output_project_id = 5
+        dds_project_id = '123'
+        dds_readme_file_id = '456'
+        job_api = self.setup_job_api(1)
+        job_api.save_project_details(dds_project_id, dds_readme_file_id)
+        mock_requests.put.assert_has_calls([
+            call('APIURL/admin/job-dds-output-projects/{}/'.format(output_project_id), headers={},
+                 json={
+                     'readme_file_id': dds_readme_file_id,
+                     'job': 1,
+                     'project_id': dds_project_id,
+                     'id': output_project_id
+                 })
+        ])
+
 
 class TestJob(TestCase):
     def setUp(self):

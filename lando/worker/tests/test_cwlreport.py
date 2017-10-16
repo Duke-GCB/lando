@@ -140,17 +140,15 @@ class TestCwlReport(TestCase):
         workflow_info = MagicMock(data='test')
         job_data = MagicMock(job_id=123)
         report = CwlReport(workflow_info, job_data, template)
-        self.assertEqual('test 123', report.render())
+        self.assertEqual('test 123', report.render_markdown())
 
     def test_save_converts_to_html(self):
         template = '{{workflow.data}} {{job.job_id}}'
         workflow_info = MagicMock(data='test')
         job_data = MagicMock(job_id=123)
         report = CwlReport(workflow_info, job_data, template)
-        mocked_open = mock_open(read_data='file contents\nas needed\n')
-        with patch('lando.worker.cwlreport.open', mocked_open):
-            report.save('/tmp/fakedir/fakefile')
-        mocked_open.return_value.write.assert_called_with("<p>test 123</p>")
+        report.render_html()
+        self.assertEqual("<p>test 123</p>", report.render_html())
 
 
 class TestCwlReportUtilities(TestCase):
