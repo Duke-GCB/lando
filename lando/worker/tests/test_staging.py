@@ -49,8 +49,8 @@ class TestSaveJobOutput(TestCase):
         # We should give permissions to the user
         share_project = data_service.share_project
         share_project.assert_has_calls([
-            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
-            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
+            call(save_job_output.project, '123'),
+            call(save_job_output.project, '456')
         ])
 
     def test_get_details(self):
