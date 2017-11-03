@@ -51,6 +51,7 @@ class ServerConfig(object):
         }
         if not self.fake_cloud_service:
             data['cwl_base_command'] = self.vm_settings.cwl_base_command
+            data['cwl_post_process_command'] = self.vm_settings.cwl_post_process_command
         return yaml.safe_dump(data, default_flow_style=False)
 
 
@@ -79,6 +80,7 @@ class VMSettings(object):
         self.floating_ip_pool_name = get_or_raise_config_exception(data, 'floating_ip_pool_name')
         self.default_flavor_name = get_or_raise_config_exception(data, 'default_flavor_name')
         self.cwl_base_command = data.get("cwl_base_command")
+        self.cwl_post_process_command = data.get("cwl_post_process_command")
         self.volume_mounts = data.get("volume_mounts", {})
 
 

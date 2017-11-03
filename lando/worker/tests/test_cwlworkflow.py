@@ -56,6 +56,7 @@ class TestCwlWorkflow(TestCase):
         job_id = 1
         working_directory = tempfile.mkdtemp()
         cwl_base_command = None
+        cwl_post_process_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -75,6 +76,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command,
+                               cwl_post_process_command,
                                '# Workflow Methods Markdown')
         workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
@@ -94,6 +96,7 @@ outputfile: results.txt
         job_id = 1
         working_directory = tempfile.mkdtemp()
         cwl_base_command = None
+        cwl_post_process_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -115,6 +118,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command,
+                               cwl_post_process_command,
                                "# markdown")
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
@@ -133,10 +137,11 @@ outputfile: results.txt
         job_id = '123'
         working_directory = '/tmp/job_123'
         cwl_base_command = 'cwl-runner'
+        cwl_post_process_command = None
         cwl_file_url = 'file://packed.cwl'
         workflow_object_name = '#main'
         job_order = {}
-        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, "# markdown")
+        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, cwl_post_process_command, "# markdown")
         self.assertEqual(workflow.max_stderr_output_lines, JOB_STDERR_OUTPUT_MAX_LINES)
         workflow.max_stderr_output_lines = 3
         with self.assertRaises(JobStepFailed) as raised_error:

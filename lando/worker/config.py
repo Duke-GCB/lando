@@ -23,6 +23,7 @@ class WorkerConfig(object):
                 raise InvalidConfigException("Empty config file {}.".format(self.filename))
             self.work_queue_config = WorkQueue(data)
             self.cwl_base_command = data.get('cwl_base_command', None)
+            self.cwl_post_process_command = data.get('cwl_post_process_command', None)
             self.log_level = data.get('log_level', logging.WARNING)
 
 

@@ -9,7 +9,7 @@ import datetime
 import json
 import markdown
 import logging
-from subprocess import PIPE, Popen
+import subprocess
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
 from lando.worker.scriptsreadme import ScriptsReadme
@@ -113,17 +113,19 @@ class CwlWorkflow(object):
     3. Gathers stderr/stdout output from the process
     4. If exit status is not 0 raises JobStepFailed including output
     """
-    def __init__(self, job_id, working_directory, cwl_base_command, workflow_methods_markdown):
+    def __init__(self, job_id, working_directory, cwl_base_command, cwl_post_process_command, workflow_methods_markdown):
         """
         Setup workflow
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to working directory that contains input files
         :param cwl_base_command: [str] or None: array of cwl command and arguments (osx requires special arguments)
+        :param cwl_post_process_command: [str] or None: post processing command run after cwl_base_command succeeds
         :param workflow_methods_markdown: str: markdown about the methods used in this workflow
         """
         self.job_id = job_id
         self.working_directory = working_directory
         self.cwl_base_command = cwl_base_command
+        self.cwl_post_process_command = cwl_post_process_command
         self.workflow_methods_markdown = workflow_methods_markdown
         self.max_stderr_output_lines = JOB_STDERR_OUTPUT_MAX_LINES
 
@@ -150,6 +152,11 @@ class CwlWorkflow(object):
             raise JobStepFailed(error_message, process.output)
         results_directory = ResultsDirectory(self.job_id, cwl_directory, self.workflow_methods_markdown)
         results_directory.add_files(process)
+        if self.cwl_post_process_command:
+            original_directory = os.getcwd()
+            os.chdir(results_directory.result_directory)
+            subprocess.call(self.cwl_post_process_command)
+            os.chdir(original_directory)
 
     def _tail_stderr_output(self, stderr_data):
         """
@@ -194,7 +201,7 @@ class CwlWorkflowProcess(object):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
         logging.info('Running command: {}'.format(' '.join(self.command)))
-        p = Popen(self.command, stderr=PIPE, stdout=PIPE)
+        p = subprocess.Popen(self.command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (stdout_data, stderr_data) = p.communicate()
         self.output = stdout_data
         self.error_output = stderr_data

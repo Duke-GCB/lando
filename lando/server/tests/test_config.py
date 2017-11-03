@@ -101,6 +101,7 @@ class TestServerConfig(TestCase):
         os.unlink(filename)
         expected = """
 cwl_base_command: null
+cwl_post_process_command: null
 host: 10.109.253.74
 password: tobol
 queue_name: worker_1
@@ -110,14 +111,19 @@ username: lobot
         self.assertMultiLineEqual(expected.strip(), result.strip())
 
     def test_make_worker_config_yml_custom_cwl_base_command(self):
-        line = '  cwl_base_command:\n  - "cwltoil"\n  - "--not-strict"'
-        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
+        base_command_line = '  cwl_base_command:\n  - "cwltoil"\n  - "--not-strict"'
+        post_process_command_line = '  cwl_post_process_command:\n  - "rm"\n  - "tmp.data"'
+        lines = '{}\n{}\n'.format(base_command_line, post_process_command_line)
+        filename = write_temp_return_filename(GOOD_CONFIG.format(lines))
         config = ServerConfig(filename)
         os.unlink(filename)
         expected = """
 cwl_base_command:
 - cwltoil
 - --not-strict
+cwl_post_process_command:
+- rm
+- tmp.data
 host: 10.109.253.74
 password: tobol
 queue_name: worker_1
