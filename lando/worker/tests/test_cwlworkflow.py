@@ -148,6 +148,39 @@ outputfile: results.txt
             workflow.run(cwl_file_url, workflow_object_name, job_order)
         self.assertEqual(expected_error_message, raised_error.exception.value)
 
+    @patch("lando.worker.cwlworkflow.subprocess")
+    @patch("lando.worker.cwlworkflow.os")
+    @patch("lando.worker.cwlworkflow.urllib")
+    @patch("lando.worker.cwlworkflow.save_data_to_directory")
+    @patch("lando.worker.cwlworkflow.CwlWorkflowProcess")
+    @patch("lando.worker.cwlworkflow.ResultsDirectory")
+    def test_post_process_command(self, mock_results_directory, mock_cwl_workflow_process, mock_save_data_to_directory,
+                                  mock_urllib, mock_os, mock_subprocess):
+        """
+        Tests a simple cwl workflow to make sure CwlWorkflow connects all inputs/outputs correctly.
+        """
+        job_id = 1
+        cwl_base_command = None
+        cwl_post_process_command = ['rm', 'bad-data.dat']
+        working_directory = '/fake_working_dir'
+        cwl_file_url = "fakeurl"
+        workflow_object_name = ""
+        job_order = {}
+        mock_cwl_workflow_process.return_value.return_code = 0
+        mock_os.getcwd.return_value = "/tmp/working_directory"
+        mock_results_directory.return_value.result_directory = "/tmp/output/results"
+        workflow = CwlWorkflow(job_id,
+                               working_directory,
+                               cwl_base_command,
+                               cwl_post_process_command,
+                               '# Workflow Methods Markdown')
+        workflow.run(cwl_file_url, workflow_object_name, job_order)
+        mock_subprocess.call.assert_called_with(['rm', 'bad-data.dat'])
+        mock_os.chdir.assert_has_calls([
+            call("/tmp/output/results"),
+            call("/tmp/working_directory"),
+        ])
+
 
 class TestCwlDirectory(TestCase):
     @patch("lando.worker.cwlworkflow.save_data_to_directory")
