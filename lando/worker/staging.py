@@ -117,16 +117,24 @@ class DukeDataService(object):
         file_info = self.data_service.get_file(file_id).json()
         return file_info['current_version']['id']
 
-    def share_project(self, project_name, dds_user_id):
+    def fetch_remote_project(self, project_id):
+        """
+        Retrieve the RemoteProject via id.
+        :param project_id: str: DukeDS project uuid
+        :return: RemoteProject
+        """
+        return self.remote_store.fetch_remote_project(ProjectNameOrId.create_from_project_id(project_id))
+
+    def share_project(self, remote_project, dds_user_id):
         """
         Share a project with a specific dds user
-        :param project_name: str: unique name of the project
+        :param project: RemoteProject project to share
         :param dds_user_id: str: DukeDS user id
         """
         d4s2_project = D4S2Project(self.config, self.remote_store,
                                    print_func=print)  # D4S2Project doesn't use print_func for share
         remote_user = self.remote_store.fetch_user(dds_user_id)
-        d4s2_project.share(project_name,
+        d4s2_project.share(remote_project,
                            remote_user,
                            force_send=False,
                            auth_role='project_admin',
@@ -248,11 +256,11 @@ class SaveJobOutput(object):
     def _share_project(self):
         """
         Share project with the appropriate user since it has been uploaded.
-        :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded projects
         """
         data_service = self.context.get_duke_data_service(self.worker_credentials)
+        remote_project = data_service.fetch_remote_project(self.project.remote_id)
         for dds_user_id in  self.job_details.share_dds_ids:
-            data_service.share_project(self.project_name, dds_user_id)
+            data_service.share_project(remote_project, dds_user_id)
 
     def get_dukeds_username(self):
         """

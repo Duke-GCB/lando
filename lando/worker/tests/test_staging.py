@@ -40,7 +40,7 @@ class TestSaveJobOutput(TestCase):
         self.assertEqual(mock_project_upload.return_value.local_project, save_job_output.project)
         mock_project_upload().run.assert_called()
 
-        data_service = mock_context().get_duke_data_service()
+        data_service = mock_context.return_value.get_duke_data_service.return_value
         # We should create an activity
         data_service.create_activity.assert_called()
         data_service.create_used_relations.assert_called()
@@ -48,9 +48,10 @@ class TestSaveJobOutput(TestCase):
 
         # We should give permissions to the user
         share_project = data_service.share_project
+        shared_remote_project = data_service.fetch_remote_project.return_value
         share_project.assert_has_calls([
-            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '123'),
-            call('Bespin SomeWorkflow v2 MyJob 2017-03-21', '456')
+            call(shared_remote_project, '123'),
+            call(shared_remote_project, '456')
         ])
 
     def test_get_details(self):
