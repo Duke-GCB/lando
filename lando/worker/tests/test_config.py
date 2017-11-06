@@ -11,6 +11,11 @@ host: 10.109.253.74
 username: worker
 password: workerpass
 queue_name: task-queue
+cwl_base_command: 
+- cwltoil
+cwl_post_process_command: 
+- rm 
+- bad.data
 """
 
 # missing queuename field
@@ -31,6 +36,8 @@ class TestWorkerConfig(TestCase):
         self.assertEqual("worker", work_queue_config.username)
         self.assertEqual("workerpass", work_queue_config.password)
         self.assertEqual("task-queue", work_queue_config.queue_name)
+        self.assertEqual(["cwltoil"], config.cwl_base_command)
+        self.assertEqual(['rm', 'bad.data'], config.cwl_post_process_command)
         self.assertEqual(logging.WARNING, config.log_level)
 
     def test_empty_config(self):

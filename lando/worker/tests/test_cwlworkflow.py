@@ -56,6 +56,7 @@ class TestCwlWorkflow(TestCase):
         job_id = 1
         working_directory = tempfile.mkdtemp()
         cwl_base_command = None
+        cwl_post_process_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -75,6 +76,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command,
+                               cwl_post_process_command,
                                '# Workflow Methods Markdown')
         workflow.run(cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
@@ -94,6 +96,7 @@ outputfile: results.txt
         job_id = 1
         working_directory = tempfile.mkdtemp()
         cwl_base_command = None
+        cwl_post_process_command = None
         workflow_directory = tempfile.mkdtemp()
         cwl_path = os.path.join(workflow_directory, 'workflow.cwl')
         text_to_file(SAMPLE_WORKFLOW, cwl_path)
@@ -115,6 +118,7 @@ outputfile: results.txt
         workflow = CwlWorkflow(job_id,
                                working_directory,
                                cwl_base_command,
+                               cwl_post_process_command,
                                "# markdown")
         with self.assertRaises(JobStepFailed):
             workflow.run(cwl_file_url, workflow_object_name, job_order)
@@ -133,15 +137,49 @@ outputfile: results.txt
         job_id = '123'
         working_directory = '/tmp/job_123'
         cwl_base_command = 'cwl-runner'
+        cwl_post_process_command = None
         cwl_file_url = 'file://packed.cwl'
         workflow_object_name = '#main'
         job_order = {}
-        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, "# markdown")
+        workflow = CwlWorkflow(job_id, working_directory, cwl_base_command, cwl_post_process_command, "# markdown")
         self.assertEqual(workflow.max_stderr_output_lines, JOB_STDERR_OUTPUT_MAX_LINES)
         workflow.max_stderr_output_lines = 3
         with self.assertRaises(JobStepFailed) as raised_error:
             workflow.run(cwl_file_url, workflow_object_name, job_order)
         self.assertEqual(expected_error_message, raised_error.exception.value)
+
+    @patch("lando.worker.cwlworkflow.subprocess")
+    @patch("lando.worker.cwlworkflow.os")
+    @patch("lando.worker.cwlworkflow.urllib")
+    @patch("lando.worker.cwlworkflow.save_data_to_directory")
+    @patch("lando.worker.cwlworkflow.CwlWorkflowProcess")
+    @patch("lando.worker.cwlworkflow.ResultsDirectory")
+    def test_post_process_command(self, mock_results_directory, mock_cwl_workflow_process, mock_save_data_to_directory,
+                                  mock_urllib, mock_os, mock_subprocess):
+        """
+        Tests a simple cwl workflow to make sure CwlWorkflow connects all inputs/outputs correctly.
+        """
+        job_id = 1
+        cwl_base_command = None
+        cwl_post_process_command = ['rm', 'bad-data.dat']
+        working_directory = '/fake_working_dir'
+        cwl_file_url = "fakeurl"
+        workflow_object_name = ""
+        job_order = {}
+        mock_cwl_workflow_process.return_value.return_code = 0
+        mock_os.getcwd.return_value = "/tmp/working_directory"
+        mock_results_directory.return_value.result_directory = "/tmp/output/results"
+        workflow = CwlWorkflow(job_id,
+                               working_directory,
+                               cwl_base_command,
+                               cwl_post_process_command,
+                               '# Workflow Methods Markdown')
+        workflow.run(cwl_file_url, workflow_object_name, job_order)
+        mock_subprocess.call.assert_called_with(['rm', 'bad-data.dat'])
+        mock_os.chdir.assert_has_calls([
+            call("/tmp/output/results"),
+            call("/tmp/working_directory"),
+        ])
 
 
 class TestCwlDirectory(TestCase):
