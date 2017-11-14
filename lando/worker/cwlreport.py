@@ -307,7 +307,7 @@ def main():
         workflow_info.update_with_job_output(job_output_path=sys.argv[3])
         job_data = parse_yaml_or_json(path=sys.argv[4])
         report = CwlReport(workflow_info, job_data)
-        print(report.render())
+        print(report.render_markdown())
 
 
 if __name__ == "__main__":
