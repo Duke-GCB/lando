@@ -52,6 +52,34 @@ SAMPLE_JOB_ORDER = {
     "threads": 20
 }
 
+# Need an example workflow here that has a paired input.
+SAMPLE_WORKFLOW_PAIR_INPUT= {
+    'cwlVersion': 'v1.0',
+    "id": "#main",
+    "doc": "A really good workflow",
+    "inputs": [
+        {
+            "type": "#bespin-types.yml/NamedFASTQFilePairType",
+            "id": "#extract-named-file-pair-details.cwl/read_pair"
+        }
+    ],
+    "outputs": []
+}
+
+SAMPLE_JOB_ORDER_PAIR_INPUT = {
+    "read_pair": {
+        "file1": {
+            "class": "File",
+            "path": "read1.fastq"
+        },
+        "file2": {
+            "class": "File",
+            "path": "read2.fastq"
+        },
+        "name": "read"
+    }
+}
+
 SAMPLE_JOB_OUTPUT = {
     "align_log": [
         {
@@ -235,3 +263,16 @@ class TestWorkflowInfo(TestCase):
         self.assertEqual("SA03567-dedup.bam", output_data.files[2].filename)
         self.assertEqual("SA03567-dedup.bai", output_data.files[3].filename)
         self.assertEqual('12.85 GB', workflow.total_file_size_str())
+
+    @patch("lando.worker.cwlreport.parse_yaml_or_json")
+    def test_extracts_path_in_pair_input_object(self, mock_parse_yaml_or_json):
+        mock_parse_yaml_or_json.return_value = SAMPLE_WORKFLOW_PAIR_INPUT
+        workflow = create_workflow_info('/tmp/fake_packed_workflow.cwl')
+        mock_parse_yaml_or_json.return_value = SAMPLE_JOB_ORDER_PAIR_INPUT
+        workflow.update_with_job_order('/tmp/fake_job_order.json')
+        self.assertEqual(len(workflow.input_params), 1)
+        self.assertEqual(1, len(workflow.input_params))
+
+        input_param = workflow.input_params[0]
+        self.assertEqual('read_pair', input_param.name)
+        self.assertEqual('read1.fastq,read2.fastq', input_param.value)

@@ -163,9 +163,14 @@ class WorkflowInfo(object):
         Coerce cwl value into str.
         """
         if type(val) == dict:
-            return val['path']
+            if 'path' in val:
+                return val['path']
+            else:
+                # may be a custom object containing files, extract
+                parts = [val[part] for part in val if 'path' in val[part]]
+                return WorkflowInfo._create_str_value(parts)
         if type(val) == list:
-            return ','.join([WorkflowInfo._create_str_value(part) for part in val])
+            return ','.join(sorted([WorkflowInfo._create_str_value(part) for part in val]))
         return str(val)
 
     def update_with_job_output(self, job_output_path):
@@ -302,7 +307,7 @@ def main():
         workflow_info.update_with_job_output(job_output_path=sys.argv[3])
         job_data = parse_yaml_or_json(path=sys.argv[4])
         report = CwlReport(workflow_info, job_data)
-        print(report.render())
+        print(report.render_markdown())
 
 
 if __name__ == "__main__":
