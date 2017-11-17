@@ -8,6 +8,7 @@ import yaml
 import jinja2
 import humanfriendly
 import markdown
+import codecs
 
 TEMPLATE = """
 # Summary
@@ -66,7 +67,7 @@ class BaseReport(object):
         Return README content in html format
         :return: str: report contents
         """
-        return markdown.markdown(self.render_markdown()).encode('utf8')
+        return markdown.markdown(self.render_markdown())
 
 
 class CwlReport(BaseReport):
@@ -288,7 +289,7 @@ def parse_yaml_or_json(path):
     """
     Return parsed YAML or JSON for a path to a file.
     """
-    with open(path) as infile:
+    with codecs.open(path, mode='r', encoding='utf-8') as infile:
         doc = yaml.load(infile)
     return doc
 

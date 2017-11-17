@@ -10,6 +10,7 @@ import json
 import markdown
 import logging
 import subprocess
+import codecs
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
 from lando.worker.scriptsreadme import ScriptsReadme
@@ -54,8 +55,8 @@ def save_data_to_directory(directory_path, filename, data):
     :return: str: directory_path/filename
     """
     file_path = os.path.join(directory_path, filename)
-    with open(file_path, 'w') as outfile:
-        outfile.write(data.encode('utf8'))
+    with codecs.open(file_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as outfile:
+        outfile.write(data)
     return file_path
 
 
