@@ -66,7 +66,7 @@ class BaseReport(object):
         Return README content in html format
         :return: str: report contents
         """
-        return markdown.markdown(self.render_markdown()).encode('utf8')
+        return markdown.markdown(self.render_markdown())
 
 
 class CwlReport(BaseReport):
