@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from lando.server.jobapi import JobApi, BespinApi, Job
+from lando.server.jobapi import JobApi, BespinApi, Job, CWLCommand, VMSettings
 from mock.mock import MagicMock, patch, call
 
 
@@ -377,6 +377,7 @@ class TestJobApi(TestCase):
 
 class TestJob(TestCase):
     def setUp(self):
+        # THIS WILL ALL BE DIFFERENT
         self.job_data = {
             'id': 1,
             'user': {
@@ -424,3 +425,63 @@ class TestJob(TestCase):
         mock_data = MagicMock()
         job = Job(self.job_data)
         self.assertEqual(job.cleanup_vm, False)
+
+
+class CWLCommandTests(TestCase):
+
+    def setUp(self):
+        self.only_base_command_data = {
+            "cwl_base_command": "[\"base\", \"command\"]",
+        }
+        self.pre_and_post_data = {
+            "cwl_base_command": "[\"base\", \"command\"]",
+            "cwl_post_process_command": "[\"post\",\"process\",\"command\"]",
+            "cwl_pre_process_command": "[\"pre\",\"process\",\"command\"]"
+        }
+
+    def test_loads_base_command(self):
+        command = CWLCommand(self.only_base_command_data)
+        self.assertEqual(command.base_command, ['base','command'])
+
+    def test_requires_base_command(self):
+        with self.assertRaises(Exception):
+            CWLCommand({})
+
+    def test_defaults_pre_and_post(self):
+        command = CWLCommand(self.only_base_command_data)
+        self.assertEqual(command.pre_process_command, [])
+        self.assertEqual(command.post_process_command, [])
+
+    def test_loads_pre_and_post(self):
+        command = CWLCommand(self.pre_and_post_data)
+        self.assertEqual(command.base_command, ['base','command'])
+        self.assertEqual(command.pre_process_command, ['pre','process','command'])
+        self.assertEqual(command.post_process_command, ['post','process','command'])
+
+
+class VMSettingsTests(TestCase):
+
+    def setUp(self):
+        self.data = {
+            "cloud_settings": { "vm_project": { "name": "test_project" } },
+            "ssh_key_name": "test_ssh_key",
+            "network_name": "test_network",
+            "allocate_floating_ips": True,
+            "floating_ip_pool_name": "test_pool_name",
+            "image_name": "test_image",
+        }
+
+    @patch('lando.server.jobapi.CWLCommand')
+    def test_loads_vmsettings(self, mock_cwl_command):
+        loaded_cwl_command = MagicMock()
+        mock_cwl_command.return_value = loaded_cwl_command
+        vm_settings = VMSettings(self.data)
+        self.assertEqual(vm_settings.vm_project_name, 'test_project')
+        self.assertEqual(vm_settings.ssh_key_name, 'test_ssh_key')
+        self.assertEqual(vm_settings.network_name, 'test_network')
+        self.assertEqual(vm_settings.allocate_floating_ips, True)
+        self.assertEqual(vm_settings.floating_ip_pool_name, 'test_pool_name')
+        self.assertEqual(vm_settings.image_name, 'test_image')
+        self.assertEqual(vm_settings.cwl_command, loaded_cwl_command)
+        args, kwargs = mock_cwl_command.call_args
+        self.assertEqual(args[0], self.data)
