@@ -17,19 +17,16 @@ class CloudClient(object):
         """
         self.cloud = shade.openstack_cloud(**credentials)
 
-    def launch_instance(self, vm_settings, server_name, flavor_name, script_contents, volumes):
+    def launch_instance(self, vm_settings, server_name, vm_flavor_name, script_contents, volumes):
         """
         Start VM with the specified settings, name, and script to run on startup.
         :param vm_settings: config.VMSettings: settings for VM we want to create
         :param server_name: str: unique name for this VM
-        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_flavor_name)
+        :param vm_flavor_name: str: name of flavor(RAM/CPUs) to use for the VM
         :param script_contents: str: contents of a cloud-init script (bash or #cloud-config)
         :param volumes: [str]: list of volume ids to attach to the VM
         :return: openstack instance created
         """
-        vm_flavor_name = flavor_name
-        if not vm_flavor_name:
-            vm_flavor_name = vm_settings.default_flavor_name
         instance = self.cloud.create_server(
             name=server_name,
             image=vm_settings.worker_image_name,
@@ -68,26 +65,25 @@ class CloudService(object):
     """
     Service for creating and terminating virtual machines.
     """
-    def __init__(self, config, project_name):
+    def __init__(self, config, vm_settings):
         """
         Setup configuration needed to connect to cloud service and
         :param config: Config config settings for vm and credentials
-        :param project_name: name of the project(tenant) which will contain our VMs
+        :param vm_settings: VMSettings object with vm_project_name, image_name, network and IP settings
         """
-        self.config = config
-        self.cloud_client = CloudClient(config.cloud_settings.credentials(project_name))
+        self.cloud_client = CloudClient(config.cloud_settings.credentials(vm_settings.project_name))
+        self.vm_settings = vm_settings
 
     def launch_instance(self, server_name, flavor_name, script_contents, volumes):
         """
         Start a new VM with the specified name and script to run on start.
         :param server_name: str: unique name for the server.
-        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM (None uses config.vm_settings.default_flavor_name)
+        :param flavor_name: str: name of flavor(RAM/CPUs) to use for the VM
         :param script_contents: str: bash script to be run when VM starts.
         :param volumes: [str]: list of volume ids to attach to the VM
         :return: instance, ip address: openstack instance object and the floating ip address assigned
         """
-        vm_settings = self.config.vm_settings
-        instance = self.cloud_client.launch_instance(vm_settings, server_name, flavor_name, script_contents, volumes)
+        instance = self.cloud_client.launch_instance(self.vm_settings, server_name, flavor_name, script_contents, volumes)
         return instance, instance.accessIPv4
 
     def terminate_instance(self, server_name, volume_names=[]):
@@ -96,9 +92,8 @@ class CloudService(object):
         :param server_name: str: name of the VM to terminate
         :param volume_names: [str]: list of volume names to delete after termination
         """
-        vm_settings = self.config.vm_settings
         logging.info('terminating instance {}'.format(server_name))
-        self.cloud_client.terminate_instance(server_name, delete_floating_ip=vm_settings.allocate_floating_ips,
+        self.cloud_client.terminate_instance(server_name, delete_floating_ip=self.vm_settings.allocate_floating_ips,
                                              volume_names=volume_names)
 
     def make_vm_name(self, job_id):
@@ -132,8 +127,8 @@ class FakeCloudService(object):
     """
     Fake cloud service so lando/lando_worker can be run locally.
     """
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config, vm_settings):
+        self.vm_settings = vm_settings
 
     def launch_instance(self, server_name, flavor_name, script_contents, volumes):
         print("Pretend we create vm: {}".format(server_name))

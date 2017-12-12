@@ -275,7 +275,7 @@ class JobActions(object):
         self.work_progress_queue.send(payload)
 
     def _get_cloud_service(self, job):
-        return self.settings.get_cloud_service(job.vm_project_name)
+        return self.settings.get_cloud_service(job.vm_settings)
 
     def _show_status(self, message):
         format_str = "{}: {} for job: {}."
