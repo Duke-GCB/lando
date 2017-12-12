@@ -4,6 +4,7 @@ import logging
 from lando.testutil import write_temp_return_filename
 from lando.server.config import ServerConfig
 from lando.exceptions import InvalidConfigException
+from mock import Mock
 
 GOOD_CONFIG = """
 work_queue:
@@ -14,14 +15,6 @@ work_queue:
   worker_password: tobol
   listen_queue: lando
 
-vm_settings:
-  worker_image_name: lando_worker
-  ssh_key_name: jpb67
-  network_name: selfservice
-  floating_ip_pool_name: ext-net
-  default_flavor_name: m1.small
-  volume_mounts:
-    /dev/vdb1: /work
 {}
 
 cloud_settings:
@@ -48,33 +41,12 @@ class TestServerConfig(TestCase):
         self.assertEqual("10.109.253.74", config.work_queue_config.host)
         self.assertEqual("lando", config.work_queue_config.listen_queue)
 
-        self.assertEqual('lando_worker', config.vm_settings.worker_image_name)
-        self.assertEqual('jpb67', config.vm_settings.ssh_key_name)
-        #  by default allocate_floating_ips is off
-        self.assertEqual(False, config.vm_settings.allocate_floating_ips)
-        self.assertEqual(None, config.vm_settings.cwl_base_command)
-        self.assertEqual({'/dev/vdb1':'/work'}, config.vm_settings.volume_mounts)
-
         self.assertEqual("http://10.109.252.9:5000/v3", config.cloud_settings.auth_url)
         self.assertEqual("jpb67", config.cloud_settings.username)
 
         self.assertEqual("http://localhost:8000/api", config.bespin_api_settings.url)
         self.assertEqual("10498124091240e", config.bespin_api_settings.token)
         self.assertEqual(logging.WARNING, config.log_level)
-
-    def test_allocate_floating_ip_true(self):
-        line = "  allocate_floating_ips: true"
-        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
-        config = ServerConfig(filename)
-        os.unlink(filename)
-        self.assertEqual(True, config.vm_settings.allocate_floating_ips)
-
-    def test_allocate_floating_ip_false(self):
-        line = "  allocate_floating_ips: false"
-        filename = write_temp_return_filename(GOOD_CONFIG.format(line))
-        config = ServerConfig(filename)
-        os.unlink(filename)
-        self.assertEqual(False, config.vm_settings.allocate_floating_ips)
 
     def test_good_config_with_fake_cloud_service(self):
         config_data = GOOD_CONFIG.format("") + "\nfake_cloud_service: True"
@@ -102,15 +74,23 @@ class TestServerConfig(TestCase):
         expected = """
 cwl_base_command: null
 cwl_post_process_command: null
+cwl_pre_process_command: null
 host: 10.109.253.74
 password: tobol
 queue_name: worker_1
 username: lobot
 """
-        result = config.make_worker_config_yml('worker_1')
+        mock_cwl_command = Mock(base_command=None, post_process_command=None, pre_process_command=None)
+        result = config.make_worker_config_yml('worker_1', mock_cwl_command)
         self.assertMultiLineEqual(expected.strip(), result.strip())
 
     def test_make_worker_config_yml_custom_cwl_base_command(self):
+        mock_cwl_command = Mock(
+            base_command=['cwltoil','--not-strict'],
+            post_process_command=['rm','tmp.data'],
+            pre_process_command=[],
+        )
+
         base_command_line = '  cwl_base_command:\n  - "cwltoil"\n  - "--not-strict"'
         post_process_command_line = '  cwl_post_process_command:\n  - "rm"\n  - "tmp.data"'
         lines = '{}\n{}\n'.format(base_command_line, post_process_command_line)
@@ -124,14 +104,14 @@ cwl_base_command:
 cwl_post_process_command:
 - rm
 - tmp.data
+cwl_pre_process_command: []
 host: 10.109.253.74
 password: tobol
 queue_name: worker_1
 username: lobot
 """
-        result = config.make_worker_config_yml('worker_1')
+        result = config.make_worker_config_yml('worker_1', mock_cwl_command)
         self.assertMultiLineEqual(expected.strip(), result.strip())
-        self.assertEqual(['cwltoil', '--not-strict'], config.vm_settings.cwl_base_command)
 
     def test_log_level(self):
         filename = write_temp_return_filename(GOOD_CONFIG.format('log_level: INFO'))

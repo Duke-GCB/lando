@@ -50,8 +50,8 @@ class ServerConfig(object):
         }
         if not self.fake_cloud_service:
             data['cwl_base_command'] = cwl_command.base_command
-            data['cwl_pre_process_command'] = cwl_command.pre_process_command
             data['cwl_post_process_command'] = cwl_command.post_process_command
+            data['cwl_pre_process_command'] = cwl_command.pre_process_command
         return yaml.safe_dump(data, default_flow_style=False)
 
 
