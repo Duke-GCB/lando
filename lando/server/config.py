@@ -10,7 +10,7 @@ import logging
 class ServerConfig(object):
     """
     Configuration for either Server or Client.
-    For worker vm_settings and cloud_settings will return None.
+    For worker, cloud_settings will return None.
     """
     def __init__(self, filename):
         """
