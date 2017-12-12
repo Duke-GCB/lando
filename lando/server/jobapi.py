@@ -309,9 +309,9 @@ class Job(object):
         self.output_project = OutputProject(data)
         self.volume_size = data['volume_size']
         # Volume mounts is JSON encoded in a text field
-        self.volume_mounts = json.loads(data['volume_mounts'])
+        self.volume_mounts = json.loads(data['vm_volume_mounts'])
         self.cleanup_vm = data.get('cleanup_vm', True)
-        self.vm_settings = VMSettings(data)
+        self.vm_settings = VMSettings(data.get('vm_settings'))
 
 
 class RunJobData(Job):
