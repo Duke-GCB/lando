@@ -20,13 +20,6 @@ work_queue:
   worker_password: tobol
   listen_queue: lando
 
-vm_settings:
-  worker_image_name: lando_worker
-  ssh_key_name: jpb67
-  network_name: selfservice
-  floating_ip_pool_name: ext-net
-  default_flavor_name: m1.small
-
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
   username: jpb67
@@ -573,7 +566,9 @@ class TestJobActions(TestCase):
         mock_cloud_service.terminate_instance.assert_not_called()
 
     def test_launch_vm(self):
-        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor='flavor1')
+        mock_vm_settings = Mock(cwl_commands=None)
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor_name='flavor1',
+                        volume_mounts={'/dev/vdb1':'/work'}, vm_settings=mock_vm_settings)
         mock_job_api = MagicMock()
         mock_job_api.get_job.return_value = mock_job
 
@@ -586,7 +581,6 @@ class TestJobActions(TestCase):
         mock_make_worker_config_yml = MagicMock()
         mock_make_worker_config_yml.return_value = LANDO_WORKER_CONFIG
         mock_settings.config.make_worker_config_yml = mock_make_worker_config_yml
-        mock_settings.config.vm_settings.volume_mounts = {'/dev/vdb1':'/work'}
         job_actions = JobActions(mock_settings)
         job_actions.launch_vm('vm1', 'vol1')
 
