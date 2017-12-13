@@ -480,10 +480,13 @@ class VMSettings(object):
     Contains openstack details for launching VMs
     """
     def __init__(self, data):
-        self.vm_project_name = data['cloud_settings']['vm_project']['name']
-        self.ssh_key_name = data['ssh_key_name']
-        self.network_name = data['network_name']
-        self.allocate_floating_ips = data['allocate_floating_ips']
-        self.floating_ip_pool_name = data['floating_ip_pool_name']
+        # These come from the nested cloud_settings
+        cloud_settings = data['cloud_settings']
+        self.vm_project_name = cloud_settings['vm_project']['name']
+        self.ssh_key_name = cloud_settings['ssh_key_name']
+        self.network_name = cloud_settings['network_name']
+        self.allocate_floating_ips = cloud_settings['allocate_floating_ips']
+        self.floating_ip_pool_name = cloud_settings['floating_ip_pool_name']
+        # These are in the data dictionary directly
         self.image_name = data['image_name']
         self.cwl_command = CWLCommand(data)

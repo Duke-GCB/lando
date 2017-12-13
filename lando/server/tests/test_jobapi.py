@@ -463,11 +463,15 @@ class VMSettingsTests(TestCase):
 
     def setUp(self):
         self.data = {
-            "cloud_settings": { "vm_project": { "name": "test_project" } },
-            "ssh_key_name": "test_ssh_key",
-            "network_name": "test_network",
-            "allocate_floating_ips": True,
-            "floating_ip_pool_name": "test_pool_name",
+            "cloud_settings": {
+                "vm_project": {
+                    "name": "test_project"
+                },
+                "ssh_key_name": "test_ssh_key",
+                "network_name": "test_network",
+                "allocate_floating_ips": True,
+                "floating_ip_pool_name": "test_pool_name",
+            },
             "image_name": "test_image",
         }
 
