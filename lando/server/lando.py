@@ -32,7 +32,7 @@ class JobSettings(object):
         self.job_id = job_id
         self.config = config
 
-    def get_cloud_service(self, project_name):
+    def get_cloud_service(self, vm_settings):
         """
         Creates cloud service for creating and deleting VMs.
         If configuration has fake_cloud_service set to True this will create a fake cloud service for debugging purposes.
@@ -42,7 +42,7 @@ class JobSettings(object):
         if self.config.fake_cloud_service:
             return FakeCloudService(self.config)
         else:
-            return CloudService(self.config, project_name)
+            return CloudService(self.config, vm_settings)
 
     def get_job_api(self):
         """
@@ -134,16 +134,16 @@ class JobActions(object):
         """
         self._set_job_step(JobSteps.CREATE_VM)
         self._show_status("Creating VM")
-        worker_config_yml = self.config.make_worker_config_yml(vm_instance_name)
+        job = self.job_api.get_job()
+        worker_config_yml = self.config.make_worker_config_yml(vm_instance_name, job.vm_settings.cwl_commands)
         cloud_config_script = CloudConfigScript()
         cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
-        for partition, mount_point in self.config.vm_settings.volume_mounts.iteritems():
+        for partition, mount_point in job.volume_mounts.iteritems():
             cloud_config_script.add_volume(partition, mount_point)
         cloud_config_script.add_manage_etc_hosts()
-        job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         volume, volume_id = cloud_service.create_volume(job.volume_size, vm_volume_name)
-        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor, cloud_config_script.content,
+        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor_name, cloud_config_script.content,
                                                              [volume_id])
         self._show_status("Launched vm with ip {}".format(ip_address))
         self.job_api.set_vm_instance_name(vm_instance_name)
@@ -275,7 +275,7 @@ class JobActions(object):
         self.work_progress_queue.send(payload)
 
     def _get_cloud_service(self, job):
-        return self.settings.get_cloud_service(job.vm_project_name)
+        return self.settings.get_cloud_service(job.vm_settings)
 
     def _show_status(self, message):
         format_str = "{}: {} for job: {}."

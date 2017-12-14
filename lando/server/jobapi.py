@@ -3,7 +3,7 @@ Allows reading and updating job information when talking to Bespin REST api.
 """
 from __future__ import print_function
 import requests
-
+import json
 
 class BespinApi(object):
     """
@@ -301,15 +301,17 @@ class Job(object):
         self.name = data['name']
         self.state = data['state']
         self.step = data['step']
-        self.vm_flavor = data['vm_flavor']
+        self.vm_flavor_name = data['vm_flavor']['name']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_volume_name = data['vm_volume_name']
-        self.vm_project_name = data['vm_project_name']
         self.stage_group = data['stage_group']
         self.workflow = Workflow(data)
         self.output_project = OutputProject(data)
         self.volume_size = data['volume_size']
+        # Volume mounts is JSON encoded in a text field
+        self.volume_mounts = json.loads(data['vm_volume_mounts'])
         self.cleanup_vm = data.get('cleanup_vm', True)
+        self.vm_settings = VMSettings(data.get('vm_settings'))
 
 
 class RunJobData(Job):
@@ -454,3 +456,37 @@ class JobSteps(object):
     STORING_JOB_OUTPUT = 'O'
     TERMINATE_VM = 'T'
 
+
+class CWLCommand(object):
+    """
+    Stores CWL commands to pass to the worker
+    """
+
+    def __init__(self, data):
+        """
+        Loads JSON-encoded CWL commands from dictionary
+        :param data:
+        """
+        self.base_command = json.loads(data.get('cwl_base_command'))
+        self.pre_process_command = json.loads(data.get('cwl_pre_process_command','[]'))
+        self.post_process_command = json.loads(data.get('cwl_post_process_command','[]'))
+
+    def __str__(self):
+        return self.base_command
+
+
+class VMSettings(object):
+    """
+    Contains openstack details for launching VMs
+    """
+    def __init__(self, data):
+        # These come from the nested cloud_settings
+        cloud_settings = data['cloud_settings']
+        self.vm_project_name = cloud_settings['vm_project']['name']
+        self.ssh_key_name = cloud_settings['ssh_key_name']
+        self.network_name = cloud_settings['network_name']
+        self.allocate_floating_ips = cloud_settings['allocate_floating_ips']
+        self.floating_ip_pool_name = cloud_settings['floating_ip_pool_name']
+        # These are in the data dictionary directly
+        self.image_name = data['image_name']
+        self.cwl_commands = CWLCommand(data)

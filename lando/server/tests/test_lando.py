@@ -5,7 +5,7 @@ perform the expected actions.
 from __future__ import absolute_import
 from unittest import TestCase
 import json
-from lando.server.lando import Lando, JobActions
+from lando.server.lando import Lando, JobActions, JobSettings, WORK_PROGRESS_EXCHANGE_NAME
 from lando.server.jobapi import JobStates, JobSteps, Job
 from mock import MagicMock, patch, Mock
 from shade import OpenStackCloudException
@@ -19,13 +19,6 @@ work_queue:
   worker_username: lobot
   worker_password: tobol
   listen_queue: lando
-
-vm_settings:
-  worker_image_name: lando_worker
-  ssh_key_name: jpb67
-  network_name: selfservice
-  floating_ip_pool_name: ext-net
-  default_flavor_name: m1.small
 
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
@@ -124,7 +117,7 @@ class Report(object):
         job.user_id = '1'
         job.state = self.job_state
         job.step = self.job_step
-        job.vm_flavor = ''
+        job.vm_flavor_name = ''
         job.vm_instance_name = self.vm_instance_name
         job.vm_volume_name = self.vm_volume_name
         job.vm_project_name = 'bespin_user1'
@@ -573,7 +566,9 @@ class TestJobActions(TestCase):
         mock_cloud_service.terminate_instance.assert_not_called()
 
     def test_launch_vm(self):
-        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor='flavor1')
+        mock_vm_settings = Mock(cwl_commands=None)
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor_name='flavor1',
+                        volume_mounts={'/dev/vdb1':'/work'}, vm_settings=mock_vm_settings)
         mock_job_api = MagicMock()
         mock_job_api.get_job.return_value = mock_job
 
@@ -586,7 +581,6 @@ class TestJobActions(TestCase):
         mock_make_worker_config_yml = MagicMock()
         mock_make_worker_config_yml.return_value = LANDO_WORKER_CONFIG
         mock_settings.config.make_worker_config_yml = mock_make_worker_config_yml
-        mock_settings.config.vm_settings.volume_mounts = {'/dev/vdb1':'/work'}
         job_actions = JobActions(mock_settings)
         job_actions.launch_vm('vm1', 'vol1')
 
@@ -596,10 +590,70 @@ class TestJobActions(TestCase):
 
         mock_cloud_service.launch_instance.assert_called_with(
             'vm1', # Should call launch_instance with Instance name from launch_vm
-            'flavor1', # Should call launch_instance with flavor from job.vm_flavor
+            'flavor1', # Should call launch_instance with flavor from job.vm_flavor_name
             CLOUD_CONFIG, # Should generate a cloud config with manage_etc_hosts, fs_setup, and write_files
             ['vol-id-123'] # Should call launch_instance with list of vol ids from create_volume
         )
 
         mock_job_api.set_vm_instance_name.assert_called_with('vm1')
         mock_job_api.set_vm_volume_name.assert_called_with('vol1')
+
+
+class TestJobSettings(TestCase):
+
+    def setUp(self):
+        self.job_id = '1'
+        self.config = Mock()
+
+    @patch('lando.server.lando.CloudService')
+    @patch('lando.server.lando.FakeCloudService')
+    def test_get_real_cloud_service(self, mock_fake_cloud_service, mock_cloud_service):
+        self.config.fake_cloud_service = False
+        job_settings = JobSettings(self.job_id, self.config)
+        vm_settings = Mock()
+        cloud_service = job_settings.get_cloud_service(vm_settings)
+        self.assertEqual(cloud_service, mock_cloud_service.return_value)
+        self.assertTrue(mock_cloud_service.called)
+        self.assertFalse(mock_fake_cloud_service.called)
+        args, kwargs = mock_cloud_service.call_args
+        self.assertEqual(args, (self.config, vm_settings,))
+
+    @patch('lando.server.lando.CloudService')
+    @patch('lando.server.lando.FakeCloudService')
+    def test_get_fake_cloud_service(self, mock_fake_cloud_service, mock_cloud_service):
+        self.config.fake_cloud_service = True
+        job_settings = JobSettings(self.job_id, self.config)
+        vm_settings = Mock()
+        cloud_service = job_settings.get_cloud_service(vm_settings)
+        self.assertEqual(cloud_service, mock_fake_cloud_service.return_value)
+        self.assertFalse(mock_cloud_service.called)
+        self.assertTrue(mock_fake_cloud_service.called)
+        args, kwargs = mock_fake_cloud_service.call_args
+        self.assertEqual(args, (self.config,))
+
+    @patch('lando.server.lando.JobApi')
+    def test_get_job_api(self, mock_job_api):
+        job_settings = JobSettings(self.job_id, self.config)
+        job_api = job_settings.get_job_api()
+        args, kwargs = mock_job_api.call_args
+        self.assertEqual(job_api, mock_job_api.return_value)
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs, {'config': self.config, 'job_id': self.job_id})
+
+    @patch('lando.server.lando.LandoWorkerClient')
+    def test_get_worker_client(self, mock_lando_worker_client):
+        job_settings = JobSettings(self.job_id, self.config)
+        worker_client = job_settings.get_worker_client('test-queue')
+        args, kwargs = mock_lando_worker_client.call_args
+        self.assertEqual(worker_client, mock_lando_worker_client.return_value)
+        self.assertEqual(args, (self.config,))
+        self.assertEqual(kwargs, {'queue_name': 'test-queue'})
+
+    @patch('lando.server.lando.WorkProgressQueue')
+    def test_get_work_progress_queue(self, mock_work_progress_queue):
+        job_settings = JobSettings(self.job_id, self.config)
+        work_progress_queue = job_settings.get_work_progress_queue()
+        args, kwargs = mock_work_progress_queue.call_args
+        self.assertEqual(work_progress_queue, mock_work_progress_queue.return_value)
+        self.assertEqual(args, (self.config, WORK_PROGRESS_EXCHANGE_NAME))
+        self.assertEqual(kwargs, {})
