@@ -32,7 +32,7 @@ class JobSettings(object):
         self.job_id = job_id
         self.config = config
 
-    def get_cloud_service(self, project_name):
+    def get_cloud_service(self, vm_settings):
         """
         Creates cloud service for creating and deleting VMs.
         If configuration has fake_cloud_service set to True this will create a fake cloud service for debugging purposes.
@@ -42,7 +42,7 @@ class JobSettings(object):
         if self.config.fake_cloud_service:
             return FakeCloudService(self.config)
         else:
-            return CloudService(self.config, project_name)
+            return CloudService(self.config, vm_settings)
 
     def get_job_api(self):
         """
