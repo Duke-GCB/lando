@@ -36,7 +36,7 @@ class TestCloudService(TestCase):
     @mock.patch('lando.server.cloudservice.shade')
     def test_launch_instance_no_floating_ip(self, mock_shade):
         mock_shade.openstack_cloud().create_server.return_value = mock.Mock(accessIPv4='')
-        config = mock.MagicMock(vm_settings=mock.Mock(worker_image_name='myvm', floating_ip_pool_name='somepool'))
+        config = mock.MagicMock(vm_settings=mock.Mock(image_name='myvm', floating_ip_pool_name='somepool'))
         vm_settings = mock.MagicMock(allocate_floating_ips=False)
         cloud_service = CloudService(config, vm_settings)
         instance, ip_address = cloud_service.launch_instance(server_name="worker1", flavor_name=None,

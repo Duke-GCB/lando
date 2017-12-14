@@ -29,7 +29,7 @@ class CloudClient(object):
         """
         instance = self.cloud.create_server(
             name=server_name,
-            image=vm_settings.worker_image_name,
+            image=vm_settings.image_name,
             flavor=vm_flavor_name,    # The flavor 'Root Disk' value has no effect due to using a volume for storage
             key_name=vm_settings.ssh_key_name,
             network=vm_settings.network_name,
