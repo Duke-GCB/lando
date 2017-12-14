@@ -71,7 +71,7 @@ class CloudService(object):
         :param config: Config config settings for vm and credentials
         :param vm_settings: VMSettings object with vm_project_name, image_name, network and IP settings
         """
-        self.cloud_client = CloudClient(config.cloud_settings.credentials(vm_settings.project_name))
+        self.cloud_client = CloudClient(config.cloud_settings.credentials(vm_settings.vm_project_name))
         self.vm_settings = vm_settings
 
     def launch_instance(self, server_name, flavor_name, script_contents, volumes):

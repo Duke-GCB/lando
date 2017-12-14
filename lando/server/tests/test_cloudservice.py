@@ -5,6 +5,22 @@ import mock
 
 
 class TestCloudService(TestCase):
+    @mock.patch('lando.server.cloudservice.CloudClient')
+    def test_makes_cloud_client(self, mock_cloud_client):
+        mock_credentials = mock.Mock() # a function that returns credentials
+        config = mock.MagicMock(cloud_settings=mock.MagicMock(credentials=mock_credentials))
+        vm_settings = mock.MagicMock(vm_project_name='test-project')
+        service = CloudService(config, vm_settings)
+        self.assertEqual(service.vm_settings, vm_settings)
+
+        # Assert that mock_credentials was called with the vm_project_name
+        args, kwargs = mock_credentials.call_args
+        self.assertEqual(args[0], 'test-project')
+
+        # Assert that CloudClient is called with the return value of credentials
+        args, kwargs = mock_cloud_client.call_args
+        self.assertEqual(args[0], mock_credentials.return_value)
+
     @mock.patch('lando.server.cloudservice.shade')
     def test_that_flavor_overrides_default(self, mock_shade):
         config = mock.MagicMock()
