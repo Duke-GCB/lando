@@ -489,4 +489,4 @@ class VMSettings(object):
         self.floating_ip_pool_name = cloud_settings['floating_ip_pool_name']
         # These are in the data dictionary directly
         self.image_name = data['image_name']
-        self.cwl_command = CWLCommand(data)
+        self.cwl_commands = CWLCommand(data)

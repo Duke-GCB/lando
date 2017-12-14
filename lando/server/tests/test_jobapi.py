@@ -486,6 +486,6 @@ class VMSettingsTests(TestCase):
         self.assertEqual(vm_settings.allocate_floating_ips, True)
         self.assertEqual(vm_settings.floating_ip_pool_name, 'test_pool_name')
         self.assertEqual(vm_settings.image_name, 'test_image')
-        self.assertEqual(vm_settings.cwl_command, loaded_cwl_command)
+        self.assertEqual(vm_settings.cwl_commands, loaded_cwl_command)
         args, kwargs = mock_cwl_command.call_args
         self.assertEqual(args[0], self.data)
