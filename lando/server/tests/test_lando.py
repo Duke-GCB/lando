@@ -7,7 +7,7 @@ from unittest import TestCase
 import json
 from lando.server.lando import Lando, JobActions, JobSettings, WORK_PROGRESS_EXCHANGE_NAME
 from lando.server.jobapi import JobStates, JobSteps, Job
-from mock import MagicMock, patch, Mock
+from mock import MagicMock, patch, Mock, call
 from shade import OpenStackCloudException
 
 
@@ -512,6 +512,31 @@ Set job state to E.
 Send progress notification. Job:1 State:E Step:V
 """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.lando.LandoWorkerClient')
+    @patch('lando.server.jobapi.requests')
+    @patch('lando.server.lando.logging')
+    @patch('lando.server.lando.traceback')
+    def test_error_sending_error(self, mock_traceback, mock_logging, mock_requests, MockLandoWorkerClient,
+                                 MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        mock_traceback.format_exc.side_effect = [
+            'StackTrace1',
+            'StackTrace2'
+        ]
+        failing_job_api = MagicMock()
+        failing_job_api.get_job.side_effect = [ValueError("Error1"), ValueError("Error2")]
+        mock_settings.get_job_api.return_value = failing_job_api
+        MockJobSettings.return_value = mock_settings
+        lando = Lando(MagicMock())
+        lando.start_job(MagicMock(job_id=job_id))
+        mock_logging.info.assert_has_calls([
+            call('Handling error that occurred during start_job for job 1.'),
+            call('Error contents: StackTrace1'),
+            call('Additional error occurred while handling an error: StackTrace2')
+        ])
 
 
 class TestJobActions(TestCase):
