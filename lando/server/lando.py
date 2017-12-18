@@ -330,8 +330,17 @@ class Lando(object):
                 getattr(actions, name)(payload)
             except:  # Trap all exceptions
                 tb = traceback.format_exc()
-                actions.generic_job_error(name, tb)
+                self._handle_action_error(actions, name, payload, tb)
         return action_method
+
+    def _handle_action_error(self, actions, name, payload, error_stacktrace_str):
+        try:
+            logging.error("Handling error that occurred during {} for job {}.".format(name, payload.job_id))
+            logging.error("Error contents: {}".format(error_stacktrace_str))
+            actions.generic_job_error(name, error_stacktrace_str)
+        except:
+            tb = traceback.format_exc()
+            logging.error("Additional error occurred while handling an error: {}".format(tb))
 
     def worker_started(self, worker_started_payload):
         """
