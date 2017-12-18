@@ -335,12 +335,12 @@ class Lando(object):
 
     def _handle_action_error(self, actions, name, payload, error_stacktrace_str):
         try:
-            logging.info("Handling error that occurred during {} for job {}.".format(name, payload.job_id))
-            logging.info("Error contents: {}".format(error_stacktrace_str))
+            logging.error("Handling error that occurred during {} for job {}.".format(name, payload.job_id))
+            logging.error("Error contents: {}".format(error_stacktrace_str))
             actions.generic_job_error(name, error_stacktrace_str)
         except:
             tb = traceback.format_exc()
-            logging.info("Additional error occurred while handling an error: {}".format(tb))
+            logging.error("Additional error occurred while handling an error: {}".format(tb))
 
     def worker_started(self, worker_started_payload):
         """

@@ -532,7 +532,7 @@ Send progress notification. Job:1 State:E Step:V
         MockJobSettings.return_value = mock_settings
         lando = Lando(MagicMock())
         lando.start_job(MagicMock(job_id=job_id))
-        mock_logging.info.assert_has_calls([
+        mock_logging.error.assert_has_calls([
             call('Handling error that occurred during start_job for job 1.'),
             call('Error contents: StackTrace1'),
             call('Additional error occurred while handling an error: StackTrace2')
