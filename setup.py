@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 LANDO_REQUIREMENTS = [
       "shade==1.24.0",
       "cwlref-runner==1.0",
-      "DukeDSClient==0.3.20",
+      "DukeDSClient==1.0.1",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
       "lando-messaging==0.7.3",
@@ -15,7 +15,7 @@ LANDO_REQUIREMENTS = [
 ]
 
 setup(name='lando',
-      version='0.7.1',
+      version='0.8.0',
       description='Cloud based bioinformatics workflow runner',
       url='https://github.com/Duke-GCB/lando',
       author='Dan Leehr, John Bradley',
