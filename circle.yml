@@ -1,4 +1,0 @@
-dependencies:
-  pre:
-    - pip install mock
-    - pip install shade
