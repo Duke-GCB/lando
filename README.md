@@ -11,8 +11,9 @@ The project is made up of 3 scripts:
 - __lando_client__ - program that can send lando the start/cancel message (only used for testing purposes)
 
 The major external components are:
+
 - __Rabbitmq__ - a queue were messages are placed for lando and lando_worker to consume.
-- __bespin-api__ - a REST API that contains data about jobs to run and will put __start_job__ and __cancel_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
+- __bespin-api__ - a REST API that contains data about jobs to run and will put __start\_job__ and __cancel\_job__ in the queue for __lando__. https://github.com/Duke-GCB/bespin-api
 - __Openstack__ - a cloud where VMs are created and will have lando_client run in them to execute workflows.
 
 ## Message Flow
@@ -57,13 +58,20 @@ pip install git+git://github.com/Duke-GCB/lando.git
 ```
 
 ### Install Bespin-api.
-Follow the instructions to install the `lando_api` branch:
-https://github.com/Duke-GCB/bespin-api/blob/master/README.md
+Run the docker image or use the development instructions at https://github.com/Duke-GCB/bespin-api/blob/master/README.md
+
+### Create a workflow and questionnaire in Bespin-api
+
+This registers details about how to run the job in openstack (CPU/RAM, VM image, volume sizes)
+
+See https://github.com/Duke-GCB/bespin-cwl/blob/master/scripts/post_questionnaire.sh for an example
 
 ### Create job in Bespin-api
+
 Using the bespin superuser you created in the previous step go into the admin interface and setup a job.
 
 ### Create lando config files
+
 There are two config files that are used by lando.
 * `/etc/lando_config.yml` - this is the main configuration file used by the server program(lando).
 * `/etc/lando_worker_config.yml` - this is the  configuration file used by the worker.
@@ -77,25 +85,16 @@ work_queue:
   host: 10.109.253.74       # ip address of the rabbitmq
   username: lando           # username for lando server
   password: secret1         # password for lando server
-  listen_queue: lando       # queue that lando server should listen on  
+  listen_queue: lando       # queue that lando server should listen on
   worker_username: worker   # username for lando worker
   worker_password: secret2  # password for lando worker
-
-# Openstack VM settings
-vm_settings:
-  worker_image_name: lando_worker    # Name of the image that has lando installed and lando_worker setup to run as a service
-  ssh_key_name: jpb67                # Name of the openstack SSH key to install on the worker
-  network_name: selfservice          # Openstack network name to add the vm onto
-  allocate_floating_ips: false       # Should each worker VM get allocated a floating IP defaults to false
-  floating_ip_pool_name: ext-net     # Pool of floating IP's that will have one assigned to the VM
-  default_flavor_name: m1.small       # Flavor of image to use by default when creating a VM
 
 # General Openstack settings
 cloud_settings:
   auth_url: http://10.109.252.9:5000/v3
-  username: jpb67                        
-  password: secret3  
-  user_domain_name: Default               
+  username: jpb67
+  password: secret3
+  user_domain_name: Default
   project_name: jpb67               # name of the project we will add VMs to
   project_domain_name: Default
 
@@ -118,6 +117,7 @@ rabbitmqctl set_permissions -p / worker  ".*" ".*" ".*"
 ```
 
 ### Running with Openstack
+
 You can start lando by simply running `lando` where it can see the `/etc/lando_config.yml` config file.
 
 ## Running without Openstack
@@ -132,11 +132,12 @@ This will cause lando to print a message telling you to run lando_worker.
 
 
 #### Sample `/etc/lando_worker_config.yml` file for fake cloud service:
+
 ```
 host: 10.109.253.74
 username: worker
 password: secret2
-queue_name: local_worker  
+queue_name: local_worker
 ```
 The queue name `local_worker` is always used for workers when `fake_cloud_service` is True in `/etc/lando_config.yml`.
 
@@ -150,7 +151,7 @@ cwl_base_command:
   - "--tmp-outdir-prefix=/Users/jpb67/Documents/work/tmp"
 ```
 
-### Run lando client 
+### Run lando client
 This command will put a job in the rabbitmq queue for the lando server to receive.
 This reads the config from `/etc/lando_config.yml`.
 ```
