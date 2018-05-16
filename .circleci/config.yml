@@ -21,7 +21,7 @@ jobs:
             - "/usr/local/lib/python3.6/site-packages"
       - run:
           command: |
-            sourcer venv/bin/activate
+            source venv/bin/activate
             python setup.py test
       - store_test_results:
           path: test-results
