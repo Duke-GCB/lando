@@ -9,19 +9,19 @@ jobs:
           key: deps9-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "devRequirements.txt" }}
       - run:
           command: |
-            python3 -m venv venv
-            . venv/bin/activate
+            virtualenv venv
+            source venv/bin/activate
             pip install -r devRequirements.txt
             python setup.py install
       - save_cache:
           key: deps9-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "devRequirements.txt" }}
           paths:
-            - ".venv"
+            - "venv"
             - "/usr/local/bin"
             - "/usr/local/lib/python3.6/site-packages"
       - run:
           command: |
-            . venv/bin/activate
+            sourcer venv/bin/activate
             python setup.py test
       - store_test_results:
           path: test-results
