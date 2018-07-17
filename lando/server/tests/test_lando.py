@@ -75,7 +75,7 @@ class Report(object):
     def __init__(self):
         self.text = ''
         self.job_state = 'N'
-        self.job_step = None
+        self.job_step = JobSteps.NONE
         self.vm_instance_name = 'worker_x'
         self.vm_volume_name = 'volume_x'
         self.launch_instance_error = None
@@ -130,7 +130,7 @@ class Report(object):
         self.job_state = state
 
     def set_job_step(self, step):
-        self.add("Set job step to {}.".format(step))
+        self.add("Set job step to {}.".format(step or 'EMPTY'))
         self.job_step = step
 
     def set_vm_instance_name(self, instance_name):
@@ -160,7 +160,7 @@ class Report(object):
     def work_progress_queue_send(self, payload):
         data = json.loads(payload)
         self.add("Send progress notification. Job:{} State:{} Step:{}".format(
-            data['job'], data['state'], data['step']))
+            data['job'], data['state'], data['step'] or 'EMPTY'))
 
 
 def make_mock_settings_and_report(job_id):
@@ -210,7 +210,7 @@ class TestLando(TestCase):
         lando.start_job(MagicMock(job_id=job_id))
         expected_report = """
 Set job state to R.
-Send progress notification. Job:1 State:R Step:None
+Send progress notification. Job:1 State:R Step:EMPTY
 Created vm name for job 1.
 Created volume name for job 1.
 Set job step to V.
@@ -249,9 +249,9 @@ Put stage message in queue for stuff.
         lando = Lando(MagicMock())
         lando.cancel_job(MagicMock(job_id=job_id))
         expected_report = """
-Set job step to None.
+Set job step to EMPTY.
 Set job state to C.
-Send progress notification. Job:1 State:C Step:None
+Send progress notification. Job:1 State:C Step:EMPTY
 Terminated vm worker_x.
 Deleted volume volume_x.
 Delete my worker's queue.
@@ -301,7 +301,7 @@ Put store_job_output message in queue for worker_x.
         lando.stage_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops1'))
         expected_report = """
 Set job state to E.
-Send progress notification. Job:1 State:E Step:None
+Send progress notification. Job:1 State:E Step:EMPTY
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -316,7 +316,7 @@ Send progress notification. Job:1 State:E Step:None
         lando.run_job_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops2'))
         expected_report = """
 Set job state to E.
-Send progress notification. Job:1 State:E Step:None
+Send progress notification. Job:1 State:E Step:EMPTY
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -331,7 +331,7 @@ Send progress notification. Job:1 State:E Step:None
         lando.store_job_output_error(MagicMock(job_id=1, vm_instance_name='worker_5', message='Oops3'))
         expected_report = """
 Set job state to E.
-Send progress notification. Job:1 State:E Step:None
+Send progress notification. Job:1 State:E Step:EMPTY
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -347,7 +347,7 @@ Send progress notification. Job:1 State:E Step:None
         lando.restart_job(MagicMock(job_id=1))
         expected_report = """
 Set job state to R.
-Send progress notification. Job:1 State:R Step:None
+Send progress notification. Job:1 State:R Step:EMPTY
 Created vm name for job 1.
 Created volume name for job 1.
 Set job step to V.
@@ -440,9 +440,9 @@ Send progress notification. Job:1 State:E Step:T
 Terminated vm some_vm.
 Deleted volume volume_x.
 Delete my worker's queue.
-Set job step to None.
+Set job step to EMPTY.
 Set job state to F.
-Send progress notification. Job:1 State:F Step:None
+Send progress notification. Job:1 State:F Step:EMPTY
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
@@ -458,7 +458,7 @@ Send progress notification. Job:1 State:F Step:None
         lando.start_job(MagicMock(job_id=job_id))
         expected_report = """
 Set job state to R.
-Send progress notification. Job:1 State:R Step:None
+Send progress notification. Job:1 State:R Step:EMPTY
 Created vm name for job 1.
 Created volume name for job 1.
 Set job step to V.
@@ -484,9 +484,9 @@ Send progress notification. Job:1 State:E Step:V
         lando = Lando(MagicMock())
         lando.cancel_job(MagicMock(job_id=job_id))
         expected_report = """
-Set job step to None.
+Set job step to EMPTY.
 Set job state to C.
-Send progress notification. Job:1 State:C Step:None
+Send progress notification. Job:1 State:C Step:EMPTY
 
         """
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
@@ -503,7 +503,7 @@ Send progress notification. Job:1 State:C Step:None
         lando.start_job(MagicMock(job_id=job_id))
         expected_report = """
 Set job state to R.
-Send progress notification. Job:1 State:R Step:None
+Send progress notification. Job:1 State:R Step:EMPTY
 Created vm name for job 1.
 Created volume name for job 1.
 Set job step to V.
