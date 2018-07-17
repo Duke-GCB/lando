@@ -205,7 +205,7 @@ class JobActions(object):
             cloud_service.terminate_instance(job.vm_instance_name, [job.vm_volume_name])
         worker_client = self.make_worker_client(job.vm_instance_name)
         worker_client.delete_queue()
-        self._set_job_step(None)
+        self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.FINISHED)
 
     def cancel_job(self, payload):
@@ -214,7 +214,7 @@ class JobActions(object):
         Sets status to canceled and terminates the associated VM and deletes the queue.
         :param payload: CancelJobPayload: contains job id we should cancel
         """
-        self._set_job_step(None)
+        self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
         job = self.job_api.get_job()

@@ -455,6 +455,7 @@ class JobSteps(object):
     RUNNING = 'R'
     STORING_JOB_OUTPUT = 'O'
     TERMINATE_VM = 'T'
+    NONE = ''
 
 
 class CWLCommand(object):
