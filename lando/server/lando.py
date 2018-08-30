@@ -111,7 +111,7 @@ class JobActions(object):
         vm_instance_name = job.vm_instance_name
         if vm_instance_name and job.state != JobStates.CANCELED:
             payload.vm_instance_name = vm_instance_name
-            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT]:
+            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT, JobSteps.TERMINATE_VM]:
                 self._set_job_state(JobStates.RUNNING)
             if job.step == JobSteps.STAGING:
                 self.send_stage_job_message(job.vm_instance_name)
@@ -120,7 +120,9 @@ class JobActions(object):
             elif job.step == JobSteps.STORING_JOB_OUTPUT:
                 self.run_job_complete(payload)
             elif job.step == JobSteps.TERMINATE_VM:
-                self.store_job_output_complete(payload)
+                # store_job_output_complete requires project_id and readme_file_id which only worker vm knew
+                # so we must repeat the store_job_output_complete step.
+                self.run_job_complete(payload)
             else:
                 self.start_job(StartJobPayload(payload.job_id))
         else:

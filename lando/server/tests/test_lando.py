@@ -7,6 +7,7 @@ from unittest import TestCase
 import json
 from lando.server.lando import Lando, JobActions, JobSettings, WORK_PROGRESS_EXCHANGE_NAME
 from lando.server.jobapi import JobStates, JobSteps, Job
+from lando_messaging.messaging import RestartJobPayload
 from mock import MagicMock, patch, Mock, call
 from shade import OpenStackCloudException
 
@@ -344,7 +345,7 @@ Send progress notification. Job:1 State:E Step:EMPTY
         MockJobSettings.return_value = mock_settings
         report.vm_instance_name = None
         lando = Lando(MagicMock())
-        lando.restart_job(MagicMock(job_id=1))
+        lando.restart_job(RestartJobPayload(job_id=1))
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:EMPTY
@@ -369,7 +370,7 @@ Set vm instance name to worker_x.
         report.job_state = JobStates.ERRORED
         report.job_step = JobSteps.STAGING
         lando = Lando(MagicMock())
-        lando.restart_job(MagicMock(job_id=1))
+        lando.restart_job(RestartJobPayload(job_id=1))
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:S
@@ -390,7 +391,7 @@ Put stage message in queue for some_vm.
         report.job_state = JobStates.ERRORED
         report.job_step = JobSteps.RUNNING
         lando = Lando(MagicMock())
-        lando.restart_job(MagicMock(job_id=1))
+        lando.restart_job(RestartJobPayload(job_id=1))
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:R
@@ -411,7 +412,7 @@ Put run_job message in queue for some_vm.
         report.job_state = JobStates.ERRORED
         report.job_step = JobSteps.STORING_JOB_OUTPUT
         lando = Lando(MagicMock())
-        lando.restart_job(MagicMock(job_id=1))
+        lando.restart_job(RestartJobPayload(job_id=1))
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:O
@@ -424,7 +425,7 @@ Put store_job_output message in queue for some_vm.
     @patch('lando.server.lando.JobSettings')
     @patch('lando.server.lando.LandoWorkerClient')
     @patch('lando.server.jobapi.requests')
-    def test_terminate_vm_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
+    def test_restart_terminate_vm_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
         job_id = 1
         mock_settings, report = make_mock_settings_and_report(job_id)
         MockJobSettings.return_value = mock_settings
@@ -433,17 +434,13 @@ Put store_job_output message in queue for some_vm.
         report.job_state = JobStates.ERRORED
         report.job_step = JobSteps.TERMINATE_VM
         lando = Lando(MagicMock())
-        lando.restart_job(MagicMock(job_id=1))
+        lando.restart_job(RestartJobPayload(job_id=1))
         expected_report = """
-Set job step to T.
-Send progress notification. Job:1 State:E Step:T
-Terminated vm some_vm.
-Deleted volume volume_x.
-Delete my worker's queue.
-Set job step to EMPTY.
-Set job state to F.
-Send progress notification. Job:1 State:F Step:EMPTY
-        """
+Set job state to R.
+Send progress notification. Job:1 State:R Step:T
+Set job step to O.
+Send progress notification. Job:1 State:R Step:O
+Put store_job_output message in queue for some_vm."""
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobSettings')
