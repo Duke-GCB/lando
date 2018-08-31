@@ -423,6 +423,24 @@ Put store_job_output message in queue for some_vm.
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobSettings')
+    @patch('lando.server.jobapi.requests')
+    def test_restart_record_output_project(self, mock_requests, MockJobSettings):
+        job_id = 1
+        mock_settings, report = make_mock_settings_and_report(job_id)
+        MockJobSettings.return_value = mock_settings
+        report.vm_instance_name = 'some_vm'
+        report.vm_volume_name = 'volume_x'
+        report.job_state = JobStates.ERRORED
+        report.job_step = JobSteps.RECORD_OUTPUT_PROJECT
+        lando = Lando(MagicMock())
+        lando.restart_job(RestartJobPayload(job_id=1))
+        expected_report = """
+Set job state to E.
+Send progress notification. Job:1 State:E Step:P
+        """
+        self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
+
+    @patch('lando.server.lando.JobSettings')
     @patch('lando.server.lando.LandoWorkerClient')
     @patch('lando.server.jobapi.requests')
     def test_restart_terminate_vm_job(self, mock_requests, MockLandoWorkerClient, MockJobSettings):
@@ -438,9 +456,14 @@ Put store_job_output message in queue for some_vm.
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:T
-Set job step to O.
-Send progress notification. Job:1 State:R Step:O
-Put store_job_output message in queue for some_vm."""
+Set job step to T.
+Send progress notification. Job:1 State:R Step:T
+Terminated vm some_vm.
+Deleted volume volume_x.
+Delete my worker's queue.
+Set job step to EMPTY.
+Set job state to F.
+Send progress notification. Job:1 State:F Step:EMPTY"""
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobSettings')
