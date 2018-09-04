@@ -111,7 +111,7 @@ class JobActions(object):
         vm_instance_name = job.vm_instance_name
         if vm_instance_name and job.state != JobStates.CANCELED:
             payload.vm_instance_name = vm_instance_name
-            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT]:
+            if job.step in [JobSteps.STAGING, JobSteps.RUNNING, JobSteps.STORING_JOB_OUTPUT, JobSteps.TERMINATE_VM]:
                 self._set_job_state(JobStates.RUNNING)
             if job.step == JobSteps.STAGING:
                 self.send_stage_job_message(job.vm_instance_name)
@@ -119,8 +119,10 @@ class JobActions(object):
                 self.stage_job_complete(payload)
             elif job.step == JobSteps.STORING_JOB_OUTPUT:
                 self.run_job_complete(payload)
+            elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
+                self.cannot_restart_step_error(step_name="record output project")
             elif job.step == JobSteps.TERMINATE_VM:
-                self.store_job_output_complete(payload)
+                self.terminate_vm()
             else:
                 self.start_job(StartJobPayload(payload.job_id))
         else:
@@ -189,16 +191,29 @@ class JobActions(object):
     def store_job_output_complete(self, payload):
         """
         Message from worker that a the store output job step is complete and successful.
-        Sets the job state to finished terminates the worker's instance and deletes the worker's queue.
+        Records information about the resulting output project and frees cloud resources.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
-        self._set_job_step(JobSteps.TERMINATE_VM)
-        project_id = payload.output_project_info.project_id
-        readme_file_id = payload.output_project_info.readme_file_id
+        self.record_output_project_info(payload.output_project_info)
+        self.terminate_vm()
+
+    def record_output_project_info(self, output_project_info):
+        """
+        Records the output project id and readme file id that were created by the worker with the results of the job.
+        :param output_project_info: staging.ProjectDetails: info about the project created containing job results
+        """
+        self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
+        project_id = output_project_info.project_id
+        readme_file_id = output_project_info.readme_file_id
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
         self.job_api.save_project_details(project_id, readme_file_id)
         self._show_status("Terminating VM and queue")
 
+    def terminate_vm(self):
+        """
+        Terminate vm and delete worker message queue.
+        """
+        self._set_job_step(JobSteps.TERMINATE_VM)
         job = self.job_api.get_job()
         cloud_service = self._get_cloud_service(job)
         if job.cleanup_vm:
@@ -251,6 +266,16 @@ class JobActions(object):
         self._set_job_state(JobStates.ERRORED)
         self._show_status("Storing job output failed")
         self._log_error(message=payload.message)
+
+    def cannot_restart_step_error(self, step_name):
+        """
+        Set job to error due to trying to restart a job in a step that cannot be restarted.
+        :param step_name: str:
+        """
+        msg = "Cannot restart {} step.".format(step_name)
+        self._set_job_state(JobStates.ERRORED)
+        self._show_status(msg)
+        self._log_error(message=msg)
 
     def _log_error(self, message):
         job = self.job_api.get_job()
