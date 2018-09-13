@@ -135,7 +135,7 @@ outputfile: results.txt
         process_instance.return_code = 127
         process_instance.stderr_path = 'stderr.txt'
         expected_error_message = "CWL workflow failed with exit code: 127\n8\n9\n10"
-        mock_read_file.return_value = expected_error_message
+        mock_read_file.return_value =  '1\n2\n3\n4\n5\n6\n7\n8\n9\n10'
         job_id = '123'
         working_directory = '/tmp/job_123'
         cwl_base_command = 'cwl-runner'
@@ -149,6 +149,7 @@ outputfile: results.txt
         with self.assertRaises(JobStepFailed) as raised_error:
             workflow.run(cwl_file_url, workflow_object_name, job_order)
         self.assertEqual(expected_error_message, raised_error.exception.value)
+        self.assertTrue(mock_read_file.has_call(process_instance.stderr_path))
 
     @patch("lando.worker.cwlworkflow.subprocess")
     @patch("lando.worker.cwlworkflow.os")
