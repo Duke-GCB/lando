@@ -6,6 +6,7 @@ import shutil
 from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory, JOB_STDERR_OUTPUT_MAX_LINES
+from lando.worker.cwlworkflow import read_file
 from mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
 
@@ -299,3 +300,19 @@ class TestResultsDirectory(TestCase):
             call().count_output_files(),
             call().total_file_size_str()
         ])
+
+class TestReadFile(TestCase):
+
+    @patch('lando.worker.cwlworkflow.codecs')
+    def test_reads_file_using_codecs(self, mock_codecs):
+        expected_contents = 'Contents'
+        mock_codecs.open.return_value.__enter__.return_value.read.return_value = expected_contents
+        contents = read_file('myfile.txt')
+        self.assertEqual(expected_contents, contents)
+        mock_codecs.open.assert_called_with('myfile.txt','r',encoding='utf-8',errors='xmlcharrefreplace')
+
+    @patch('lando.worker.cwlworkflow.codecs')
+    def test_returns_empty_string_on_error(self, mock_codecs):
+        mock_codecs.open.side_effect = OSError()
+        contents = read_file('myfile.txt')
+        self.assertEqual('', contents)

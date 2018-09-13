@@ -76,7 +76,7 @@ def read_file(file_path):
         with codecs.open(file_path, 'r', encoding='utf-8', errors='xmlcharrefreplace') as infile:
             return infile.read()
     except OSError as e:
-        logging.error('Error opening {}'.format(file_path), e)
+        logging.exception('Error opening {}'.format(file_path))
         return ''
 
 
