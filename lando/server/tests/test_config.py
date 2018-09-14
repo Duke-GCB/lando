@@ -68,7 +68,7 @@ class TestServerConfig(TestCase):
         os.unlink(filename)
 
     def test_make_worker_config_yml(self):
-        filename = write_temp_return_filename(GOOD_CONFIG.format(""))
+        filename = write_temp_return_filename(GOOD_CONFIG.format("log_level: DEBUG"))
         config = ServerConfig(filename)
         os.unlink(filename)
         expected = """
@@ -76,6 +76,7 @@ cwl_base_command: null
 cwl_post_process_command: null
 cwl_pre_process_command: null
 host: 10.109.253.74
+log_level: DEBUG
 password: tobol
 queue_name: worker_1
 username: lobot
@@ -96,6 +97,7 @@ username: lobot
         lines = '{}\n{}\n'.format(base_command_line, post_process_command_line)
         filename = write_temp_return_filename(GOOD_CONFIG.format(lines))
         config = ServerConfig(filename)
+        config.log_level = 'DEBUG'
         os.unlink(filename)
         expected = """
 cwl_base_command:
@@ -106,6 +108,7 @@ cwl_post_process_command:
 - tmp.data
 cwl_pre_process_command: []
 host: 10.109.253.74
+log_level: DEBUG
 password: tobol
 queue_name: worker_1
 username: lobot
@@ -117,4 +120,12 @@ username: lobot
         filename = write_temp_return_filename(GOOD_CONFIG.format('log_level: INFO'))
         config = ServerConfig(filename)
         self.assertEqual('INFO', config.log_level)
+        os.unlink(filename)
+
+    def test_worker_log_level(self):
+        filename = write_temp_return_filename(GOOD_CONFIG.format('log_level: INFO'))
+        config = ServerConfig(filename)
+        mock_cwl_command = Mock(base_command=None, post_process_command=None, pre_process_command=None)
+        worker_config = config.make_worker_config_yml('worker_1', mock_cwl_command)
+        self.assertIn('log_level: INFO', worker_config)
         os.unlink(filename)
