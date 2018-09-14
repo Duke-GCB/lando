@@ -201,7 +201,7 @@ class CwlWorkflowProcess(object):
         :param workflow_file: str: path to the cwl workflow
         :param job_order_filename: str: path to the cwl job order (input file)
         """
-        logs_temp_dir = tempfile.mkdtemp()
+        logs_temp_dir = tempfile.mkdtemp() # This won't be deleted, so that admins can view logs while VM is alive
         self.stdout_path = build_file_name(logs_temp_dir, JOB_STDOUT_FILENAME)
         self.stderr_path = build_file_name(logs_temp_dir, JOB_STDERR_FILENAME)
         self.return_code = None
