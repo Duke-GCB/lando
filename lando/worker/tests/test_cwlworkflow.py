@@ -207,10 +207,9 @@ class TestCwlDirectory(TestCase):
 
 class TestCwlWorkflowProcess(TestCase):
     @patch("lando.worker.cwlworkflow.os.mkdir")
-    @patch("lando.worker.cwlworkflow.tempfile")
     @patch("lando.worker.cwlworkflow.open")
     @patch("lando.worker.cwlworkflow.subprocess")
-    def test_run_stdout_good_exit(self, mock_subprocess, mock_open, mock_tempfile, mock_mkdir):
+    def test_run_stdout_good_exit(self, mock_subprocess, mock_open, mock_mkdir):
         """
         Swap out cwl-runner for echo and check output
         """
@@ -223,10 +222,9 @@ class TestCwlWorkflowProcess(TestCase):
         self.assertEqual(0, process.return_code)
 
     @patch("lando.worker.cwlworkflow.os.mkdir")
-    @patch("lando.worker.cwlworkflow.tempfile")
     @patch("lando.worker.cwlworkflow.open")
     @patch("lando.worker.cwlworkflow.subprocess")
-    def test_run_stderr_bad_exit(self, mock_subprocess, mock_open, mock_tempfile, mock_mkdir):
+    def test_run_stderr_bad_exit(self, mock_subprocess, mock_open, mock_mkdir):
         """
         Testing that CwlWorkflowProcess traps the bad exit code.
         Swap out cwl-runner for bogus ddsclient call that should fail.
