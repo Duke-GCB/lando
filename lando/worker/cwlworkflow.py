@@ -11,6 +11,7 @@ import markdown
 import logging
 import subprocess
 import codecs
+import tempfile
 from lando.exceptions import JobStepFailed
 from lando.worker.cwlreport import create_workflow_info, CwlReport
 from lando.worker.scriptsreadme import ScriptsReadme
@@ -46,6 +47,10 @@ def create_dir_if_necessary(path):
         os.mkdir(path)
 
 
+def build_file_name(directory_path, filename):
+    return os.path.join(directory_path, filename)
+
+
 def save_data_to_directory(directory_path, filename, data):
     """
     Save data into a file at directory_path/filename
@@ -58,6 +63,21 @@ def save_data_to_directory(directory_path, filename, data):
     with codecs.open(file_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as outfile:
         outfile.write(data)
     return file_path
+
+
+def read_file(file_path):
+    """
+    Read the contents of a file using utf-8 encoding, or return an empty string
+    if it does not exist
+    :param file_path: str: path to the file to read
+    :return: str: contents of file
+    """
+    try:
+        with codecs.open(file_path, 'r', encoding='utf-8', errors='xmlcharrefreplace') as infile:
+            return infile.read()
+    except OSError as e:
+        logging.exception('Error opening {}'.format(file_path))
+        return ''
 
 
 class CwlDirectory(object):
@@ -148,9 +168,11 @@ class CwlWorkflow(object):
                                      cwl_directory.job_order_file_path)
         process.run()
         if process.return_code != 0:
-            tail_error_output = self._tail_stderr_output(process.error_output)
+            stderr_output = read_file(process.stderr_path)
+            tail_error_output = self._tail_stderr_output(stderr_output)
             error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
-            raise JobStepFailed(error_message, process.output)
+            stdout_output = read_file(process.stdout_path)
+            raise JobStepFailed(error_message, stdout_output)
         results_directory = ResultsDirectory(self.job_id, cwl_directory, self.workflow_methods_markdown)
         results_directory.add_files(process)
         if self.cwl_post_process_command:
@@ -179,8 +201,9 @@ class CwlWorkflowProcess(object):
         :param workflow_file: str: path to the cwl workflow
         :param job_order_filename: str: path to the cwl job order (input file)
         """
-        self.output = ""
-        self.error_output = ""
+        logs_temp_dir = tempfile.mkdtemp() # This won't be deleted, so that admins can view logs while VM is alive
+        self.stdout_path = build_file_name(logs_temp_dir, JOB_STDOUT_FILENAME)
+        self.stderr_path = build_file_name(logs_temp_dir, JOB_STDERR_FILENAME)
         self.return_code = None
         self.started = None
         self.finished = None
@@ -194,19 +217,27 @@ class CwlWorkflowProcess(object):
 
     def run(self):
         """
-        Run job saving results in process_output, process_error_output, and return_code members.
+        Run job, writing output to stdout_path/stderr_path, and setting return_code.
         :param command: [str]: array of strings representing a workflow command and its arguments
         """
-        # Create output directory for cwltoil
+        # Create output directory for workflow results
         if not os.path.exists(self.absolute_output_directory):
             os.mkdir(self.absolute_output_directory)
         self.started = datetime.datetime.now()
+        # Configure the supbrocess to write stdout and stderr directly to files
         logging.info('Running command: {}'.format(' '.join(self.command)))
-        p = subprocess.Popen(self.command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (stdout_data, stderr_data) = p.communicate()
-        self.output = stdout_data
-        self.error_output = stderr_data
-        self.return_code = p.returncode
+        logging.info('Redirecting stdout > {},  stderr > {}'.format(self.stdout_path, self.stderr_path))
+        stdout_file = open(self.stdout_path, 'w')
+        stderr_file = open(self.stderr_path, 'w')
+        try:
+            self.return_code = subprocess.call(self.command, stdout=stdout_file, stderr=stderr_file)
+        except OSError as e:
+            logging.error('Error running subprocess', e)
+            error_message = "Command failed: {}".format(' '.join(self.command))
+            raise JobStepFailed(error_message, e)
+        finally:
+            stdout_file.close()
+            stderr_file.close()
         self.finished = datetime.datetime.now()
 
     def total_runtime_str(self):
@@ -259,22 +290,22 @@ class ResultsDirectory(object):
         Add output files to the resulting directory based on the finished process.
         :param cwl_process: CwlProcess: process that was run - contains stdout, stderr, and exit status
         """
-        self._create_log_files(cwl_process.output, cwl_process.error_output)
+        self._copy_log_files(cwl_process.stdout_path, cwl_process.stderr_path)
         self._copy_workflow_inputs()
         self._create_report(cwl_process)
         self._create_running_instructions()
         self._add_methods_document()
 
-    def _create_log_files(self, output, error_output):
+    def _copy_log_files(self, output_log_path, error_log_path):
         """
-        Add stdout and stderr from the cwl-runner process to the 'logs' directory.
-        :param output: str: stdout from cwl-runner
-        :param error_output:  str: stderr from cwl-runner
+        Copy stdout and stderr log files to the 'logs' directory.
+        :param output_log_path: str: Path to file containing stdout from cwl-runner
+        :param error_log_path: str: Path to file containing stderr from cwl-runner
         """
         logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         create_dir_if_necessary(logs_directory)
-        save_data_to_directory(logs_directory, JOB_STDOUT_FILENAME, output)
-        save_data_to_directory(logs_directory, JOB_STDERR_FILENAME, error_output)
+        shutil.copy(output_log_path, os.path.join(logs_directory, JOB_STDOUT_FILENAME))
+        shutil.copy(error_log_path, os.path.join(logs_directory, JOB_STDERR_FILENAME))
 
     def _copy_workflow_inputs(self):
         """

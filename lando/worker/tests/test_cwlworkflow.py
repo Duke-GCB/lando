@@ -6,6 +6,7 @@ import shutil
 from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory, JOB_STDERR_OUTPUT_MAX_LINES
+from lando.worker.cwlworkflow import read_file
 from mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
 
@@ -129,11 +130,13 @@ outputfile: results.txt
     @patch("lando.worker.cwlworkflow.CwlDirectory")
     @patch("lando.worker.cwlworkflow.CwlWorkflowProcess")
     @patch("lando.worker.cwlworkflow.ResultsDirectory")
-    def test_workflow_bad_exit_status(self, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory):
+    @patch("lando.worker.cwlworkflow.read_file")
+    def test_workflow_bad_exit_status(self, mock_read_file, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory):
         process_instance = mock_cwl_workflow_process.return_value
         process_instance.return_code = 127
-        process_instance.error_output = '1\n2\n3\n4\n5\n6\n7\n8\n9\n10'
+        process_instance.stderr_path = 'stderr.txt'
         expected_error_message = "CWL workflow failed with exit code: 127\n8\n9\n10"
+        mock_read_file.return_value =  '1\n2\n3\n4\n5\n6\n7\n8\n9\n10'
         job_id = '123'
         working_directory = '/tmp/job_123'
         cwl_base_command = 'cwl-runner'
@@ -147,6 +150,7 @@ outputfile: results.txt
         with self.assertRaises(JobStepFailed) as raised_error:
             workflow.run(cwl_file_url, workflow_object_name, job_order)
         self.assertEqual(expected_error_message, raised_error.exception.value)
+        self.assertTrue(mock_read_file.has_call(process_instance.stderr_path))
 
     @patch("lando.worker.cwlworkflow.subprocess")
     @patch("lando.worker.cwlworkflow.os")
@@ -203,33 +207,38 @@ class TestCwlDirectory(TestCase):
 
 class TestCwlWorkflowProcess(TestCase):
     @patch("lando.worker.cwlworkflow.os.mkdir")
-    def test_run_stdout_good_exit(self, mock_mkdir):
+    @patch("lando.worker.cwlworkflow.tempfile")
+    @patch("lando.worker.cwlworkflow.open")
+    @patch("lando.worker.cwlworkflow.subprocess")
+    def test_run_stdout_good_exit(self, mock_subprocess, mock_open, mock_tempfile, mock_mkdir):
         """
         Swap out cwl-runner for echo and check output
         """
+        mock_subprocess.call.return_value = 0
         process = CwlWorkflowProcess(cwl_base_command=['echo'],
                                      local_output_directory='outdir',
                                      workflow_file='workflow',
                                      job_order_filename='joborder')
         process.run()
         self.assertEqual(0, process.return_code)
-        absolute_output_dir = os.path.abspath('outdir')
-        self.assertEqual("--outdir {} workflow joborder".format(absolute_output_dir), process.output.strip())
 
     @patch("lando.worker.cwlworkflow.os.mkdir")
-    def test_run_stderr_bad_exit(self, mock_mkdir):
+    @patch("lando.worker.cwlworkflow.tempfile")
+    @patch("lando.worker.cwlworkflow.open")
+    @patch("lando.worker.cwlworkflow.subprocess")
+    def test_run_stderr_bad_exit(self, mock_subprocess, mock_open, mock_tempfile, mock_mkdir):
         """
-        Testing that CwlWorkflowProcess traps stderr and the bad exit code.
+        Testing that CwlWorkflowProcess traps the bad exit code.
         Swap out cwl-runner for bogus ddsclient call that should fail.
         ddsclient is installed for use as a module in staging.
         """
+        mock_subprocess.call.return_value = 2
         process = CwlWorkflowProcess(cwl_base_command=['ddsclient'],
                                      local_output_directory='outdir',
                                      workflow_file='workflow',
                                      job_order_filename='joborder')
         process.run()
         self.assertEqual(2, process.return_code)
-        self.assertIn("usage", process.error_output.strip())
 
 
 class TestResultsDirectory(TestCase):
@@ -252,7 +261,7 @@ class TestResultsDirectory(TestCase):
         # Make dummy data so we can serialize the values
         mock_create_workflow_info().total_file_size_str.return_value = '1234'
         mock_create_workflow_info().count_output_files.return_value = 1
-        cwl_process = MagicMock(output='stdoutdata', error_output='stderrdata')
+        cwl_process = MagicMock(stdout_path='/path/to/stdout', stderr_path='/path/to/stderr')
         cwl_process.started.isoformat.return_value = ''
         cwl_process.finished.isoformat.return_value = ''
         cwl_process.total_runtime_str.return_value = '0 minutes'
@@ -271,8 +280,6 @@ class TestResultsDirectory(TestCase):
             call(documentation_directory + "logs"),
             call(documentation_directory + "scripts")])
         mock_save_data_to_directory.assert_has_calls([
-            call(documentation_directory + 'logs', 'cwltool-output.json', 'stdoutdata'),
-            call(documentation_directory + 'logs', 'cwltool-output.log', 'stderrdata'),
             call('/tmp/fakedir/results', 'Methods.html', '<h1>Methods Markdown</h1>'),
             call('/tmp/fakedir/results/docs', 'README.html', '<html></html>'),
             call('/tmp/fakedir/results/docs', 'README.md', '#Markdown'),
@@ -281,6 +288,8 @@ class TestResultsDirectory(TestCase):
 
         ], any_order=True)
         mock_shutil.copy.assert_has_calls([
+            call('/path/to/stdout', documentation_directory + 'logs/cwltool-output.json'),
+            call('/path/to/stderr', documentation_directory + 'logs/cwltool-output.log'),
             call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
             call('/tmp/alsonotreal.json', documentation_directory + 'scripts/alsonotreal.json')
         ])
@@ -291,3 +300,19 @@ class TestResultsDirectory(TestCase):
             call().count_output_files(),
             call().total_file_size_str()
         ])
+
+class TestReadFile(TestCase):
+
+    @patch('lando.worker.cwlworkflow.codecs')
+    def test_reads_file_using_codecs(self, mock_codecs):
+        expected_contents = 'Contents'
+        mock_codecs.open.return_value.__enter__.return_value.read.return_value = expected_contents
+        contents = read_file('myfile.txt')
+        self.assertEqual(expected_contents, contents)
+        mock_codecs.open.assert_called_with('myfile.txt','r',encoding='utf-8',errors='xmlcharrefreplace')
+
+    @patch('lando.worker.cwlworkflow.codecs')
+    def test_returns_empty_string_on_error(self, mock_codecs):
+        mock_codecs.open.side_effect = OSError()
+        contents = read_file('myfile.txt')
+        self.assertEqual('', contents)
