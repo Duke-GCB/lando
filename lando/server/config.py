@@ -46,7 +46,8 @@ class ServerConfig(object):
             'host': work_queue.host,
             'username': work_queue.worker_username,
             'password': work_queue.worker_password,
-            'queue_name': queue_name
+            'queue_name': queue_name,
+            'log_level': self.log_level
         }
         if not self.fake_cloud_service:
             data['cwl_base_command'] = cwl_command.base_command
