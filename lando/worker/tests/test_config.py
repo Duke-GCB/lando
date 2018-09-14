@@ -38,7 +38,7 @@ class TestWorkerConfig(TestCase):
         self.assertEqual("task-queue", work_queue_config.queue_name)
         self.assertEqual(["cwltoil"], config.cwl_base_command)
         self.assertEqual(['rm', 'bad.data'], config.cwl_post_process_command)
-        self.assertEqual(logging.INFO, config.log_level)
+        self.assertEqual(logging.WARNING, config.log_level)
 
     def test_empty_config(self):
         filename = write_temp_return_filename("")
