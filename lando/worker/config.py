@@ -25,7 +25,7 @@ class WorkerConfig(object):
             self.cwl_base_command = data.get('cwl_base_command', None)
             self.cwl_pre_process_command = data.get('cwl_pre_process_command', None)
             self.cwl_post_process_command = data.get('cwl_post_process_command', None)
-            self.log_level = data.get('log_level', logging.WARNING)
+            self.log_level = data.get('log_level', logging.INFO)
 
 
 class WorkQueue(object):
