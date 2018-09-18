@@ -71,7 +71,7 @@ class TestDukeDataService(TestCase):
         data_service = DukeDataService(MagicMock())
         data_service.share_project('my_project', remote_user.id)
         mock_d4s2_project.return_value.share.assert_called_with('my_project', remote_user,
-                                                                auth_role='project_admin', force_send=False,
+                                                                auth_role='project_admin', force_send=True,
                                                                 user_message='Bespin job results.')
 
     @patch('lando.worker.staging.D4S2Project')
