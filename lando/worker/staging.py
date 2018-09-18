@@ -136,7 +136,7 @@ class DukeDataService(object):
         remote_user = self.remote_store.fetch_user(dds_user_id)
         d4s2_project.share(remote_project,
                            remote_user,
-                           force_send=False,
+                           force_send=True,
                            auth_role='project_admin',
                            user_message='Bespin job results.')
 
