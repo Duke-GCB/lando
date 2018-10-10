@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
+
 from unittest import TestCase
 from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info
 from mock import patch, MagicMock, mock_open, call
@@ -181,12 +181,12 @@ class TestCwlReport(TestCase):
         self.assertEqual("<p>test 123</p>", report.render_html())
 
     def test_handles_unicode(self):
-        template = u'{{workflow.data}}qüü{{job.job_id}}'
-        workflow_info = MagicMock(data=u'ää')
-        job_data = MagicMock(job_id=u'üä')
+        template = '{{workflow.data}}qüü{{job.job_id}}'
+        workflow_info = MagicMock(data='ää')
+        job_data = MagicMock(job_id='üä')
         report = CwlReport(workflow_info, job_data, template)
         rendered = report.render_html()
-        self.assertEqual(u'<p>ääqüüüä</p>', rendered)
+        self.assertEqual('<p>ääqüüüä</p>', rendered)
 
 
 class TestCwlReportUtilities(TestCase):

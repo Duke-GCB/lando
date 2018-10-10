@@ -131,16 +131,16 @@ class FakeCloudService(object):
         self.vm_settings = vm_settings
 
     def launch_instance(self, server_name, flavor_name, script_contents, volumes):
-        print("Pretend we create vm: {}".format(server_name))
+        print(("Pretend we create vm: {}".format(server_name)))
         return None, '127.0.0.1'
 
     def create_volume(self, size, name):
-        print("Pretend to create a {} GB volume: {}".format(size, name))
+        print(("Pretend to create a {} GB volume: {}".format(size, name)))
         return None, 'volume-id'
 
     def terminate_instance(self, server_name, volume_names):
-        print("Pretend we terminate: {}".format(server_name))
-        print("Pretend we delete: {}".format(', '.join(volume_names)))
+        print(("Pretend we terminate: {}".format(server_name)))
+        print(("Pretend we delete: {}".format(', '.join(volume_names))))
 
     def make_vm_name(self, job_id):
         return 'local_worker'

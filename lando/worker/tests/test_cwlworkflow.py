@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 from unittest import TestCase
 import os
 import tempfile
@@ -132,6 +132,7 @@ outputfile: results.txt
     @patch("lando.worker.cwlworkflow.ResultsDirectory")
     @patch("lando.worker.cwlworkflow.read_file")
     def test_workflow_bad_exit_status(self, mock_read_file, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory):
+        mock_cwl_directory.return_value.result_directory = '/tmp'
         process_instance = mock_cwl_workflow_process.return_value
         process_instance.return_code = 127
         process_instance.stderr_path = 'stderr.txt'

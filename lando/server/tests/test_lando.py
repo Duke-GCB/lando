@@ -2,7 +2,7 @@
 Testing that lando can have top level methods called which will propogate to LandoActions and
 perform the expected actions.
 """
-from __future__ import absolute_import
+
 from unittest import TestCase
 import json
 from lando.server.lando import Lando, JobActions, JobSettings, WORK_PROGRESS_EXCHANGE_NAME

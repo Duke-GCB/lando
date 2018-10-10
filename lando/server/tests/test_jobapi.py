@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 from unittest import TestCase
 from lando.server.jobapi import JobApi, BespinApi, Job, CWLCommand, VMSettings
 from mock.mock import MagicMock, patch, call

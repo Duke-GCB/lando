@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 from unittest import TestCase
 from lando.worker.provenance import WorkflowFiles, DukeDSProjectInfo, WorkflowActivity
 from mock import patch, Mock, call, mock_open
@@ -31,7 +31,7 @@ class TestWorkflowFiles(TestCase):
         workflow_files = WorkflowFiles(working_directory='/tmp', job_id=1, workflow_filename="fastqc.cwl")
         read_data = '{"started": "2017-06-01:0800",  "finished": "2017-06-01:0830"}'
         fake_open = mock_open(read_data=read_data)
-        with patch("__builtin__.open", fake_open) as mock_file:
+        with patch("builtins.open", fake_open) as mock_file:
             job_data = workflow_files.get_job_data()
             self.assertEqual(call('/tmp/results/docs/logs/job-data.json', 'r'),
                              fake_open.call_args_list[0])

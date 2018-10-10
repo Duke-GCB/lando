@@ -4,7 +4,7 @@ Usage: lando_client <command> <parameter>
 Example to run a job: lando_client start_job <job_id>
 Example to cancel a job: lando_client cancel_job <job_id>
 """
-from __future__ import print_function, absolute_import
+
 import os
 import sys
 from lando.server.config import ServerConfig

@@ -12,7 +12,7 @@ def write_temp_return_filename(data):
     :return: str: temp filename we just created
     """
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(data)
+    file.write(data.encode('utf-8'))
     file.close()
     return file.name
 

@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 from unittest import TestCase
 from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, \
     RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, README_MARKDOWN_FILENAME

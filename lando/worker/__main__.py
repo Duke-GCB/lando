@@ -2,7 +2,7 @@
 Command line program for running the worker: lando_worker.
 Reads the worker config file for all it's settings.
 """
-from __future__ import print_function, absolute_import
+
 import os
 from lando.worker.config import WorkerConfig
 from lando.worker.worker import CONFIG_FILE_NAME, LandoWorker, LandoWorkerSettings

@@ -1,7 +1,7 @@
 """
 Creates a report about the inputs and outputs of a cwl workflow.
 """
-from __future__ import print_function
+
 import os
 import sys
 import yaml
@@ -152,7 +152,7 @@ class WorkflowInfo(object):
         """
         self.job_order_filename = job_order_path
         doc = parse_yaml_or_json(job_order_path)
-        for key in doc.keys():
+        for key in list(doc.keys()):
             val = doc.get(key)
             input_param = find_by_name(key, self.input_params)
             if input_param:
@@ -182,7 +182,7 @@ class WorkflowInfo(object):
         self.job_output_filename = job_output_path
         doc = parse_yaml_or_json(job_output_path)
         if doc:
-            for key in doc.keys():
+            for key in list(doc.keys()):
                 val = doc.get(key)
                 out_data = find_by_name(key, self.output_data)
                 self._add_files_recursive(out_data, val)
@@ -248,7 +248,7 @@ class InputParam(object):
         :param value: str: user facing value
         """
         if self.value:
-            raise ("Duplicate value for {} : {}".format(self.name, value))
+            raise "Duplicate value for {} : {}"
         self.value = value
 
 

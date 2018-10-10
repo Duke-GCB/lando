@@ -2,7 +2,7 @@
 Server that listens for request to run/cancel jobs.
 Starts VMs and has them run various job stages.
 """
-from __future__ import print_function, absolute_import
+
 import os
 import sys
 import logging

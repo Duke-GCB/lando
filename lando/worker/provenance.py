@@ -1,4 +1,4 @@
-from __future__ import absolute_import, print_function
+
 import os
 import json
 from lando.worker.cwlworkflow import RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, \
