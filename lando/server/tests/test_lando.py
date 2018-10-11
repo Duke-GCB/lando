@@ -8,7 +8,7 @@ import json
 from lando.server.lando import Lando, JobActions, JobSettings, WORK_PROGRESS_EXCHANGE_NAME
 from lando.server.jobapi import JobStates, JobSteps, Job
 from lando_messaging.messaging import RestartJobPayload
-from mock import MagicMock, patch, Mock, call
+from unittest.mock import MagicMock, patch, Mock, call
 from shade import OpenStackCloudException
 
 

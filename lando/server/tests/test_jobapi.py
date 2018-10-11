@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 from lando.server.jobapi import JobApi, BespinApi, Job, CWLCommand, VMSettings
-from mock.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call
 
 
 @patch('lando.server.jobapi.VMSettings')

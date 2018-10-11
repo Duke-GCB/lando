@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 from lando.worker.provenance import WorkflowFiles, DukeDSProjectInfo, WorkflowActivity
-from mock import patch, Mock, call, mock_open
+from unittest.mock import patch, Mock, call, mock_open
 
 
 class TestWorkflowFiles(TestCase):

@@ -1,7 +1,7 @@
 
 from unittest import TestCase
 from lando.server.cloudservice import CloudService
-import mock
+from unittest import mock
 
 
 class TestCloudService(TestCase):

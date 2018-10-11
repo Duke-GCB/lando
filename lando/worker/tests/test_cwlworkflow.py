@@ -7,7 +7,7 @@ from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory, JOB_STDERR_OUTPUT_MAX_LINES
 from lando.worker.cwlworkflow import read_file
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 from lando.exceptions import JobStepFailed
 
 SAMPLE_WORKFLOW = """

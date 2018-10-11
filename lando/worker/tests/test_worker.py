@@ -7,7 +7,7 @@ from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker, LandoWorkerActions
 from lando.worker.staging import SaveJobOutput
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
-from mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock, MagicMock
 
 LANDO_WORKER_CONFIG = """
 host: 10.109.253.74

@@ -3,7 +3,7 @@
 
 from unittest import TestCase
 from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info
-from mock import patch, MagicMock, mock_open, call
+from unittest.mock import patch, MagicMock, mock_open, call
 
 SAMPLE_CWL_MAIN_DATA = {
     'cwlVersion': 'v1.0',
