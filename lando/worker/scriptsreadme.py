@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import jinja2
 import markdown
 from lando.worker.cwlreport import BaseReport

@@ -1,7 +1,7 @@
 """
 Reads configuration settings from a YAML file for use with lando
 """
-from __future__ import absolute_import
+
 import yaml
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
 import logging

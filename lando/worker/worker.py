@@ -3,7 +3,7 @@ Program that listens for messages on a AMQP queue and runs job steps(staging, ru
 Create config file in /etc/lando_worker_config.yml
 Run via script with no arguments: lando_worker
 """
-from __future__ import print_function
+
 import os
 import traceback
 import logging

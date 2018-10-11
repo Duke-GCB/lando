@@ -1,7 +1,7 @@
 """
 Server that starts/terminates VMs based on messages received from a queue.
 """
-from __future__ import print_function, absolute_import
+
 from datetime import datetime
 import traceback
 import json
@@ -140,7 +140,7 @@ class JobActions(object):
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name, job.vm_settings.cwl_commands)
         cloud_config_script = CloudConfigScript()
         cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
-        for partition, mount_point in job.volume_mounts.iteritems():
+        for partition, mount_point in job.volume_mounts.items():
             cloud_config_script.add_volume(partition, mount_point)
         cloud_config_script.add_manage_etc_hosts()
         cloud_service = self._get_cloud_service(job)

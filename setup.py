@@ -7,7 +7,7 @@ LANDO_REQUIREMENTS = [
       "DukeDSClient==1.0.3",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
-      "lando-messaging==0.7.3",
+      "lando-messaging==0.7.4",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
       "PyYAML>3,<4",
@@ -15,7 +15,7 @@ LANDO_REQUIREMENTS = [
 ]
 
 setup(name='lando',
-      version='0.9.1',
+      version='0.9.2',
       description='Cloud based bioinformatics workflow runner',
       url='https://github.com/Duke-GCB/lando',
       author='Dan Leehr, John Bradley',

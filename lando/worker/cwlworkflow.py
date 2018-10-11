@@ -1,10 +1,10 @@
 """
 Runs cwl workflow.
 """
-from __future__ import print_function
+
 import os
 import shutil
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import datetime
 import json
 import markdown
@@ -114,7 +114,7 @@ class CwlDirectory(object):
         :return: str: location we downloaded the to
         """
         workflow_file = os.path.join(self.working_directory, self.workflow_basename)
-        urllib.urlretrieve(cwl_file_url, workflow_file)
+        urllib.request.urlretrieve(cwl_file_url, workflow_file)
         return workflow_file
 
     @staticmethod

@@ -4,7 +4,7 @@ import logging
 from lando.testutil import write_temp_return_filename
 from lando.server.config import ServerConfig
 from lando.exceptions import InvalidConfigException
-from mock import Mock
+from unittest.mock import Mock
 
 GOOD_CONFIG = """
 work_queue:

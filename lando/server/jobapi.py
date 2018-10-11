@@ -1,7 +1,7 @@
 """
 Allows reading and updating job information when talking to Bespin REST api.
 """
-from __future__ import print_function
+
 import requests
 import json
 
