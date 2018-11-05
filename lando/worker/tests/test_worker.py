@@ -7,7 +7,7 @@ from lando.worker.config import WorkerConfig
 from lando.worker.worker import LandoWorker, LandoWorkerActions
 from lando.worker.staging import SaveJobOutput
 from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock, MagicMock, ANY
 
 LANDO_WORKER_CONFIG = """
 host: 10.109.253.74
@@ -207,3 +207,19 @@ Send job step complete for job 3 project:2348.
         worker = LandoWorker(settings, outgoing_queue_name='stuff')
         worker.listen_for_messages()
         settings.make_lando_client.return_value.worker_started.assert_called()
+
+
+class LandoWorkerActionsTestCase(TestCase):
+    def test_run_workflow_with_methods_document(self):
+        mock_settings, mock_client, mock_payload = Mock(), Mock(), Mock()
+        mock_payload.job_details.workflow_methods_document = Mock(content="#Markdown")
+        actions = LandoWorkerActions(mock_settings, mock_client)
+        actions.run_workflow(working_directory='/tmp/fakedir', payload=mock_payload)
+        mock_settings.make_cwl_workflow.assert_called_with(ANY, '/tmp/fakedir', ANY, ANY, "#Markdown")
+
+    def test_run_workflow_without_methods_document(self):
+        mock_settings, mock_client, mock_payload = Mock(), Mock(), Mock()
+        mock_payload.job_details.workflow_methods_document = None
+        actions = LandoWorkerActions(mock_settings, mock_client)
+        actions.run_workflow(working_directory='/tmp/fakedir', payload=mock_payload)
+        mock_settings.make_cwl_workflow.assert_called_with(ANY, '/tmp/fakedir', ANY, ANY, None)
