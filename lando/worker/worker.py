@@ -94,7 +94,9 @@ class LandoWorkerActions(object):
         """
         cwl_base_command = self.config.cwl_base_command
         cwl_post_process_command = self.config.cwl_post_process_command
-        workflow_methods_markdown = payload.job_details.workflow_methods_document.content
+        workflow_methods_markdown = None
+        if payload.job_details.workflow_methods_document:
+            workflow_methods_markdown = payload.job_details.workflow_methods_document.content
         workflow = self.settings.make_cwl_workflow(payload.job_id, working_directory,
                                                    cwl_base_command, cwl_post_process_command,
                                                    workflow_methods_markdown)

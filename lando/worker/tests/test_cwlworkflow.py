@@ -284,7 +284,6 @@ class TestResultsDirectory(TestCase):
             call('/tmp/fakedir/results/docs', 'README.md', '#Markdown'),
             call('/tmp/fakedir/results/docs/scripts', 'README.html', '<html>2</html>'),
             call('/tmp/fakedir/results/docs/scripts', 'README.md', '#Markdown2'),
-
         ], any_order=True)
         mock_shutil.copy.assert_has_calls([
             call('/path/to/stdout', documentation_directory + 'logs/cwltool-output.json'),
@@ -299,6 +298,51 @@ class TestResultsDirectory(TestCase):
             call().count_output_files(),
             call().total_file_size_str()
         ])
+
+    @patch("lando.worker.cwlworkflow.create_dir_if_necessary")
+    @patch("lando.worker.cwlworkflow.save_data_to_directory")
+    @patch("lando.worker.cwlworkflow.shutil")
+    @patch("lando.worker.cwlworkflow.create_workflow_info")
+    @patch("lando.worker.cwlworkflow.CwlReport")
+    @patch("lando.worker.cwlworkflow.ScriptsReadme")
+    def test_add_files_null_methods_document(self, mock_scripts_readme, mock_cwl_report, mock_create_workflow_info,
+                                             mock_shutil, mock_save_data_to_directory, mock_create_dir_if_necessary):
+        job_id = 1
+        cwl_directory = MagicMock(result_directory='/tmp/fakedir',
+                                  workflow_path='/tmp/nosuchpath.cwl',
+                                  workflow_basename='nosuch.cwl',
+                                  job_order_file_path='/tmp/alsonotreal.json')
+        # Create directory
+        results_directory = ResultsDirectory(job_id, cwl_directory, None)
+
+        # Make dummy data so we can serialize the values
+        mock_create_workflow_info().total_file_size_str.return_value = '1234'
+        mock_create_workflow_info().count_output_files.return_value = 1
+        cwl_process = MagicMock(stdout_path='/path/to/stdout', stderr_path='/path/to/stderr')
+        cwl_process.started.isoformat.return_value = ''
+        cwl_process.finished.isoformat.return_value = ''
+        cwl_process.total_runtime_str.return_value = '0 minutes'
+
+        # Specify README data
+        mock_cwl_report.return_value.render_markdown.return_value = '#Markdown'
+        mock_cwl_report.return_value.render_html.return_value = '<html></html>'
+        mock_scripts_readme.return_value.render_markdown.return_value = '#Markdown2'
+        mock_scripts_readme.return_value.render_html.return_value = '<html>2</html>'
+
+        # Ask directory to add files based on a mock process
+        results_directory.add_files(cwl_process)
+        documentation_directory = '/tmp/fakedir/results/docs/'
+
+        mock_create_dir_if_necessary.assert_has_calls([
+            call(documentation_directory + "logs"),
+            call(documentation_directory + "scripts")])
+        mock_save_data_to_directory.assert_has_calls([
+            call('/tmp/fakedir/results/docs', 'README.html', '<html></html>'),
+            call('/tmp/fakedir/results/docs', 'README.md', '#Markdown'),
+            call('/tmp/fakedir/results/docs/scripts', 'README.html', '<html>2</html>'),
+            call('/tmp/fakedir/results/docs/scripts', 'README.md', '#Markdown2'),
+        ], any_order=True)
+
 
 class TestReadFile(TestCase):
 

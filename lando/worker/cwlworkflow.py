@@ -292,7 +292,8 @@ class ResultsDirectory(object):
         self._copy_workflow_inputs()
         self._create_report(cwl_process)
         self._create_running_instructions()
-        self._add_methods_document()
+        if self.workflow_methods_markdown_content:
+            self._add_methods_document()
 
     def _copy_log_files(self, output_log_path, error_log_path):
         """
