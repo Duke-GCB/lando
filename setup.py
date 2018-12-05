@@ -11,7 +11,7 @@ LANDO_REQUIREMENTS = [
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
       "PyYAML==3.12",
-      "requests==2.18.1",
+      "requests==2.20.1",
 ]
 
 setup(name='lando',
