@@ -1,6 +1,6 @@
 import logging
 import json
-from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, CONFIG_FILE_NAME, JobStates
+from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates
 from lando.kube.cluster import ClusterApi, BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, SecretEnvVar
 

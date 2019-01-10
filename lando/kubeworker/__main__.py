@@ -1,10 +1,13 @@
 import sys
+import logging
 from lando.kubeworker.config import WorkerConfig
 from lando.kubeworker.worker import Worker
 
 
 def main():
-    worker = Worker(WorkerConfig())
+    config = WorkerConfig()
+    worker = Worker(config)
+    logging.basicConfig(stream=sys.stdout, level=config.log_level)
     worker.run()
 
 
