@@ -54,6 +54,6 @@ class BespinApiSettings(object):
     """
     Settings used to talk to be Bespin job api.
     """
-    def __init__(self, data):
+    def __init__(self):
         self.url = os.environ['BESPIN_API_URL']
         self.token = os.environ['BESPIN_API_TOKEN']
