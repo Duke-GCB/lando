@@ -1,7 +1,7 @@
 import yaml
 import logging
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
-from lando.server.config import WorkQueue, CloudSettings, BespinApiSettings
+import os
 
 
 class ServerConfig(object):
@@ -9,19 +9,15 @@ class ServerConfig(object):
     Configuration for either Server or Client.
     For worker, cloud_settings will return None.
     """
-    def __init__(self, filename):
+    def __init__(self):
         """
         Parse yaml file and store internal data .
         :param filename: str: path to a yaml config file
         """
-        with open(filename, 'r') as infile:
-            data = yaml.load(infile)
-            if not data:
-                raise InvalidConfigException("Empty config file {}.".format(filename))
-            self.work_queue_config = WorkQueue(get_or_raise_config_exception(data, 'work_queue'))
-            self.cluster_api = self._optional_get(data, 'cluster_api', ClusterApiSettings)
-            self.bespin_api_settings = self._optional_get(data, 'bespin_api', BespinApiSettings)
-            self.log_level = data.get('log_level', logging.WARNING)
+        self.work_queue_config = WorkQueue()
+        self.cluster_api = ClusterApiSettings()
+        self.bespin_api_settings = BespinApiSettings()
+        self.log_level = os.environ.get('LOG_LEVEL', logging.WARNING)
 
     @staticmethod
     def _optional_get(data, name, constructor):
@@ -36,7 +32,29 @@ class ClusterApiSettings(object):
     """
     Settings used to talk to be Bespin job api.
     """
+    def __init__(self):
+        self.host = os.environ['BESPIN_CLUSTER_HOST']
+        self.token = os.environ['BESPIN_CLUSTER_TOKEN']
+        self.namespace = os.environ['BESPIN_CLUSTER_NAMESPACE']
+
+
+class WorkQueue(object):
+    """
+    Settings for the AMQP used to control lando_worker processes.
+    """
+    def __init__(self):
+        self.host = os.environ['BESPIN_RABBIT_HOST']
+        self.username = os.environ.get('BESPIN_RABBIT_USERNAME')
+        self.password = os.environ.get('BESPIN_RABBIT_PASSWORD')
+        self.worker_username = os.environ.get('BESPIN_RABBIT_WORKER_USERNAME')
+        self.worker_password = os.environ.get('BESPIN_RABBIT_WORKER_PASSWORD')
+        self.listen_queue = os.environ['BESPIN_RABBIT_QUEUE']
+
+
+class BespinApiSettings(object):
+    """
+    Settings used to talk to be Bespin job api.
+    """
     def __init__(self, data):
-        self.host = get_or_raise_config_exception(data, 'host')
-        self.token = get_or_raise_config_exception(data, 'token')
-        self.namespace = get_or_raise_config_exception(data, 'namespace')
+        self.url = os.environ['BESPIN_API_URL']
+        self.token = os.environ['BESPIN_API_TOKEN']
