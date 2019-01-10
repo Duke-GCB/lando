@@ -318,18 +318,23 @@ class JobActions(object):
         self._log_error(message=message)
 
 
+def create_job_actions(lando, job_id):
+    return JobActions(JobSettings(job_id, lando.config))
+
+
 class Lando(object):
     """
     Contains base methods for handling messages related to managing/running a workflow.
     Main function is to unpack incoming messages creating a JobActions object for the job id
     and running the appropriate method.
     """
-    def __init__(self, config):
+    def __init__(self, config, job_actions_constructor=create_job_actions):
         """
         Setup configuration.
         :param config: ServerConfig: settings used by JobActions methods
         """
         self.config = config
+        self.job_actions_constructor = job_actions_constructor
 
     def _make_actions(self, job_id):
         """
@@ -337,7 +342,7 @@ class Lando(object):
         :param job_id: int: unique id for the job
         :return: JobActions: object with methods for processing messages received in listen_for_messages
         """
-        return JobActions(self._make_job_settings(job_id, self.config))
+        return self.job_actions_constructor(self, job_id)
 
     @staticmethod
     def _make_job_settings(job_id, config):

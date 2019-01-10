@@ -440,6 +440,7 @@ class JobStates(object):
     Values for state that must match up those supported by Bespin.
     """
     NEW = 'N'
+    STARTING = 'S'
     RUNNING = 'R'
     FINISHED = 'F'
     ERRORED = 'E'
