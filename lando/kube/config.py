@@ -45,8 +45,10 @@ class WorkQueue(object):
     """
     def __init__(self):
         self.host = os.environ['BESPIN_RABBIT_HOST']
-        self.username = os.environ.get('BESPIN_RABBIT_USERNAME')
-        self.password = os.environ.get('BESPIN_RABBIT_PASSWORD')
+        self.username = os.environ.get('BESPIN_QUEUE_LANDO_USERNAME')
+        self.password = os.environ.get('BESPIN_QUEUE_LANDO_PASSWORD')
+        self.worker_username = os.environ.get('BESPIN_QUEUE_WORKER_USERNAME')
+        self.worker_password = os.environ.get('BESPIN_QUEUE_WORKER_PASSWORD')
         self.listen_queue = os.environ['BESPIN_RABBIT_QUEUE']
 
 
