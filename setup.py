@@ -7,6 +7,7 @@ LANDO_REQUIREMENTS = [
       "DukeDSClient==1.0.3",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
+      "kubernetes==8.0.1",
       "lando-messaging==0.7.4",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
@@ -28,6 +29,8 @@ setup(name='lando',
             'console_scripts': [
                   'lando = lando.server.__main__:main',
                   'lando_worker = lando.worker.__main__:main',
+                  'lando_kube = lando.kube.__main__:main',
+                  'lando_kube_worker = lando.kubeworker.__main__:main',
                   'lando_client = lando.client.__main__:main',
             ]
       }
