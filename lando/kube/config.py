@@ -33,9 +33,10 @@ class ClusterApiSettings(object):
     Settings used to talk to be Bespin job api.
     """
     def __init__(self):
-        self.host = os.environ['BESPIN_CLUSTER_HOST']
-        self.token = os.environ['BESPIN_CLUSTER_TOKEN']
-        self.namespace = os.environ['BESPIN_CLUSTER_NAMESPACE']
+        self.host = os.environ.get('BESPIN_CLUSTER_HOST')
+        self.token = os.environ.get('BESPIN_CLUSTER_TOKEN')
+        self.namespace = os.environ.get('BESPIN_CLUSTER_NAMESPACE')
+        self.incluster_config = os.environ.get('BESPIN_INCLUSTER_CONFIG')
 
 
 class WorkQueue(object):
@@ -46,8 +47,6 @@ class WorkQueue(object):
         self.host = os.environ['BESPIN_RABBIT_HOST']
         self.username = os.environ.get('BESPIN_RABBIT_USERNAME')
         self.password = os.environ.get('BESPIN_RABBIT_PASSWORD')
-        self.worker_username = os.environ.get('BESPIN_RABBIT_WORKER_USERNAME')
-        self.worker_password = os.environ.get('BESPIN_RABBIT_WORKER_PASSWORD')
         self.listen_queue = os.environ['BESPIN_RABBIT_QUEUE']
 
 

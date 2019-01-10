@@ -2,14 +2,19 @@ from kubernetes import client, config, watch
 
 
 class ClusterApi(object):
-    def __init__(self, host, token, namespace, verify_ssl=True):
-        config = client.Configuration()
-        config.host = host
-        config.api_key = {"authorization": "Bearer " + token}
-        config.verify_ssl = verify_ssl
-        api_client = client.ApiClient(config)
-        self.core = client.CoreV1Api(api_client)
-        self.batch = client.BatchV1Api(api_client)
+    def __init__(self, host, token, namespace, incluster_config=False, verify_ssl=True):
+        if incluster_config:
+            config.load_incluster_config()
+            self.core = client.CoreV1Api()
+            self.batch = client.BatchV1Api()
+        else:
+            my_config = client.Configuration()
+            my_config.host = host
+            my_config.api_key = {"authorization": "Bearer " + token}
+            my_config.verify_ssl = verify_ssl
+            api_client = client.ApiClient(my_config)
+            self.core = client.CoreV1Api(api_client)
+            self.batch = client.BatchV1Api(api_client)
         self.namespace = namespace
 
     def create_persistent_volume_claim(self, name, storage_size_in_g,

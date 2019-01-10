@@ -15,6 +15,7 @@ class Worker(object):
         self.cluster_api = ClusterApi(config.cluster_api.host,
                                       config.cluster_api.token,
                                       config.cluster_api.namespace,
+                                      incluster_config=config.cluster_api.incluster_config,
                                       verify_ssl=False)  # TODO REMOVE THIS
 
     def run(self):
