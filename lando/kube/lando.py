@@ -158,7 +158,7 @@ class JobActions(object):
 
     def _show_status(self, message):
         format_str = "{}: {} for job: {}."
-        logging.info(format_str.format(datetime.now(), message, self.job_id))
+        logging.info(format_str.format(datetime.datetime.now(), message, self.job_id))
 
     def _send_job_progress_notification(self):
         job = self.job_api.get_job()
