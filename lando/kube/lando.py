@@ -110,7 +110,7 @@ class JobActions(object):
                 "BESPIN_CLUSTER_HOST": SecretEnvVar(name=self.cluster_api_secret_name, key='host'),
                 "BESPIN_CLUSTER_TOKEN": SecretEnvVar(name=self.cluster_api_secret_name, key='token'),
                 "BESPIN_CLUSTER_NAMESPACE": SecretEnvVar(name=self.cluster_api_secret_name, key='namespace'),
-                "BESPIN_INCLUSTER_CONFIG": "true",
+                "BESPIN_INCLUSTER_CONFIG": SecretEnvVar(name=self.cluster_api_secret_name, key='incluster_config'),
             },
             requested_cpu="100m",
             requested_memory="64Mi",
