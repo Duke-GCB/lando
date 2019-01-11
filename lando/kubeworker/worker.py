@@ -1,4 +1,5 @@
-from lando.server.lando import JobApi, JobStates
+from lando.server.lando import JobApi, JobStates, JobSteps
+from lando_messaging.clients import LandoClient
 from lando.kube.cluster import ClusterApi, BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, SecretEnvVar
 import logging
@@ -40,10 +41,13 @@ class Worker(object):
             logging.error("Invalid job state {}".format())
 
     def start_job(self):
-        self.add_workflow_to_volume()
+        self.job_api.set_job_state(JobStates.RUNNING)
+
         self.stage_data()
         self.run_workflow()
         self.store_output()
+
+        self.job_api.set_job_step(JobSteps.TERMINATE_VM)
 
     def restart_job(self):
         raise NotImplemented("TODO")
@@ -53,6 +57,9 @@ class Worker(object):
         self.workflow.write_job_order_file()
 
     def stage_data(self):
+        self.job_api.set_job_step(JobSteps.STAGING)
+        self.add_workflow_to_volume()
+
         dds_files = []
         input_files = self.job_api.get_input_files()
         for input_file in input_files:
@@ -93,6 +100,7 @@ class Worker(object):
         self.cluster_api.delete_config_map(self.stage_job_name)
 
     def run_workflow(self):
+        self.job_api.set_job_step(JobSteps.RUNNING)
         # Run job to stage data based on the config map
         workflow_filename = os.path.basename(self.job.workflow.url)
         container = Container(
@@ -113,6 +121,7 @@ class Worker(object):
         self.cluster_api.delete_job(self.run_job_name)
 
     def store_output(self):
+        self.job_api.set_job_step(JobSteps.STORING_JOB_OUTPUT)
         config_data = {
             "destination": self.output_project_name,
             "paths": ["/data/results"]
