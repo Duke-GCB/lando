@@ -20,8 +20,16 @@ class Worker(object):
                                       verify_ssl=False)  # TODO REMOVE THIS
         self.working_directory = '/data'
         self.stage_job_name = "stage-job-{}".format(config.job_id)
+        self.output_project_name = 'Bespin-job-{}-results'.format(config.job_id)
+        self.run_job_name = "run-job-{}".format(config.job_id)
+        self.save_output_job_name = "save-output-job-{}".format(config.job_id)
         self.ddsclient_agent_name = "ddsclient-agent"
         self.job_claim_name = "job-{}-volume".format(config.job_id)
+
+    def get_persistent_volume_claim(self):
+        return PersistentClaimVolume(self.job_claim_name,
+                                     mount_path="/data",
+                                     volume_claim_name=self.job_claim_name)
 
     def run(self):
         if self.job.state == JobStates.STARTING:
@@ -58,10 +66,6 @@ class Worker(object):
             "commands": json.dumps(config_data)
         }
         self.cluster_api.create_config_map(name=self.stage_job_name, data=payload)
-        persistent_claim_volume = PersistentClaimVolume(self.job_claim_name,
-                                                        mount_path="/data",
-                                                        volume_claim_name=self.job_claim_name)
-
         stage_data_config_volume = ConfigMapVolume("config", mount_path="/etc/config",
                                                    config_map_name=self.stage_job_name,
                                                    source_key="commands", source_path="commands")
@@ -78,7 +82,7 @@ class Worker(object):
             requested_cpu="100m",
             requested_memory="64Mi",
             volumes=[
-                persistent_claim_volume,
+                self.get_persistent_volume_claim(),
                 ddsclient_secret_volume,
                 stage_data_config_volume,
             ])
@@ -89,10 +93,56 @@ class Worker(object):
         self.cluster_api.delete_config_map(self.stage_job_name)
 
     def run_workflow(self):
-        pass
+        # Run job to stage data based on the config map
+        workflow_filename = os.path.basename(self.job.workflow.url)
+        container = Container(
+            name=self.stage_job_name,
+            image_name="commonworkflowlanguage/cwltool",
+            command="cwltool",
+            args=["--no-container", "--outdir", "results", "{}#main".format(workflow_filename), "job-order.json"],
+            working_dir="/data",
+            env_dict={},
+            requested_cpu="100m",
+            requested_memory="64Mi",
+            volumes=[
+                self.get_persistent_volume_claim()
+            ])
+        job_spec = BatchJobSpec(self.run_job_name, container=container)
+        self.cluster_api.create_job(self.run_job_name, job_spec)
+        self.cluster_api.wait_for_jobs(job_names=[self.run_job_name])
+        self.cluster_api.delete_job(self.run_job_name)
 
     def store_output(self):
-        pass
+        config_data = {
+            "destination": self.output_project_name,
+            "paths": ["/data/results"]
+        }
+        payload = {
+            "commands": json.dumps(config_data)
+        }
+        self.cluster_api.create_config_map(name=self.save_output_job_name, data=payload)
+        save_results_config_volume = ConfigMapVolume("config", mount_path="/etc/config",
+                                                     config_map_name=self.save_output_job_name,
+                                                     source_key="commands", source_path="commands")
+        ddsclient_secret_volume = SecretVolume(self.ddsclient_agent_name, mount_path="/etc/ddsclient",
+                                               secret_name=self.ddsclient_agent_name)
+        container = Container(
+            name=self.save_output_job_name,
+            image_name="jbradley/duke-ds-staging",
+            command="python",
+            args=["/app/upload.py", "/etc/config/commands"],
+            working_dir="/data",
+            env_dict={"DDSCLIENT_CONF": "/etc/ddsclient/config"},
+            requested_cpu="100m",
+            requested_memory="64Mi",
+            volumes=[ddsclient_secret_volume, self.get_persistent_volume_claim(), save_results_config_volume])
+        job_spec = BatchJobSpec(self.save_output_job_name, container=container)
+        self.cluster_api.create_job(self.save_output_job_name, job_spec)
+
+        # After stage job finishes cleanup
+        self.cluster_api.wait_for_jobs(job_names=[self.save_output_job_name])
+        self.cluster_api.delete_job(self.save_output_job_name)
+        self.cluster_api.delete_config_map(self.save_output_job_name)
 
 
 class Workflow(object):
