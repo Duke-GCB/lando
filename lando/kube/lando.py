@@ -56,8 +56,8 @@ class JobActions(object):
 
     def start_job(self, payload):
         job = self.job_api.get_job()
-        self._create_bespin_api_key_secret()
-        self._create_cluster_api_secret()
+        #self._create_bespin_api_key_secret()
+        #self._create_cluster_api_secret()
         self._create_volume(job)
         self._create_job(job)
 
@@ -105,8 +105,8 @@ class JobActions(object):
             env_dict={
                 "JOB_ID": self.job_id,
                 "WORKFLOW_DIR": "/data",
-                "BESPIN_URL": SecretEnvVar(name=self.bespin_api_secret_name, key='url'),
-                "BESPIN_TOKEN": SecretEnvVar(name=self.bespin_api_secret_name, key='token'),
+                "BESPIN_API_URL": SecretEnvVar(name=self.bespin_api_secret_name, key='url'),
+                "BESPIN_API_TOKEN": SecretEnvVar(name=self.bespin_api_secret_name, key='token'),
                 "CLUSTER_HOST": SecretEnvVar(name=self.cluster_api_secret_name, key='host'),
                 "CLUSTER_TOKEN": SecretEnvVar(name=self.cluster_api_secret_name, key='token'),
                 "CLUSTER_NAMESPACE": SecretEnvVar(name=self.cluster_api_secret_name, key='namespace'),

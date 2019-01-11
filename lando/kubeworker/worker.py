@@ -4,6 +4,7 @@ from lando.kube.cluster import ClusterApi, BatchJobSpec, SecretVolume, Persisten
 import logging
 import urllib
 import os
+import json
 
 
 class Worker(object):
@@ -17,6 +18,10 @@ class Worker(object):
                                       config.cluster_api.namespace,
                                       incluster_config=config.cluster_api.incluster_config,
                                       verify_ssl=False)  # TODO REMOVE THIS
+        self.working_directory = '/data'
+        self.stage_job_name = "stage-job-{}".format(config.job_id)
+        self.ddsclient_agent_name = "ddsclient-agent"
+        self.job_claim_name = "job{}-volume".format(config.job_id)
 
     def run(self):
         if self.job.state == JobStates.STARTING:
@@ -40,7 +45,44 @@ class Worker(object):
         self.workflow.write_job_order_file()
 
     def stage_data(self):
-        pass
+        dds_files = []
+        input_files = self.job_api.get_input_files()
+        for dds_file in input_files.dds_files:
+            dds_files.append({
+                "key": dds_file.file_id,
+                "dest": dds_file.destination_path
+            })
+        config_data = {"files": dds_files}
+        payload = {
+            "commands": json.dumps(config_data)
+        }
+        self.cluster_api.create_config_map(name=self.self.stage_job_name, data=payload)
+        persistent_claim_volume = PersistentClaimVolume(self.job_claim_name,
+                                                        mount_path="/data",
+                                                        volume_claim_name=self.job_claim_name)
+
+        stage_data_config_volume = ConfigMapVolume("config", mount_path="/etc/config",
+                                                   config_map_name=self.self.stage_job_name,
+                                                   source_key="commands", source_path="commands")
+        ddsclient_secret_volume = SecretVolume(self.ddsclient_agent_name, mount_path="/etc/ddsclient",
+                                               secret_name=self.ddsclient_agent_name)
+        # Run job to stage data based on the config map
+        container = Container(
+            name=self.stage_job_name,
+            image_name="jbradley/duke-ds-staging",
+            command="python",
+            args=["/app/download.py", "/etc/config/commands"],
+            working_dir="/data",
+            env_dict={"DDSCLIENT_CONF": "/etc/ddsclient/config"},
+            requested_cpu="100m",
+            requested_memory="64Mi",
+            volumes=[
+                persistent_claim_volume,
+                ddsclient_secret_volume,
+                stage_data_config_volume,
+            ])
+        job_spec = BatchJobSpec(self.stage_job_name, container=container)
+        job = self.cluster_api.create_job(self.stage_job_name, job_spec)
 
     def run_workflow(self):
         pass
