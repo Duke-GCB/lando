@@ -21,7 +21,7 @@ class Worker(object):
         self.working_directory = '/data'
         self.stage_job_name = "stage-job-{}".format(config.job_id)
         self.ddsclient_agent_name = "ddsclient-agent"
-        self.job_claim_name = "job{}-volume".format(config.job_id)
+        self.job_claim_name = "job-{}-volume".format(config.job_id)
 
     def run(self):
         if self.job.state == JobStates.STARTING:
@@ -84,6 +84,9 @@ class Worker(object):
             ])
         job_spec = BatchJobSpec(self.stage_job_name, container=container)
         self.cluster_api.create_job(self.stage_job_name, job_spec)
+        self.cluster_api.wait_for_jobs(job_names=[self.stage_job_name])
+        self.cluster_api.delete_job(self.stage_job_name)
+        self.cluster_api.delete_config_map(self.stage_job_name)
 
     def run_workflow(self):
         pass
