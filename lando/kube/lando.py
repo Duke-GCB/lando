@@ -1,4 +1,5 @@
 import os
+import datetime
 import logging
 import json
 from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates
@@ -154,6 +155,10 @@ class JobActions(object):
         message = "Running {} failed with {}".format(action_name, details)
         self._show_status(message)
         self._log_error(message=message)
+
+    def _show_status(self, message):
+        format_str = "{}: {} for job: {}."
+        logging.info(format_str.format(datetime.now(), message, self.job_id))
 
     def _send_job_progress_notification(self):
         job = self.job_api.get_job()
