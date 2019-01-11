@@ -47,22 +47,23 @@ class Worker(object):
     def stage_data(self):
         dds_files = []
         input_files = self.job_api.get_input_files()
-        for dds_file in input_files.dds_files:
-            dds_files.append({
-                "key": dds_file.file_id,
-                "dest": dds_file.destination_path
-            })
+        for input_file in input_files:
+            for dds_file in input_file.dds_files:
+                dds_files.append({
+                    "key": dds_file.file_id,
+                    "dest": dds_file.destination_path
+                })
         config_data = {"files": dds_files}
         payload = {
             "commands": json.dumps(config_data)
         }
-        self.cluster_api.create_config_map(name=self.self.stage_job_name, data=payload)
+        self.cluster_api.create_config_map(name=self.stage_job_name, data=payload)
         persistent_claim_volume = PersistentClaimVolume(self.job_claim_name,
                                                         mount_path="/data",
                                                         volume_claim_name=self.job_claim_name)
 
         stage_data_config_volume = ConfigMapVolume("config", mount_path="/etc/config",
-                                                   config_map_name=self.self.stage_job_name,
+                                                   config_map_name=self.stage_job_name,
                                                    source_key="commands", source_path="commands")
         ddsclient_secret_volume = SecretVolume(self.ddsclient_agent_name, mount_path="/etc/ddsclient",
                                                secret_name=self.ddsclient_agent_name)
@@ -82,7 +83,7 @@ class Worker(object):
                 stage_data_config_volume,
             ])
         job_spec = BatchJobSpec(self.stage_job_name, container=container)
-        job = self.cluster_api.create_job(self.stage_job_name, job_spec)
+        self.cluster_api.create_job(self.stage_job_name, job_spec)
 
     def run_workflow(self):
         pass
