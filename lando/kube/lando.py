@@ -155,6 +155,15 @@ class JobActions(object):
         self._show_status(message)
         self._log_error(message=message)
 
+    def _send_job_progress_notification(self):
+        job = self.job_api.get_job()
+        payload = json.dumps({
+            "job": job.id,
+            "state": job.state,
+            "step": job.step,
+        })
+        self.work_progress_queue.send(payload)
+
 
 def create_job_actions(lando, job_id):
     return JobActions(JobSettings(job_id, lando.config))
