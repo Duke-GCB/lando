@@ -1,3 +1,4 @@
+import os
 import logging
 import json
 from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates
@@ -53,6 +54,7 @@ class JobActions(object):
         self.volume_name = "job-{}-volume".format(self.job_id)
         self.bespin_api_secret_name = 'bespin-api-admin'
         self.cluster_api_secret_name = 'cluster-api'
+        self.rabbit_users_secret_name = 'rabbit-users'
 
     def start_job(self, payload):
         job = self.job_api.get_job()
@@ -111,6 +113,12 @@ class JobActions(object):
                 "BESPIN_CLUSTER_TOKEN": SecretEnvVar(name=self.cluster_api_secret_name, key='token'),
                 "BESPIN_CLUSTER_NAMESPACE": SecretEnvVar(name=self.cluster_api_secret_name, key='namespace'),
                 "BESPIN_INCLUSTER_CONFIG": SecretEnvVar(name=self.cluster_api_secret_name, key='incluster_config'),
+                "BESPIN_RABBIT_HOST": os.environ["BESPIN_RABBIT_HOST"],
+                "BESPIN_QUEUE_LANDO_USERNAME": SecretEnvVar(self.rabbit_users_secret_name, key='LANDO_USERNAME'),
+                "BESPIN_QUEUE_LANDO_PASSWORD": SecretEnvVar(self.rabbit_users_secret_name, key='LANDO_PASSWORD'),
+                "BESPIN_QUEUE_WORKER_USERNAME": SecretEnvVar(self.rabbit_users_secret_name, key='WORKER_USERNAME'),
+                "BESPIN_QUEUE_WORKER_PASSWORD": SecretEnvVar(self.rabbit_users_secret_name, key='WORKER_PASSWORD'),
+                "BESPIN_RABBIT_QUEUE": os.environ["BESPIN_RABBIT_QUEUE"],
             },
             requested_cpu="100m",
             requested_memory="64Mi",

@@ -19,14 +19,6 @@ class ServerConfig(object):
         self.bespin_api_settings = BespinApiSettings()
         self.log_level = os.environ.get('LOG_LEVEL', logging.WARNING)
 
-    @staticmethod
-    def _optional_get(data, name, constructor):
-        value = data.get(name, None)
-        if value:
-            return constructor(value)
-        else:
-            return None
-
 
 class ClusterApiSettings(object):
     """
