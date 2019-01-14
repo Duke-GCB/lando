@@ -17,6 +17,7 @@ class ServerConfig(object):
         self.work_queue_config = WorkQueue()
         self.cluster_api = ClusterApiSettings()
         self.bespin_api_settings = BespinApiSettings()
+        self.worker_image_name = os.environ['LANDO_WORKER_IMAGE_NAME']
         self.log_level = os.environ.get('LOG_LEVEL', logging.WARNING)
 
 

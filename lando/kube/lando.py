@@ -101,7 +101,7 @@ class JobActions(object):
                                                         volume_claim_name=self.volume_name)
         container = Container(
             name=self.job_name,
-            image_name=job.vm_settings.image_name,
+            image_name=self.config.worker_image_name,
             command="lando_kube_worker",
             args=[],
             working_dir="/data",

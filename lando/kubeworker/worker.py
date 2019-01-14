@@ -113,12 +113,16 @@ class Worker(object):
     def run_workflow(self):
         self.job_api.set_job_step(JobSteps.RUNNING)
         # Run job to stage data based on the config map
+        base_cwl_command_ary = self.job.vm_settings.cwl_commands.base_command
+        command = base_cwl_command_ary[0]
         workflow_filename = os.path.basename(self.job.workflow.url)
+        args = ["--outdir", "data/results", "{}#main".format(workflow_filename), "job-order.json"]
+        args.extend(base_cwl_command_ary[1:])
         container = Container(
             name=self.stage_job_name,
-            image_name="commonworkflowlanguage/cwltool",
-            command="cwltool",
-            args=["--no-container", "--outdir", "results", "{}#main".format(workflow_filename), "job-order.json"],
+            image_name=self.job.vm_settings.image_name,
+            command=command,
+            args=args,
             working_dir="/data",
             env_dict={},
             requested_cpu="100m",
