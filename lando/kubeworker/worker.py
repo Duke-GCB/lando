@@ -116,24 +116,24 @@ class Worker(object):
         base_cwl_command_ary = self.job.vm_settings.cwl_commands.base_command
         command = base_cwl_command_ary[0]
         workflow_filename = os.path.basename(self.job.workflow.url)
-        args = ["--outdir", "data/results", "{}#main".format(workflow_filename), "job-order.json"]
-        args.extend(base_cwl_command_ary[1:])
+        args = base_cwl_command_ary.copy()
+        args.extend(["--outdir", "data/results", "{}#main".format(workflow_filename), "job-order.json"])
         container = Container(
             name=self.stage_job_name,
             image_name=self.job.vm_settings.image_name,
-            command=command,
-            args=args,
+            command="bash",
+            args=['-c', 'PYTHONPATH=/opt/app-root/src ' + ' '.join(args)],
             working_dir="/data",
             env_dict={},
             requested_cpu="100m",
-            requested_memory="64Mi",
+            requested_memory="2Gi",
             volumes=[
                 self.get_persistent_volume_claim()
             ])
         job_spec = BatchJobSpec(self.run_job_name, container=container)
         self.cluster_api.create_job(self.run_job_name, job_spec)
         self.cluster_api.wait_for_jobs(job_names=[self.run_job_name])
-        self.cluster_api.delete_job(self.run_job_name)
+        #self.cluster_api.delete_job(self.run_job_name)
 
     def store_output(self):
         self.job_api.set_job_step(JobSteps.STORING_JOB_OUTPUT)
