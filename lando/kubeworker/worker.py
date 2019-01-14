@@ -1,11 +1,18 @@
 from lando.server.lando import JobApi, JobStates, JobSteps
-from lando_messaging.clients import LandoClient
+from lando_messaging.clients import LandoClient, JobStepStoreOutputCompletePayload, JobCommands
 from lando.kube.cluster import ClusterApi, BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, SecretEnvVar
 import logging
 import urllib
 import os
 import json
+
+
+class JobStoreOutputPayload(object):
+    def __init__(self, job_id, vm_instance_name):
+        self.job_id = job_id
+        self.vm_instance_name = vm_instance_name
+        self.success_command = JobCommands.STORE_JOB_OUTPUT_COMPLETE
 
 
 class Worker(object):
@@ -26,6 +33,7 @@ class Worker(object):
         self.save_output_job_name = "save-output-job-{}".format(config.job_id)
         self.ddsclient_agent_name = "ddsclient-agent"
         self.job_claim_name = "job-{}-volume".format(config.job_id)
+        self.lando_client = LandoClient(config, config.work_queue_config.listen_queue)
 
     def get_persistent_volume_claim(self):
         return PersistentClaimVolume(self.job_claim_name,
@@ -47,7 +55,10 @@ class Worker(object):
         self.run_workflow()
         self.store_output()
 
-        self.job_api.set_job_step(JobSteps.TERMINATE_VM)
+        output_project_info = None  # TODO send output project info
+        self.lando_client.job_step_store_output_complete(
+            JobStoreOutputPayload(self.job.id, self.job.vm_instance_name),
+            output_project_info)
 
     def restart_job(self):
         raise NotImplemented("TODO")

@@ -137,6 +137,13 @@ class JobActions(object):
     def cancel_job(self, payload):
         logging.error("Cancel job {}".format(payload))
 
+    def store_job_output_complete(self, payload):
+        self.cluster_api.delete_job(self.job_name)
+        self.cluster_api.delete_persistent_volume_claim(self.volume_name)
+        self.job_api.set_job_state(JobStates.FINISHED)
+        self.job_api.set_job_step(None)
+        # TODO store output project
+
     def _log_error(self, message):
         job = self.job_api.get_job()
         self.job_api.save_error_details(job.step, message)
