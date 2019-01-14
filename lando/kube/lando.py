@@ -2,7 +2,7 @@ import os
 import datetime
 import logging
 import json
-from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates
+from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates, JobSteps
 from lando.kube.cluster import ClusterApi, BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, SecretEnvVar
 
@@ -140,8 +140,9 @@ class JobActions(object):
     def store_job_output_complete(self, payload):
         self.cluster_api.delete_job(self.job_name)
         self.cluster_api.delete_persistent_volume_claim(self.volume_name)
+        self.job_api.set_job_step(JobSteps.NONE)
         self.job_api.set_job_state(JobStates.FINISHED)
-        self.job_api.set_job_step(None)
+
         # TODO store output project
 
     def _log_error(self, message):
