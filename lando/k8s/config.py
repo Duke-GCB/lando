@@ -38,6 +38,9 @@ class ServerConfig(object):
         self.run_workflow_settings = RunWorkflowSettings(
             get_or_raise_config_exception(data, 'run_workflow_settings')
         )
+        self.save_output_settings = SaveOutputSettings(
+            get_or_raise_config_exception(data, 'save_output_settings')
+        )
         self.storage_class_name = data.get('storage_class_name', 'glusterfs-storage')
 
 class ClusterApiSettings(object):

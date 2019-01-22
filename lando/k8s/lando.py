@@ -1,6 +1,6 @@
 
 import os
-import datetime
+from datetime import datetime
 import logging
 import json
 from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates, JobSteps
@@ -177,7 +177,7 @@ class JobActions(object):
 
     def make_job_manager(self):
         job = self.job_api.get_job()
-        return JobManager(self.cluster_api, self.job_settings, job)
+        return JobManager(self.cluster_api, self.settings, job)
 
     def start_job(self, payload):
         """
@@ -188,12 +188,13 @@ class JobActions(object):
         manager = self.make_job_manager()
 
         self._show_status("Creating job data persistent volume")
-        manager.create_job_data_persistent_volume()
+        manager.create_job_data_persistent_volume(storage_class_name=self.config.storage_class_name)
 
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Creating Stage data job")
-        job = manager.create_stage_data_job(self.job_api.get_input_files())
-        self._show_status("Launched stage data job: {}".format(job.metadata.name))
+        for input_file_group in self.job_api.get_input_files():
+            job = manager.create_stage_data_job(input_file_group)
+            self._show_status("Launched stage data job: {}".format(job.metadata.name))
 
     def stage_job_complete(self, payload):
         """
@@ -203,7 +204,11 @@ class JobActions(object):
         """
         self._set_job_step(JobSteps.RUNNING)
         manager = self.make_job_manager()
-        manager.cleanup_stage_job()
+        #TODO manager.cleanup_stage_data_job()
+
+        self._show_status("Creating volumes")
+        manager.create_tmpout_persistent_volume(storage_class_name=self.config.storage_class_name)
+        manager.create_output_data_persistent_volume(storage_class_name=self.config.storage_class_name)
 
         self._show_status("Creating run workflow job")
         job = manager.create_run_workflow_job()
@@ -216,13 +221,14 @@ class JobActions(object):
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
         manager = self.make_job_manager()
-        manager.cleanup_run_workflow_job()
+        #TODO manager.cleanup_run_workflow_job()
 
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
-        job = manager.run_workflow_job()
-        credentials = self.job_api.get_credentials()
-        job_data = self.job_api.get_store_output_job_data()
+        job = manager.create_save_output_job()
+        self._show_status("Launched save output job: {}".format(job.metadata.name))
+        #credentials = self.job_api.get_credentials()
+        #job_data = self.job_api.get_store_output_job_data()
         # TODO: run_store_output job
 
     def store_job_output_complete(self, payload):
@@ -231,13 +237,13 @@ class JobActions(object):
         Records information about the resulting output project and frees cloud resources.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
-        self.record_output_project_info(payload.output_project_info)
+        #self.record_output_project_info(payload.output_project_info)
 
         # TODO: cleanup
         # self._set_job_step(JobSteps.TERMINATE_VM)
         # delete job/pvc/etc
-        # self._set_job_step(JobSteps.NONE)
-        # self._set_job_state(JobStates.FINISHED)
+        self._set_job_step(JobSteps.NONE)
+        self._set_job_state(JobStates.FINISHED)
 
     def record_output_project_info(self, output_project_info):
         """
@@ -245,11 +251,12 @@ class JobActions(object):
         :param output_project_info: staging.ProjectDetails: info about the project created containing job results
         """
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        project_id = output_project_info.project_id
-        readme_file_id = output_project_info.readme_file_id
-        self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
-        self.job_api.save_project_details(project_id, readme_file_id)
+        #project_id = output_project_info.project_id
+        #readme_file_id = output_project_info.readme_file_id
+        #self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
+        #self.job_api.save_project_details(project_id, readme_file_id)
         self._show_status("Terminating VM and queue")
+        # TODO cleanup
 
     def restart_job(self, payload):
         """

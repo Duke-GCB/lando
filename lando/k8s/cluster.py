@@ -7,6 +7,11 @@ class AccessModes(object):
     READ_ONLY_MANY = "ReadOnlyMany"
 
 
+class JobConditionType:
+    COMPLETE = "Complete"
+    FAILED = "Failed"
+
+
 class ClusterApi(object):
     def __init__(self, host, token, namespace, incluster_config=False, verify_ssl=True):
         if incluster_config:
@@ -69,6 +74,13 @@ class ClusterApi(object):
             raise ValueError("Failed jobs: {}".format(','.join(failed_job_names)))
         else:
             print("Jobs complete: {}".format(','.join(job_names)))
+
+    def wait_for_job_events(self, callback):
+        w = watch.Watch()
+        for event in w.stream(self.batch.list_namespaced_job, self.namespace):
+            job = event['object']
+            job_name = job.metadata.name
+            callback(job)
 
     def delete_job(self, name, propagation_policy='Background'):
         body = client.V1DeleteOptions(propagation_policy=propagation_policy)
@@ -223,17 +235,18 @@ class ConfigMapVolume(VolumeBase):
 
 
 class BatchJobSpec(object):
-    def __init__(self, name, container, init_container=None):
+    def __init__(self, name, container, init_container=None, labels={}):
         self.name = name
         self.pod_restart_policy = "Never"
         self.container = container
         self.init_container = init_container
+        self.labels = labels
 
     def create(self):
         job_spec_name = "{}spec".format(self.name)
         return client.V1JobSpec(
             template=client.V1PodTemplateSpec(
-                metadata=client.V1ObjectMeta(name=job_spec_name),
+                metadata=client.V1ObjectMeta(name=job_spec_name, labels=self.labels),
                 spec=self.create_pod_spec()
             )
         )

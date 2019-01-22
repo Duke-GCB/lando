@@ -6,12 +6,30 @@ import os
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 
 
+class JobLabels(object):
+    JOB_ID = "bespin-job-id"
+    STEP_TYPE = "bespin-job-step"
+
+
+class JobStepTypes(object):
+    STAGE_DATA = "stage_data"
+    RUN_WORKFLOW = "run_workflow"
+    ORGANIZE_OUTPUT = "organize_output"
+    SAVE_OUTPUT = "save_output"
+
+
 class JobManager(object):
     def __init__(self, cluster_api, job_settings, job):
         self.cluster_api = cluster_api
         self.job_settings = job_settings
         self.job = job
         self.names = Names(job)
+
+    def make_job_labels(self, job_step_type):
+        return {
+            JobLabels.JOB_ID: str(self.job.id),
+            JobLabels.STEP_TYPE: job_step_type
+        }
 
     def create_job_data_persistent_volume(self, storage_class_name):
         self.cluster_api.create_persistent_volume_claim(
@@ -66,8 +84,10 @@ class JobManager(object):
                 data_store_secret_volume,
                 stage_data_config_volume,
             ])
+        print("\n\n", self.make_job_labels(JobStepTypes.STAGE_DATA), "\n\n")
         job_spec = BatchJobSpec(self.names.stage_data,
-                                container=container)
+                                container=container,
+                                labels=self.make_job_labels(JobStepTypes.STAGE_DATA))
         return self.cluster_api.create_job(self.names.stage_data, job_spec)
 
     def _create_stage_data_config_map(self, name, filename, workflow_url, job_order, input_files):
@@ -122,10 +142,12 @@ class JobManager(object):
             volumes=[
                 user_data_volume,
                 output_data_volume,
-                tmpout_volume
+                tmpout_volume,
             ]
         )
-        job_spec = BatchJobSpec(self.names.run_workflow, container=container)
+        job_spec = BatchJobSpec(self.names.run_workflow,
+                                container=container,
+                                labels=self.make_job_labels(JobStepTypes.RUN_WORKFLOW))
         return self.cluster_api.create_job(self.names.run_workflow, job_spec)
 
     def cleanup_run_workflow_job(self):
@@ -144,8 +166,7 @@ class JobManager(object):
         job_data_volume = PersistentClaimVolume(self.names.user_data,
                                                  mount_path=Paths.JOB_DATA,
                                                  volume_claim_name=self.names.job_data,
-                                                 access_modes=[AccessModes.READ_WRITE_MANY],
-                                                 read_only=False)
+                                                 read_only=True)
         save_output_config_volume = ConfigMapVolume(self.names.stage_data,
                                                    mount_path=Paths.CONFIG_DIR,
                                                    config_map_name=self.names.save_output,
@@ -168,8 +189,10 @@ class JobManager(object):
                 data_store_secret_volume,
                 save_output_config_volume,
             ])
-        job_spec = BatchJobSpec(self.save_output, container=container)
-        return self.cluster_api.create_job(self.save_output, job_spec)
+        job_spec = BatchJobSpec(self.names.save_output,
+                                container=container,
+                                labels=self.make_job_labels(JobStepTypes.SAVE_OUTPUT))
+        return self.cluster_api.create_job(self.names.save_output, job_spec)
 
     def _create_save_output_config_map(self, name, filename):
         config_data = {
@@ -244,11 +267,10 @@ class SaveOutputConfig(object):
         self.path = '{}{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path= DDSCLIENT_CONFIG_MOUNT_PATH
-        self.env_dict = {"DDSCLIENT_CONF": "{}config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
+        self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
         save_output_settings = config.save_output_settings
         self.image_name = save_output_settings.image_name
         self.command = save_output_settings.command
-        self.env_dict = save_output_settings.env_dict
         self.requested_cpu = save_output_settings.requested_cpu
         self.requested_memory = save_output_settings.requested_memory
