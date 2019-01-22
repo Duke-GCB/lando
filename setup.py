@@ -7,6 +7,7 @@ LANDO_REQUIREMENTS = [
       "DukeDSClient==1.0.3",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
+      "kubernetes==8.0.1",
       "lando-messaging==0.7.4",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",

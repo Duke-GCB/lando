@@ -102,7 +102,7 @@ class Container(object):
     def create_env(self):
         environment_variables = []
         for key, value in self.env_dict.items():
-            if isinstance(value, SecretEnvVar):
+            if isinstance(value, EnvVarSource):
                 environment_variables.append(client.V1EnvVar(name=key, value_from=value.create_env_var_source()))
             else:
                 environment_variables.append(client.V1EnvVar(name=key, value=value))
@@ -134,7 +134,11 @@ class Container(object):
         )
 
 
-class SecretEnvVar(object):
+class EnvVarSource(object):
+    pass
+
+
+class SecretEnvVar(EnvVarSource):
     def __init__(self, name, key):
         self.name = name
         self.key = key
@@ -146,6 +150,17 @@ class SecretEnvVar(object):
                 name=self.name
             )
         )
+
+
+class FieldRefEnvVar(EnvVarSource):
+    def __init__(self, field_path):
+        self.field_path = field_path
+
+    def create_env_var_source(self):
+        return client.V1EnvVarSource(
+            field_ref=client.V1ObjectFieldSelector(field_path=self.field_path)
+        )
+
 
 class VolumeBase(object):
     def __init__(self, name, mount_path):

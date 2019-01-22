@@ -1,5 +1,5 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
-    ConfigMapVolume, Container, SecretEnvVar, AccessModes
+    ConfigMapVolume, Container, FieldRefEnvVar, AccessModes
 import json
 import os
 
@@ -76,7 +76,7 @@ class JobManager(object):
             self._stage_data_config_item("write", job_order, self.names.job_order_path),
         ]
         for dds_file in input_files.dds_files:
-            dest = '{}/{}'.format(Paths.USER_DATA, dds_file.destination_path)
+            dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
             items.append(self._stage_data_config_item("DukeDS", dds_file.file_id, dest))
         config_data = {"items": items}
         payload = {
@@ -106,13 +106,17 @@ class JobManager(object):
                                               mount_path=Paths.TMPOUT_DATA,
                                               volume_claim_name=self.names.tmpout,
                                               read_only=False)
+        command_parts = run_workflow_config.command
+        command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA,
+                              "--outdir", Paths.OUTPUT_DATA])
+        command_parts.extend([self.names.workflow_path, self.names.job_order_path])
         container = Container(
             name=self.names.run_workflow,
             image_name=run_workflow_config.image_name,
-            command=run_workflow_config.command,
-            args=[],
-            working_dir=Paths.JOB_DATA,
-            env_dict={},
+            command=["bash", "-c", ' '.join(command_parts)],
+            env_dict={
+                "CALRISSIAN_POD_NAME": FieldRefEnvVar(field_path="metadata.name")
+            },
             requested_cpu=run_workflow_config.requested_cpu,
             requested_memory=run_workflow_config.requested_memory,
             volumes=[
@@ -137,7 +141,7 @@ class JobManager(object):
         save_output_config = SaveOutputConfig(self.job, self.job_settings)
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename)
-        user_data_volume = PersistentClaimVolume(self.names.user_data,
+        job_data_volume = PersistentClaimVolume(self.names.user_data,
                                                  mount_path=Paths.JOB_DATA,
                                                  volume_claim_name=self.names.job_data,
                                                  access_modes=[AccessModes.READ_WRITE_MANY],
@@ -160,7 +164,7 @@ class JobManager(object):
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
             volumes=[
-                user_data_volume,
+                job_data_volume,
                 data_store_secret_volume,
                 save_output_config_volume,
             ])
@@ -189,32 +193,29 @@ class Names(object):
         self.output_data = 'output-data-{}'.format(job_id)
         self.tmpout = 'tmpout-{}'.format(job_id)
         self.stage_data = 'stage-data-{}'.format(job_id)
-        self.stage_data_mkdir = 'stage-data-mkdir-{}'.format(job_id)
         self.run_workflow = 'run-workflow-{}'.format(job_id)
         self.save_output = 'save-output-{}'.format(job_id)
         self.user_data = 'user-data-{}'.format(job_id)
         self.data_store_secret = 'data-store-{}'.format(job_id)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
-        self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
-        self.job_order_path = '{}/job-order.json'.format(Paths.JOB)
+        self.workflow_path = '{}{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
+        self.job_order_path = '{}job-order.json'.format(Paths.JOB_DATA)
 
 
 class Paths(object):
-    JOB_DATA = '/bespin/job-data'
-    USER_DATA = '/bespin/job-data/user-data'
-    WORKFLOW = '/bespin/job-data/workflow'
-    JOB = '/bespin/job-data/job'
-    CONFIG_DIR = '/bespin/config'
+    JOB_DATA = '/bespin/job-data/'
+    WORKFLOW = '/bespin/job-data/workflow/'
+    CONFIG_DIR = '/bespin/config/'
     STAGE_DATA_CONFIG_FILE = '/bespin/config/stagedata.json'
-    OUTPUT_DATA = '/bespin/output-data'
-    TMPOUT_DATA = '/bespin/tmpout'
+    OUTPUT_DATA = '/bespin/output-data/'
+    TMPOUT_DATA = '/bespin/tmpout/'
 
 
 class StageDataConfig(object):
     def __init__(self, job, job_settings):
         config = job_settings.config
         self.filename = "stagedata.json"
-        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
@@ -240,7 +241,7 @@ class SaveOutputConfig(object):
     def __init__(self, job, job_settings):
         config = job_settings.config
         self.filename = "saveoutput.json"
-        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path= DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
