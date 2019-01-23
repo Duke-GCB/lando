@@ -3,7 +3,6 @@ from lando.k8s.config import create_server_config
 from lando.k8s.jobmanager import JobLabels, JobStepTypes
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import JobCommands
-from lando.server.jobapi import JobApi, JobStates, JobSteps
 import logging
 import sys
 
@@ -48,7 +47,6 @@ class JobWatcher(object):
         self.cluster_api.wait_for_job_events(self.on_job_change)
 
     def on_job_change(self, job):
-        #logging.info("Received job {}".format(job.metadata.name))
         if check_condition_status(job, JobConditionType.COMPLETE):
             self.on_job_succeeded(job)
         elif check_condition_status(job, JobConditionType.FAILED):
@@ -58,25 +56,17 @@ class JobWatcher(object):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
-            job_api = JobApi(config=self.config, job_id=bespin_job_id)
-            bespin_job = job_api.get_job()
             self.send_step_complete_message(bespin_job_step, bespin_job_id, bespin_job_step)
             if bespin_job_step == JobStepTypes.STAGE_DATA:
-                if bespin_job.state == JobStates.RUNNING and bespin_job.step == JobSteps.STAGING:
-                    payload = JobStepPayload(bespin_job_id, None, JobCommands.STAGE_JOB_COMPLETE)
-                    self.lando_client.job_step_complete(payload)
-                else:
-                    print("Ignoring run workflow for job:{} stage: {} step:{}".format(
-                        bespin_job_id, bespin_job.state, bespin_job.step))
+                payload = JobStepPayload(bespin_job_id, None, JobCommands.STAGE_JOB_COMPLETE)
+                logging.info("SENDING STAGE JOB COMPLETE")
+                self.lando_client.job_step_complete(payload)
             elif bespin_job_step == JobStepTypes.RUN_WORKFLOW:
-                if bespin_job.state == JobStates.RUNNING and bespin_job.step == JobSteps.RUNNING:
-                    payload = JobStepPayload(bespin_job_id, None, JobCommands.RUN_JOB_COMPLETE)
-                    self.lando_client.job_step_complete(payload)
-                else:
-                    print("Ignoring run workflow for job:{} stage: {} step:{}".format(
-                        bespin_job_id, bespin_job.state, bespin_job.step))
+                payload = JobStepPayload(bespin_job_id, None, JobCommands.RUN_JOB_COMPLETE)
+                self.lando_client.job_step_complete(payload)
+                logging.info("SENDING RUN JOB COMPLETE")
             else:
-                print("TODO", bespin_job_step, bespin_job_id)
+                logging.info("TODO", bespin_job_step, bespin_job_id)
 
     def send_step_complete_message(self, bespin_job_step, bespin_job_id, step_type):
         job_command = COMPLETE_JOB_STEP_TO_COMMAND.get(bespin_job_step)
@@ -87,12 +77,13 @@ class JobWatcher(object):
             else:
                 self.lando_client.job_step_complete(payload)
         else:
-            print("TODO", bespin_job_step, bespin_job_id, step_type)
+            logging.info("TODO", bespin_job_step, bespin_job_id, step_type)
 
     def on_job_failed(self, job):
-        print("Failed", job.metadata.name)
-        print("job id", job.metadata.labels.get(JobLabels.JOB_ID))
-        print("step type", job.metadata.labels.get(JobLabels.STEP_TYPE))
+        logging.info("Job Failed",
+                     job.metadata.name,
+                     job.metadata.labels.get(JobLabels.JOB_ID),
+                     job.metadata.labels.get(JobLabels.STEP_TYPE))
 
 
 def main():

@@ -24,6 +24,7 @@ class JobManager(object):
         self.job_settings = job_settings
         self.job = job
         self.names = Names(job)
+        self.storage_class_name = job_settings.config.storage_class_name
 
     def make_job_labels(self, job_step_type):
         return {
@@ -31,33 +32,36 @@ class JobManager(object):
             JobLabels.STEP_TYPE: job_step_type
         }
 
-    def create_job_data_persistent_volume(self, storage_class_name):
+    def create_job_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.job_data,
             storage_size_in_g=self.job.volume_size,  # TODO better calculate this
-            storage_class_name=storage_class_name
+            storage_class_name=self.storage_class_name
         )
 
-    def create_output_data_persistent_volume(self, storage_class_name):
+    def create_output_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.output_data,
             storage_size_in_g=self.job.volume_size,  # TODO better calculate this
-            storage_class_name=storage_class_name
+            storage_class_name=self.storage_class_name
         )
 
-    def create_tmpout_persistent_volume(self, storage_class_name):
+    def create_tmpout_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmpout,
             storage_size_in_g=self.job.volume_size,  # TODO better calculate this
-            storage_class_name=storage_class_name
+            storage_class_name=self.storage_class_name
         )
 
-    def create_tmp_persistent_volume(self, storage_class_name):
+    def create_tmp_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmp,
             storage_size_in_g=1,  # TODO better calculate this
-            storage_class_name=storage_class_name
+            storage_class_name=self.storage_class_name
         )
+
+    def create_stage_data_persistent_volumes(self):
+        self.create_job_data_persistent_volume()
 
     def create_stage_data_job(self, input_files):
         stage_data_config = StageDataConfig(self.job, self.job_settings)
@@ -91,7 +95,6 @@ class JobManager(object):
                 data_store_secret_volume,
                 stage_data_config_volume,
             ])
-        print("\n\n", self.make_job_labels(JobStepTypes.STAGE_DATA), "\n\n")
         job_spec = BatchJobSpec(self.names.stage_data,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.STAGE_DATA))
@@ -118,6 +121,11 @@ class JobManager(object):
     def cleanup_stage_data_job(self):
         self.cluster_api.delete_job(self.names.stage_data)
         self.cluster_api.delete_config_map(self.names.stage_data)
+
+    def create_run_workflow_persistent_volumes(self):
+        self.create_tmpout_persistent_volume()
+        self.create_output_data_persistent_volume()
+        self.create_tmp_persistent_volume()
 
     def create_run_workflow_job(self):
         run_workflow_config = RunWorkflowConfig(self.job, self.job_settings)
@@ -164,6 +172,8 @@ class JobManager(object):
 
     def cleanup_run_workflow_job(self):
         self.cluster_api.delete_job(self.names.run_workflow)
+        self.cluster_api.delete_persistent_volume_claim(self.names.tmpout)
+        self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
     def create_organize_output_job(self):
         pass
@@ -219,18 +229,24 @@ class JobManager(object):
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
         self.cluster_api.delete_config_map(self.names.save_output)
+        self.cluster_api.delete_persistent_volume_claim(self.names.job_data)
+        self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
 
 
 class Names(object):
     def __init__(self, job):
         job_id = job.id
+        # Volumes
         self.job_data = 'job-data-{}'.format(job_id)
         self.output_data = 'output-data-{}'.format(job_id)
         self.tmpout = 'tmpout-{}'.format(job_id)
         self.tmp = 'tmp-{}'.format(job_id)
+
+        # Job Names
         self.stage_data = 'stage-data-{}'.format(job_id)
         self.run_workflow = 'run-workflow-{}'.format(job_id)
         self.save_output = 'save-output-{}'.format(job_id)
+
         self.user_data = 'user-data-{}'.format(job_id)
         self.data_store_secret = 'data-store-{}'.format(job_id)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)

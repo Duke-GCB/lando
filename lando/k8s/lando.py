@@ -1,12 +1,8 @@
-
-import os
 from datetime import datetime
 import logging
 import json
 from lando.server.lando import Lando, JobApi, WorkProgressQueue, WORK_PROGRESS_EXCHANGE_NAME, JobStates, JobSteps
-from lando.k8s.cluster import ClusterApi, BatchJobSpec, SecretVolume, PersistentClaimVolume, \
-    ConfigMapVolume, Container, SecretEnvVar
-from lando_messaging.clients import StartJobPayload
+from lando.k8s.cluster import ClusterApi
 from lando.k8s.jobmanager import JobManager
 
 
@@ -42,122 +38,9 @@ class JobSettings(object):
                           verify_ssl=False)  # TODO REMOVE THIS
 
 
-# class JobActions(object):
-#     """
-#     Used by LandoRouter to handle messages at a job specific context.
-#     """
-#     def __init__(self, settings):
-#         self.settings = settings
-#         self.job_id = settings.job_id
-#         self.config = settings.config
-#         self.job_api = settings.get_job_api()
-#         self.work_progress_queue = settings.get_work_progress_queue()
-#         self.cluster_api = settings.get_cluster_api()
-#         self.job_name = "job-{}".format(self.job_id)
-#         self.volume_name = "job-{}-volume".format(self.job_id)
-#         self.bespin_api_secret_name = 'bespin-api-admin'
-#         self.cluster_api_secret_name = 'cluster-api'
-#         self.rabbit_users_secret_name = 'rabbit-users'
-#
-#     def start_job(self, payload):
-#         job = self.job_api.get_job()
-#         self._create_job_data_volume(job)
-#         self._create_stage_data_job(job)
-#
-#     def _create_volume(self, job):
-#         volume_claim = self.cluster_api.create_persistent_volume_claim(
-#             name=self.volume_name,
-#             storage_size_in_g=job.volume_size,
-#             storage_class_name=None,
-#         )
-#         logging.info("Created volume claim {}".format(volume_claim))
-#
-#     def _create_job(self, job):
-#         persistent_claim_volume = PersistentClaimVolume(self.volume_name,
-#                                                         mount_path="/data",
-#                                                         volume_claim_name=self.volume_name)
-#         container = Container(
-#             name=self.job_name,
-#             image_name=self.config.worker_image_name,
-#             command="lando_kube_worker",
-#             args=[],
-#             working_dir="/data",
-#             env_dict={
-#                 "JOB_ID": self.job_id,
-#                 "WORKFLOW_DIR": "/data",
-#                 "BESPIN_API_URL": SecretEnvVar(name=self.bespin_api_secret_name, key='url'),
-#                 "BESPIN_API_TOKEN": SecretEnvVar(name=self.bespin_api_secret_name, key='token'),
-#                 "BESPIN_CLUSTER_HOST": SecretEnvVar(name=self.cluster_api_secret_name, key='host'),
-#                 "BESPIN_CLUSTER_TOKEN": SecretEnvVar(name=self.cluster_api_secret_name, key='token'),
-#                 "BESPIN_CLUSTER_NAMESPACE": SecretEnvVar(name=self.cluster_api_secret_name, key='namespace'),
-#                 "BESPIN_INCLUSTER_CONFIG": SecretEnvVar(name=self.cluster_api_secret_name, key='incluster_config'),
-#                 "BESPIN_RABBIT_HOST": os.environ["BESPIN_RABBIT_HOST"],
-#                 "BESPIN_QUEUE_LANDO_USERNAME": SecretEnvVar(self.rabbit_users_secret_name, key='LANDO_USERNAME'),
-#                 "BESPIN_QUEUE_LANDO_PASSWORD": SecretEnvVar(self.rabbit_users_secret_name, key='LANDO_PASSWORD'),
-#                 "BESPIN_QUEUE_WORKER_USERNAME": SecretEnvVar(self.rabbit_users_secret_name, key='WORKER_USERNAME'),
-#                 "BESPIN_QUEUE_WORKER_PASSWORD": SecretEnvVar(self.rabbit_users_secret_name, key='WORKER_PASSWORD'),
-#                 "BESPIN_RABBIT_QUEUE": os.environ["BESPIN_RABBIT_QUEUE"],
-#             },
-#             requested_cpu="100m",
-#             requested_memory="64Mi",
-#             volumes=[
-#                 persistent_claim_volume,
-#             ],
-#         )
-#         job_spec = BatchJobSpec(self.job_name, container=container)
-#         job = self.cluster_api.create_job(self.job_name, job_spec)
-#         logging.info("Created job {}".format(job))
-#
-#     def restart_job(self, payload):
-#         logging.error("Restart job {}".format(payload))
-#
-#     def cancel_job(self, payload):
-#         logging.error("Cancel job {}".format(payload))
-#
-#     def store_job_output_complete(self, payload):
-#         self.cluster_api.delete_job(self.job_name)
-#         self.cluster_api.delete_persistent_volume_claim(self.volume_name)
-#         self.job_api.set_job_step(JobSteps.NONE)
-#         self.job_api.set_job_state(JobStates.FINISHED)
-#
-#         # TODO store output project
-#
-#     def _log_error(self, message):
-#         job = self.job_api.get_job()
-#         self.job_api.save_error_details(job.step, message)
-#
-#     def _set_job_state(self, state):
-#         self.job_api.set_job_state(state)
-#         self._send_job_progress_notification()
-#
-#     def generic_job_error(self, action_name, details):
-#         """
-#         Sets current job state to error and creates a job error with the details.
-#         :param action_name: str: name of the action that failed
-#         :param details: str: details about what went wrong typically a stack trace
-#         """
-#         self._set_job_state(JobStates.ERRORED)
-#         message = "Running {} failed with {}".format(action_name, details)
-#         self._show_status(message)
-#         self._log_error(message=message)
-#
-#     def _show_status(self, message):
-#         format_str = "{}: {} for job: {}."
-#         logging.info(format_str.format(datetime.datetime.now(), message, self.job_id))
-#
-#     def _send_job_progress_notification(self):
-#         job = self.job_api.get_job()
-#         payload = json.dumps({
-#             "job": job.id,
-#             "state": job.state,
-#             "step": job.step,
-#         })
-#         self.work_progress_queue.send(payload)
-
-
 class JobActions(object):
     """
-    Used by LandoRouter to handle messages at a job specific context.
+    Used by K8sLando to handle messages at a job specific context.
     """
     def __init__(self, settings):
         self.settings = settings
@@ -179,16 +62,24 @@ class JobActions(object):
         job = self.job_api.get_job()
         return JobManager(self.cluster_api, self.settings, job)
 
+    def job_is_at_state_and_step(self, state, step):
+        job = self.job_api.get_job()
+        return job.state == state and job.step == step
+
     def start_job(self, payload):
         """
         Request from user to start running a job. This starts a job to stage user input data into a volume.
         :param payload:StartJobPayload contains job_id we should start
         """
+        if not self.job_is_at_state_and_step(JobStates.AUTHORIZED, JobSteps.NONE):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to run job:{} wrong step/state".format(self.job_id))
+            return
         self._set_job_state(JobStates.RUNNING)
         manager = self.make_job_manager()
 
-        self._show_status("Creating job data persistent volume")
-        manager.create_job_data_persistent_volume(storage_class_name=self.config.storage_class_name)
+        self._show_status("Creating stage data persistent volumes")
+        manager.create_stage_data_persistent_volumes()
 
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Creating Stage data job")
@@ -202,16 +93,20 @@ class JobActions(object):
         Sets the job state to RUNNING and puts the run job message into the queue for the worker.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
+        if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STAGING):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to run job:{} wrong step/state".format(self.job_id))
+            return
         self._set_job_step(JobSteps.RUNNING)
         manager = self.make_job_manager()
-        #TODO manager.cleanup_stage_data_job()
+        self._show_status("Cleaning up after stage data")
+        manager.cleanup_stage_data_job()
 
-        self._show_status("Creating volumes")
-        manager.create_tmpout_persistent_volume(storage_class_name=self.config.storage_class_name)
-        manager.create_output_data_persistent_volume(storage_class_name=self.config.storage_class_name)
-        manager.create_tmp_persistent_volume(storage_class_name=self.config.storage_class_name)
+        self._show_status("Creating volumes for running workflow. Job: {}".format(self.job_id))
+        manager.create_run_workflow_persistent_volumes()
 
         self._show_status("Creating run workflow job")
+        self._show_status("Creating job for running workflow. Job: {}".format(self.job_id))
         job = manager.create_run_workflow_job()
         self._show_status("Launched run workflow job: {}".format(job.metadata.name))
 
@@ -221,15 +116,17 @@ class JobActions(object):
         Sets the job state to STORING_OUTPUT and puts the store output message into the queue for the worker.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
+        if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RUNNING):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to store output for job:{} wrong step/state".format(self.job_id))
+            return
         manager = self.make_job_manager()
-        #TODO manager.cleanup_run_workflow_job()
+        manager.cleanup_run_workflow_job()
 
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
         job = manager.create_save_output_job()
         self._show_status("Launched save output job: {}".format(job.metadata.name))
-        #credentials = self.job_api.get_credentials()
-        #job_data = self.job_api.get_store_output_job_data()
         # TODO: run_store_output job
 
     def store_job_output_complete(self, payload):
@@ -238,11 +135,14 @@ class JobActions(object):
         Records information about the resulting output project and frees cloud resources.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
-        #self.record_output_project_info(payload.output_project_info)
+        if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STORING_JOB_OUTPUT):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to cleanup for job:{} wrong step/state".format(self.job_id))
+            return
+        # TODO self.record_output_project_info(payload.output_project_info)
+        manager = self.make_job_manager()
+        manager.cleanup_save_output_job()
 
-        # TODO: cleanup
-        # self._set_job_step(JobSteps.TERMINATE_VM)
-        # delete job/pvc/etc
         self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.FINISHED)
 
@@ -252,12 +152,11 @@ class JobActions(object):
         :param output_project_info: staging.ProjectDetails: info about the project created containing job results
         """
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        #project_id = output_project_info.project_id
-        #readme_file_id = output_project_info.readme_file_id
-        #self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
-        #self.job_api.save_project_details(project_id, readme_file_id)
+        project_id = output_project_info.project_id
+        readme_file_id = output_project_info.readme_file_id
+        self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
+        self.job_api.save_project_details(project_id, readme_file_id)
         self._show_status("Terminating VM and queue")
-        # TODO cleanup
 
     def restart_job(self, payload):
         """
@@ -377,17 +276,3 @@ def create_job_actions(lando, job_id):
 class K8sLando(Lando):
     def __init__(self, config):
         super(K8sLando, self).__init__(config, create_job_actions)
-
-
-class Names(object):
-    def __init__(self, config, job):
-        self.volume_name = 'nodidea'
-
-
-
-
-class Paths(object):
-    SYSTEM_DATA = '/bespin/system-data'
-    JOB_DATA = '/bespin/job-data'
-    OUTPUT_DATA = '/bespin/output-data'
-    TMPOUT = '/besinp/tmpout'
