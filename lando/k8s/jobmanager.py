@@ -52,6 +52,13 @@ class JobManager(object):
             storage_class_name=storage_class_name
         )
 
+    def create_tmp_persistent_volume(self, storage_class_name):
+        self.cluster_api.create_persistent_volume_claim(
+            self.names.tmp,
+            storage_size_in_g=1,  # TODO better calculate this
+            storage_class_name=storage_class_name
+        )
+
     def create_stage_data_job(self, input_files):
         stage_data_config = StageDataConfig(self.job, self.job_settings)
         self._create_stage_data_config_map(name=self.names.stage_data,
@@ -114,6 +121,10 @@ class JobManager(object):
 
     def create_run_workflow_job(self):
         run_workflow_config = RunWorkflowConfig(self.job, self.job_settings)
+        tmp_volume = PersistentClaimVolume(self.names.tmp,
+                                           mount_path=Paths.TMP,
+                                           volume_claim_name=self.names.tmp,
+                                           read_only=False)
         user_data_volume = PersistentClaimVolume(self.names.user_data,
                                                  mount_path=Paths.JOB_DATA,
                                                  volume_claim_name=self.names.job_data,
@@ -127,8 +138,8 @@ class JobManager(object):
                                               volume_claim_name=self.names.tmpout,
                                               read_only=False)
         command_parts = run_workflow_config.command
-        command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA,
-                              "--outdir", Paths.OUTPUT_DATA])
+        command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
+                              "--outdir", Paths.OUTPUT_DATA + "/"])
         command_parts.extend([self.names.workflow_path, self.names.job_order_path])
         container = Container(
             name=self.names.run_workflow,
@@ -143,6 +154,7 @@ class JobManager(object):
                 user_data_volume,
                 output_data_volume,
                 tmpout_volume,
+                tmp_volume,
             ]
         )
         job_spec = BatchJobSpec(self.names.run_workflow,
@@ -215,30 +227,32 @@ class Names(object):
         self.job_data = 'job-data-{}'.format(job_id)
         self.output_data = 'output-data-{}'.format(job_id)
         self.tmpout = 'tmpout-{}'.format(job_id)
+        self.tmp = 'tmp-{}'.format(job_id)
         self.stage_data = 'stage-data-{}'.format(job_id)
         self.run_workflow = 'run-workflow-{}'.format(job_id)
         self.save_output = 'save-output-{}'.format(job_id)
         self.user_data = 'user-data-{}'.format(job_id)
         self.data_store_secret = 'data-store-{}'.format(job_id)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
-        self.workflow_path = '{}{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
-        self.job_order_path = '{}job-order.json'.format(Paths.JOB_DATA)
+        self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
+        self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
 
 
 class Paths(object):
-    JOB_DATA = '/bespin/job-data/'
-    WORKFLOW = '/bespin/job-data/workflow/'
-    CONFIG_DIR = '/bespin/config/'
+    JOB_DATA = '/bespin/job-data'
+    WORKFLOW = '/bespin/job-data/workflow'
+    CONFIG_DIR = '/bespin/config'
     STAGE_DATA_CONFIG_FILE = '/bespin/config/stagedata.json'
-    OUTPUT_DATA = '/bespin/output-data/'
-    TMPOUT_DATA = '/bespin/tmpout/'
+    OUTPUT_DATA = '/bespin/output-data'
+    TMPOUT_DATA = '/bespin/tmpout'
+    TMP = '/tmp'
 
 
 class StageDataConfig(object):
     def __init__(self, job, job_settings):
         config = job_settings.config
         self.filename = "stagedata.json"
-        self.path = '{}{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
@@ -264,7 +278,7 @@ class SaveOutputConfig(object):
     def __init__(self, job, job_settings):
         config = job_settings.config
         self.filename = "saveoutput.json"
-        self.path = '{}{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path= DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}

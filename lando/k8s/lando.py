@@ -209,6 +209,7 @@ class JobActions(object):
         self._show_status("Creating volumes")
         manager.create_tmpout_persistent_volume(storage_class_name=self.config.storage_class_name)
         manager.create_output_data_persistent_volume(storage_class_name=self.config.storage_class_name)
+        manager.create_tmp_persistent_volume(storage_class_name=self.config.storage_class_name)
 
         self._show_status("Creating run workflow job")
         job = manager.create_run_workflow_job()
