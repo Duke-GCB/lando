@@ -96,6 +96,9 @@ class ClusterApi(object):
     def delete_config_map(self, name):
         self.core.delete_namespaced_config_map(name, self.namespace, body=client.V1DeleteOptions())
 
+    def read_pod_logs(self, name):
+        return self.core.read_namespaced_pod_log(name, self.namespace)
+
 
 class Container(object):
     def __init__(self, name, image_name, command, args=[], working_dir=None, env_dict={},

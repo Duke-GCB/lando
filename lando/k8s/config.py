@@ -32,16 +32,20 @@ class ServerConfig(object):
         self.data_store_settings = DataStoreSettings(
             get_or_raise_config_exception(data, 'data_store_settings')
         )
-        self.stage_data_settings = StageDataSettings(
+        self.stage_data_settings = ImageCommandSettings(
             get_or_raise_config_exception(data, 'stage_data_settings')
         )
         self.run_workflow_settings = RunWorkflowSettings(
             get_or_raise_config_exception(data, 'run_workflow_settings')
         )
-        self.save_output_settings = SaveOutputSettings(
+        self.organize_output_settings = ImageCommandSettings(
+            get_or_raise_config_exception(data, 'organize_output_settings')
+        )
+        self.save_output_settings = ImageCommandSettings(
             get_or_raise_config_exception(data, 'save_output_settings')
         )
         self.storage_class_name = data.get('storage_class_name', 'glusterfs-storage')
+
 
 class ClusterApiSettings(object):
     """
@@ -53,7 +57,7 @@ class ClusterApiSettings(object):
         self.namespace = get_or_raise_config_exception(data, 'namespace')
 
 
-class StageDataSettings(object):
+class ImageCommandSettings(object):
     def __init__(self, data):
         self.image_name = get_or_raise_config_exception(data, 'image_name')
         self.command = get_or_raise_config_exception(data, 'command')
@@ -63,14 +67,6 @@ class StageDataSettings(object):
 
 class RunWorkflowSettings(object):
     def __init__(self, data):
-        self.requested_cpu = get_or_raise_config_exception(data, 'requested_cpu')
-        self.requested_memory = get_or_raise_config_exception(data, 'requested_memory')
-
-
-class SaveOutputSettings(object):
-    def __init__(self, data):
-        self.image_name = get_or_raise_config_exception(data, 'image_name')
-        self.command = get_or_raise_config_exception(data, 'command')
         self.requested_cpu = get_or_raise_config_exception(data, 'requested_cpu')
         self.requested_memory = get_or_raise_config_exception(data, 'requested_memory')
 

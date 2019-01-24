@@ -175,11 +175,33 @@ class JobManager(object):
         self.cluster_api.delete_persistent_volume_claim(self.names.tmpout)
         self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
-    def create_organize_output_job(self):
-        pass
+    def create_organize_output_project_job(self):
+        organize_output_config = OrganizeOutputConfig(self.job, self.job_settings)
+        user_data_volume = PersistentClaimVolume(self.names.job_data,
+                                                 mount_path=Paths.JOB_DATA,
+                                                 volume_claim_name=self.names.job_data,
+                                                 read_only=False)
+        output_data_volume = PersistentClaimVolume(self.names.output_data,
+                                                   mount_path=Paths.OUTPUT_DATA,
+                                                   volume_claim_name=self.names.output_data,
+                                                   read_only=False)
+        container = Container(
+            name=self.names.organize_output,
+            image_name=organize_output_config.image_name,
+            command=organize_output_config.command,
+            requested_cpu=organize_output_config.requested_cpu,
+            requested_memory=organize_output_config.requested_memory,
+            volumes=[
+                user_data_volume,
+                output_data_volume,
+            ])
+        job_spec = BatchJobSpec(self.names.organize_output,
+                                container=container,
+                                labels=self.make_job_labels(JobStepTypes.ORGANIZE_OUTPUT))
+        return self.cluster_api.create_job(self.names.organize_output, job_spec)
 
-    def cleanup_organize_output_job(self):
-        pass
+    def cleanup_organize_output_project_job(self):
+        self.cluster_api.delete_job(self.names.organize_output)
 
     def create_save_output_job(self):
         save_output_config = SaveOutputConfig(self.job, self.job_settings)
@@ -236,19 +258,21 @@ class JobManager(object):
 class Names(object):
     def __init__(self, job):
         job_id = job.id
+        suffix = '{}-{}'.format(job.id, job.username)
         # Volumes
-        self.job_data = 'job-data-{}'.format(job_id)
-        self.output_data = 'output-data-{}'.format(job_id)
-        self.tmpout = 'tmpout-{}'.format(job_id)
-        self.tmp = 'tmp-{}'.format(job_id)
+        self.job_data = 'job-data-{}'.format(suffix)
+        self.output_data = 'output-data-{}'.format(suffix)
+        self.tmpout = 'tmpout-{}'.format(suffix)
+        self.tmp = 'tmp-{}'.format(suffix)
 
         # Job Names
-        self.stage_data = 'stage-data-{}'.format(job_id)
-        self.run_workflow = 'run-workflow-{}'.format(job_id)
-        self.save_output = 'save-output-{}'.format(job_id)
+        self.stage_data = 'stage-data-{}'.format(suffix)
+        self.run_workflow = 'run-workflow-{}'.format(suffix)
+        self.organize_output = 'organize-output-{}'.format(suffix)
+        self.save_output = 'save-output-{}'.format(suffix)
 
-        self.user_data = 'user-data-{}'.format(job_id)
-        self.data_store_secret = 'data-store-{}'.format(job_id)
+        self.user_data = 'user-data-{}'.format(suffix)
+        self.data_store_secret = 'data-store-{}'.format(suffix)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
@@ -288,6 +312,17 @@ class RunWorkflowConfig(object):
         run_workflow_settings = job_settings.config.run_workflow_settings
         self.requested_cpu = run_workflow_settings.requested_cpu
         self.requested_memory = run_workflow_settings.requested_memory
+
+
+class OrganizeOutputConfig(object):
+    def __init__(self, job, job_settings):
+        config = job_settings.config
+
+        organize_output_settings = config.organize_output_settings
+        self.image_name = organize_output_settings.image_name
+        self.command = organize_output_settings.command
+        self.requested_cpu = organize_output_settings.requested_cpu
+        self.requested_memory = organize_output_settings.requested_memory
 
 
 class SaveOutputConfig(object):

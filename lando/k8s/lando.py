@@ -64,6 +64,7 @@ class JobActions(object):
 
     def job_is_at_state_and_step(self, state, step):
         job = self.job_api.get_job()
+        logging.info("Job: {} state:{} step:{}".format(self.job_id, job.state, job.step))
         return job.state == state and job.step == step
 
     def start_job(self, payload):
@@ -71,10 +72,6 @@ class JobActions(object):
         Request from user to start running a job. This starts a job to stage user input data into a volume.
         :param payload:StartJobPayload contains job_id we should start
         """
-        if not self.job_is_at_state_and_step(JobStates.AUTHORIZED, JobSteps.NONE):
-            # ignore request to perform incompatible step
-            logging.info("Ignoring request to run job:{} wrong step/state".format(self.job_id))
-            return
         self._set_job_state(JobStates.RUNNING)
         manager = self.make_job_manager()
 
@@ -123,11 +120,23 @@ class JobActions(object):
         manager = self.make_job_manager()
         manager.cleanup_run_workflow_job()
 
+        self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
+        self._show_status("Creating organize output project job")
+        job = manager.create_organize_output_project_job()
+        self._show_status("Launched organize output project job: {}".format(job.metadata.name))
+
+    def organize_output_complete(self, payload):
+        if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.ORGANIZE_OUTPUT_PROJECT):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to organize output project for job:{} wrong step/state".format(self.job_id))
+            return
+        manager = self.make_job_manager()
+        manager.cleanup_organize_output_project_job()
+
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
         job = manager.create_save_output_job()
         self._show_status("Launched save output job: {}".format(job.metadata.name))
-        # TODO: run_store_output job
 
     def store_job_output_complete(self, payload):
         """

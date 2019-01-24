@@ -454,6 +454,7 @@ class JobSteps(object):
     CREATE_VM = 'V'
     STAGING = 'S'
     RUNNING = 'R'
+    ORGANIZE_OUTPUT_PROJECT = 'o'
     STORING_JOB_OUTPUT = 'O'
     RECORD_OUTPUT_PROJECT = 'P'
     TERMINATE_VM = 'T'

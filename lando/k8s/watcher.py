@@ -10,9 +10,16 @@ import sys
 COMPLETE_JOB_STEP_TO_COMMAND = {
     JobStepTypes.STAGE_DATA: JobCommands.STAGE_JOB_COMPLETE,
     JobStepTypes.RUN_WORKFLOW: JobCommands.RUN_JOB_COMPLETE,
+    JobStepTypes.ORGANIZE_OUTPUT: JobCommands.ORGANIZE_OUTPUT_COMPLETE,
     JobStepTypes.SAVE_OUTPUT: JobCommands.STORE_JOB_OUTPUT_COMPLETE
 }
 
+ERROR_JOB_STEP_TO_COMMAND = {
+    JobStepTypes.STAGE_DATA: JobCommands.STAGE_JOB_ERROR,
+    JobStepTypes.RUN_WORKFLOW: JobCommands.RUN_JOB_ERROR,
+    JobStepTypes.ORGANIZE_OUTPUT: JobCommands.ORGANIZE_OUTPUT_ERROR,
+    JobStepTypes.SAVE_OUTPUT: JobCommands.STORE_JOB_OUTPUT_ERROR,
+}
 
 def check_condition_status(job, condition_type):
     conditions = job.status.conditions
@@ -51,24 +58,17 @@ class JobWatcher(object):
             self.on_job_succeeded(job)
         elif check_condition_status(job, JobConditionType.FAILED):
             self.on_job_failed(job)
+        # TODO cleanup handling this
+        self.lando_client.work_queue_client.connection.close()
 
     def on_job_succeeded(self, job):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
-            self.send_step_complete_message(bespin_job_step, bespin_job_id, bespin_job_step)
-            if bespin_job_step == JobStepTypes.STAGE_DATA:
-                payload = JobStepPayload(bespin_job_id, None, JobCommands.STAGE_JOB_COMPLETE)
-                logging.info("SENDING STAGE JOB COMPLETE")
-                self.lando_client.job_step_complete(payload)
-            elif bespin_job_step == JobStepTypes.RUN_WORKFLOW:
-                payload = JobStepPayload(bespin_job_id, None, JobCommands.RUN_JOB_COMPLETE)
-                self.lando_client.job_step_complete(payload)
-                logging.info("SENDING RUN JOB COMPLETE")
-            else:
-                logging.info("TODO", bespin_job_step, bespin_job_id)
+            self.send_step_complete_message(bespin_job_step, bespin_job_id)
 
-    def send_step_complete_message(self, bespin_job_step, bespin_job_id, step_type):
+    def send_step_complete_message(self, bespin_job_step, bespin_job_id):
+        print("\n\nsend complete for job: {} step: {}".format(bespin_job_id, bespin_job_step))
         job_command = COMPLETE_JOB_STEP_TO_COMMAND.get(bespin_job_step)
         if job_command:
             payload = JobStepPayload(bespin_job_id, None, job_command)
@@ -77,13 +77,22 @@ class JobWatcher(object):
             else:
                 self.lando_client.job_step_complete(payload)
         else:
-            logging.info("TODO", bespin_job_step, bespin_job_id, step_type)
+            logging.error("Unable to find job command:", bespin_job_step, bespin_job_id)
 
     def on_job_failed(self, job):
-        logging.info("Job Failed",
-                     job.metadata.name,
-                     job.metadata.labels.get(JobLabels.JOB_ID),
-                     job.metadata.labels.get(JobLabels.STEP_TYPE))
+        bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
+        bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
+        if bespin_job_id and bespin_job_step:
+            logs = self.cluster_api.read_pod_logs(job.metadata.name)
+            self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
+
+    def send_step_error_message(self, bespin_job_step, bespin_job_id, error_message):
+        job_command = ERROR_JOB_STEP_TO_COMMAND.get(bespin_job_step)
+        if job_command:
+            payload = JobStepPayload(bespin_job_id, None, job_command)
+            self.lando_client.job_step_error(payload, error_message)
+        else:
+            logging.error("Unable to find job command:", bespin_job_step, bespin_job_id)
 
 
 def main():
