@@ -69,6 +69,17 @@ class RunWorkflowSettings(object):
     def __init__(self, data):
         self.requested_cpu = get_or_raise_config_exception(data, 'requested_cpu')
         self.requested_memory = get_or_raise_config_exception(data, 'requested_memory')
+        self.system_data_volume = None
+        if 'system_data_volume' in data:
+            self.system_data_volume = SystemDataVolume(
+                get_or_raise_config_exception(data, 'system_data_volume')
+            )
+
+
+class SystemDataVolume(object):
+    def __init__(self, data):
+        self.volume_claim_name = get_or_raise_config_exception(data, 'volume_claim_name')
+        self.mount_path = get_or_raise_config_exception(data, 'mount_path')
 
 
 class DataStoreSettings(object):

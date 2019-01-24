@@ -70,18 +70,20 @@ class JobManager(object):
                                            workflow_url=self.job.workflow.url,
                                            job_order=self.job.workflow.job_order,
                                            input_files=input_files)
-        user_data_volume = PersistentClaimVolume(self.names.user_data,
-                                                 mount_path=Paths.JOB_DATA,
-                                                 volume_claim_name=self.names.job_data,
-                                                 read_only=False)
-        stage_data_config_volume = ConfigMapVolume(self.names.stage_data,
-                                                   mount_path=Paths.CONFIG_DIR,
-                                                   config_map_name=self.names.stage_data,
-                                                   source_key=stage_data_config.filename,
-                                                   source_path=stage_data_config.filename)
-        data_store_secret_volume = SecretVolume(self.names.data_store_secret,
-                                                mount_path=stage_data_config.data_store_secret_path,
-                                                secret_name=stage_data_config.data_store_secret_name)
+        volumes = [
+            PersistentClaimVolume(self.names.user_data,
+                                  mount_path=Paths.JOB_DATA,
+                                  volume_claim_name=self.names.job_data,
+                                  read_only=False),
+            ConfigMapVolume(self.names.stage_data,
+                            mount_path=Paths.CONFIG_DIR,
+                            config_map_name=self.names.stage_data,
+                            source_key=stage_data_config.filename,
+                            source_path=stage_data_config.filename),
+            SecretVolume(self.names.data_store_secret,
+                         mount_path=stage_data_config.data_store_secret_path,
+                         secret_name=stage_data_config.data_store_secret_name),
+        ]
         container = Container(
             name=self.names.stage_data,
             image_name=stage_data_config.image_name,
@@ -90,11 +92,7 @@ class JobManager(object):
             env_dict=stage_data_config.env_dict,
             requested_cpu=stage_data_config.requested_cpu,
             requested_memory=stage_data_config.requested_memory,
-            volumes=[
-                user_data_volume,
-                data_store_secret_volume,
-                stage_data_config_volume,
-            ])
+            volumes=volumes)
         job_spec = BatchJobSpec(self.names.stage_data,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.STAGE_DATA))
@@ -129,22 +127,31 @@ class JobManager(object):
 
     def create_run_workflow_job(self):
         run_workflow_config = RunWorkflowConfig(self.job, self.job_settings)
-        tmp_volume = PersistentClaimVolume(self.names.tmp,
-                                           mount_path=Paths.TMP,
-                                           volume_claim_name=self.names.tmp,
-                                           read_only=False)
-        user_data_volume = PersistentClaimVolume(self.names.user_data,
-                                                 mount_path=Paths.JOB_DATA,
-                                                 volume_claim_name=self.names.job_data,
-                                                 read_only=True)
-        output_data_volume = PersistentClaimVolume(self.names.output_data,
-                                                   mount_path=Paths.OUTPUT_DATA,
-                                                   volume_claim_name=self.names.output_data,
-                                                   read_only=False)
-        tmpout_volume = PersistentClaimVolume(self.names.tmpout,
-                                              mount_path=Paths.TMPOUT_DATA,
-                                              volume_claim_name=self.names.tmpout,
-                                              read_only=False)
+        system_data_volume = run_workflow_config.system_data_volume
+        volumes = [
+            PersistentClaimVolume(self.names.tmp,
+                                  mount_path=Paths.TMP,
+                                  volume_claim_name=self.names.tmp,
+                                  read_only=False),
+            PersistentClaimVolume(self.names.user_data,
+                                  mount_path=Paths.JOB_DATA,
+                                  volume_claim_name=self.names.job_data,
+                                  read_only=True),
+            PersistentClaimVolume(self.names.output_data,
+                                  mount_path=Paths.OUTPUT_DATA,
+                                  volume_claim_name=self.names.output_data,
+                                  read_only=False),
+            PersistentClaimVolume(self.names.tmpout,
+                                  mount_path=Paths.TMPOUT_DATA,
+                                  volume_claim_name=self.names.tmpout,
+                                  read_only=False),
+        ]
+        if system_data_volume:
+            volumes.append(PersistentClaimVolume(
+                self.names.system_data,
+                mount_path=system_data_volume.mount_path,
+                volume_claim_name=system_data_volume.volume_claim_name,
+                read_only=True))
         command_parts = run_workflow_config.command
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
                               "--outdir", Paths.OUTPUT_DATA + "/"])
@@ -158,12 +165,7 @@ class JobManager(object):
             },
             requested_cpu=run_workflow_config.requested_cpu,
             requested_memory=run_workflow_config.requested_memory,
-            volumes=[
-                user_data_volume,
-                output_data_volume,
-                tmpout_volume,
-                tmp_volume,
-            ]
+            volumes=volumes
         )
         job_spec = BatchJobSpec(self.names.run_workflow,
                                 container=container,
@@ -177,24 +179,23 @@ class JobManager(object):
 
     def create_organize_output_project_job(self):
         organize_output_config = OrganizeOutputConfig(self.job, self.job_settings)
-        user_data_volume = PersistentClaimVolume(self.names.job_data,
-                                                 mount_path=Paths.JOB_DATA,
-                                                 volume_claim_name=self.names.job_data,
-                                                 read_only=False)
-        output_data_volume = PersistentClaimVolume(self.names.output_data,
-                                                   mount_path=Paths.OUTPUT_DATA,
-                                                   volume_claim_name=self.names.output_data,
-                                                   read_only=False)
+        volumes = [
+            PersistentClaimVolume(self.names.job_data,
+                                  mount_path=Paths.JOB_DATA,
+                                  volume_claim_name=self.names.job_data,
+                                  read_only=False),
+            PersistentClaimVolume(self.names.output_data,
+                                  mount_path=Paths.OUTPUT_DATA,
+                                  volume_claim_name=self.names.output_data,
+                                  read_only=False),
+        ]
         container = Container(
             name=self.names.organize_output,
             image_name=organize_output_config.image_name,
             command=organize_output_config.command,
             requested_cpu=organize_output_config.requested_cpu,
             requested_memory=organize_output_config.requested_memory,
-            volumes=[
-                user_data_volume,
-                output_data_volume,
-            ])
+            volumes=volumes)
         job_spec = BatchJobSpec(self.names.organize_output,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.ORGANIZE_OUTPUT))
@@ -207,18 +208,20 @@ class JobManager(object):
         save_output_config = SaveOutputConfig(self.job, self.job_settings)
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename)
-        job_data_volume = PersistentClaimVolume(self.names.user_data,
-                                                 mount_path=Paths.JOB_DATA,
-                                                 volume_claim_name=self.names.job_data,
-                                                 read_only=True)
-        save_output_config_volume = ConfigMapVolume(self.names.stage_data,
-                                                   mount_path=Paths.CONFIG_DIR,
-                                                   config_map_name=self.names.save_output,
-                                                   source_key=save_output_config.filename,
-                                                   source_path=save_output_config.filename)
-        data_store_secret_volume = SecretVolume(self.names.data_store_secret,
-                                                mount_path=save_output_config.data_store_secret_path,
-                                                secret_name=save_output_config.data_store_secret_name)
+        volumes = [
+            PersistentClaimVolume(self.names.user_data,
+                                  mount_path=Paths.JOB_DATA,
+                                  volume_claim_name=self.names.job_data,
+                                  read_only=True),
+            ConfigMapVolume(self.names.stage_data,
+                            mount_path=Paths.CONFIG_DIR,
+                            config_map_name=self.names.save_output,
+                            source_key=save_output_config.filename,
+                            source_path=save_output_config.filename),
+            SecretVolume(self.names.data_store_secret,
+                         mount_path=save_output_config.data_store_secret_path,
+                         secret_name=save_output_config.data_store_secret_name),
+        ]
         container = Container(
             name=self.names.save_output,
             image_name=save_output_config.image_name,
@@ -228,11 +231,7 @@ class JobManager(object):
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
-            volumes=[
-                job_data_volume,
-                data_store_secret_volume,
-                save_output_config_volume,
-            ])
+            volumes=volumes)
         job_spec = BatchJobSpec(self.names.save_output,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.SAVE_OUTPUT))
@@ -276,7 +275,7 @@ class Names(object):
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
-
+        self.system_data = 'system-data-{}'.format(suffix)
 
 class Paths(object):
     JOB_DATA = '/bespin/job-data'
@@ -312,6 +311,7 @@ class RunWorkflowConfig(object):
         run_workflow_settings = job_settings.config.run_workflow_settings
         self.requested_cpu = run_workflow_settings.requested_cpu
         self.requested_memory = run_workflow_settings.requested_memory
+        self.system_data_volume = run_workflow_settings.system_data_volume
 
 
 class OrganizeOutputConfig(object):
@@ -331,7 +331,7 @@ class SaveOutputConfig(object):
         self.filename = "saveoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
-        self.data_store_secret_path= DDSCLIENT_CONFIG_MOUNT_PATH
+        self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
         save_output_settings = config.save_output_settings
