@@ -73,6 +73,7 @@ class JobActions(object):
         :param payload:StartJobPayload contains job_id we should start
         """
         self._set_job_state(JobStates.RUNNING)
+        self._set_job_step(JobSteps.CREATE_VM)
         manager = self.make_job_manager()
 
         self._show_status("Creating stage data persistent volumes")
