@@ -7,6 +7,7 @@ DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 
 
 class JobLabels(object):
+    BESPIN_JOB = "bespin-job"  # expected value is "true"
     JOB_ID = "bespin-job-id"
     STEP_TYPE = "bespin-job-step"
 
@@ -28,6 +29,7 @@ class JobManager(object):
 
     def make_job_labels(self, job_step_type):
         return {
+            JobLabels.BESPIN_JOB: "true",
             JobLabels.JOB_ID: str(self.job.id),
             JobLabels.STEP_TYPE: job_step_type
         }

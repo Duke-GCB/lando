@@ -34,7 +34,7 @@ class JobSettings(object):
 
     def get_cluster_api(self):
         settings = self.config.cluster_api_settings
-        return ClusterApi(settings.host, settings.token, settings.namespace, incluster_config=False,
+        return ClusterApi(settings.host, settings.token, settings.namespace,
                           verify_ssl=False)  # TODO REMOVE THIS
 
 

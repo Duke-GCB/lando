@@ -21,6 +21,7 @@ ERROR_JOB_STEP_TO_COMMAND = {
     JobStepTypes.SAVE_OUTPUT: JobCommands.STORE_JOB_OUTPUT_ERROR,
 }
 
+
 def check_condition_status(job, condition_type):
     conditions = job.status.conditions
     if conditions:
@@ -46,12 +47,14 @@ class JobWatcher(object):
     @staticmethod
     def get_cluster_api(config):
         settings = config.cluster_api_settings
-        return ClusterApi(settings.host, settings.token, settings.namespace, incluster_config=False,
+        return ClusterApi(settings.host, settings.token, settings.namespace,
                           verify_ssl=False)  # TODO REMOVE THIS
 
     def run(self):
-        # TODO filtering by a label
-        self.cluster_api.wait_for_job_events(self.on_job_change)
+        # run on_job_change for jobs that have the bespin job label
+        bespin_job_label_selector = "{}={}".format(JobLabels.BESPIN_JOB, "true")
+        self.cluster_api.wait_for_job_events(self.on_job_change,
+                                             label_selector=bespin_job_label_selector)
 
     def on_job_change(self, job):
         if check_condition_status(job, JobConditionType.COMPLETE):

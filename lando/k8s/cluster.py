@@ -1,4 +1,7 @@
 from kubernetes import client, config, watch
+import logging
+
+RESTART_POLICY = "Never"
 
 
 class AccessModes(object):
@@ -13,24 +16,18 @@ class JobConditionType:
 
 
 class ClusterApi(object):
-    def __init__(self, host, token, namespace, incluster_config=False, verify_ssl=True):
-        if incluster_config:
-            config.load_incluster_config()
-            self.core = client.CoreV1Api()
-            self.batch = client.BatchV1Api()
-        else:
-            my_config = client.Configuration()
-            my_config.host = host
-            my_config.api_key = {"authorization": "Bearer " + token}
-            my_config.verify_ssl = verify_ssl
-            api_client = client.ApiClient(my_config)
-            self.core = client.CoreV1Api(api_client)
-            self.batch = client.BatchV1Api(api_client)
+    def __init__(self, host, token, namespace, verify_ssl=True):
+        my_config = client.Configuration()
+        my_config.host = host
+        my_config.api_key = {"authorization": "Bearer " + token}
+        my_config.verify_ssl = verify_ssl
+        api_client = client.ApiClient(my_config)
+        self.core = client.CoreV1Api(api_client)
+        self.batch = client.BatchV1Api(api_client)
         self.namespace = namespace
 
-    def create_persistent_volume_claim(self, name, storage_size_in_g,
-                                       access_modes=[AccessModes.READ_WRITE_MANY],
-                                       storage_class_name="glusterfs-storage"):
+    def create_persistent_volume_claim(self, name, storage_size_in_g, storage_class_name,
+                                       access_modes=[AccessModes.READ_WRITE_MANY]):
         pvc = client.V1PersistentVolumeClaim()
         pvc.metadata = client.V1ObjectMeta(name=name)
         storage_size = "{}Gi".format(storage_size_in_g)
@@ -56,28 +53,9 @@ class ClusterApi(object):
             spec=batch_job_spec.create())
         return self.batch.create_namespaced_job(self.namespace, body)
 
-    def wait_for_jobs(self, job_names):
-        waiting_for_job_names = set(job_names)
-        failed_job_names = []
+    def wait_for_job_events(self, callback, label_selector=None):
         w = watch.Watch()
-        for event in w.stream(self.batch.list_namespaced_job, self.namespace):
-            job = event['object']
-            job_name = job.metadata.name
-            if job.status.succeeded:
-                waiting_for_job_names.remove(job_name)
-            elif job.status.failed:
-                waiting_for_job_names.remove(job_name)
-                failed_job_names.append(job_name)
-            if not waiting_for_job_names:
-                w.stop()
-        if failed_job_names:
-            raise ValueError("Failed jobs: {}".format(','.join(failed_job_names)))
-        else:
-            print("Jobs complete: {}".format(','.join(job_names)))
-
-    def wait_for_job_events(self, callback):
-        w = watch.Watch()
-        for event in w.stream(self.batch.list_namespaced_job, self.namespace):
+        for event in w.stream(self.batch.list_namespaced_job, self.namespace, label_selector=label_selector):
             job = event['object']
             job_name = job.metadata.name
             callback(job)
@@ -150,7 +128,8 @@ class Container(object):
 
 
 class EnvVarSource(object):
-    pass
+    def create_env_var_source(self):
+        raise NotImplemented("Subclasses of EnvVarSource should implement create_env_var_source.")
 
 
 class SecretEnvVar(EnvVarSource):
@@ -178,6 +157,9 @@ class FieldRefEnvVar(EnvVarSource):
 
 
 class VolumeBase(object):
+    """
+    Base class that represents a volume that will be mounted.
+    """
     def __init__(self, name, mount_path):
         self.name = name
         self.mount_path = mount_path
@@ -186,6 +168,9 @@ class VolumeBase(object):
         return client.V1VolumeMount(
             name=self.name,
             mount_path=self.mount_path)
+
+    def create_volume(self):
+        raise NotImplemented("Subclasses of VolumeBase should implement create_volume.")
 
 
 class SecretVolume(VolumeBase):
@@ -240,7 +225,7 @@ class ConfigMapVolume(VolumeBase):
 class BatchJobSpec(object):
     def __init__(self, name, container, init_container=None, labels={}):
         self.name = name
-        self.pod_restart_policy = "Never"
+        self.pod_restart_policy = RESTART_POLICY
         self.container = container
         self.init_container = init_container
         self.labels = labels
@@ -258,7 +243,7 @@ class BatchJobSpec(object):
         return client.V1PodSpec(
             containers=self.create_containers(),
             volumes=self.create_volumes(),
-            restart_policy="Never",
+            restart_policy=RESTART_POLICY,
             init_containers=self.create_init_containers(),
         )
 
@@ -274,4 +259,3 @@ class BatchJobSpec(object):
 
     def create_volumes(self):
         return self.container.create_volumes()
-
