@@ -21,10 +21,9 @@ def get_or_raise_config_exception(data, key):
     :param key: str: name of the key we should get a value for
     :return: object: value found in dict
     """
-    value = data.get(key)
-    if not value:
+    if not key in data:
         raise InvalidConfigException("Missing {} from config file".format(key))
-    return value
+    return data[key]
 
 
 class JobStepFailed(Exception):
