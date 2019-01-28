@@ -1,6 +1,7 @@
 from unittest import TestCase
-from unittest.mock import patch, Mock
-from lando.k8s.cluster import ClusterApi, AccessModes
+from unittest.mock import patch, Mock, call
+from lando.k8s.cluster import ClusterApi, AccessModes, Container, SecretVolume, SecretEnvVar, EnvVarSource, \
+    FieldRefEnvVar, VolumeBase, SecretVolume, PersistentClaimVolume, ConfigMapVolume, BatchJobSpec
 from kubernetes import client
 
 
@@ -20,7 +21,7 @@ class TestClusterApi(TestCase):
 
     def test_create_persistent_volume_claim(self):
         resp = self.cluster_api.create_persistent_volume_claim(name='myvolume', storage_size_in_g=2,
-                                                          storage_class_name='gluster')
+                                                               storage_class_name='gluster')
         self.assertEqual(resp, self.mock_core_api.create_namespaced_persistent_volume_claim.return_value)
         args, kwargs = self.mock_core_api.create_namespaced_persistent_volume_claim.call_args
         namespace = args[0]
@@ -67,13 +68,35 @@ class TestClusterApi(TestCase):
         resp = self.cluster_api.create_job(name='myjob', batch_job_spec=mock_batch_job_spec)
 
         self.assertEqual(resp, self.mock_batch_api.create_namespaced_job.return_value)
-        args, kwargs =  self.mock_batch_api.create_namespaced_job.call_args
+        args, kwargs = self.mock_batch_api.create_namespaced_job.call_args
         self.assertEqual(args[0], 'lando-job-runner')
         self.assertEqual(args[1].metadata.name, 'myjob')
         self.assertEqual(args[1].spec, mock_batch_job_spec.create.return_value)
 
-#    def test_wait_for_job_events(self):
-#        self.assertEqual(1, 2)
+    @patch('lando.k8s.cluster.watch')
+    def test_wait_for_job_events(self, mock_watch):
+        callback = Mock()
+        mock_watch.Watch.return_value.stream.return_value = [
+            {'object': 'job1'},
+            {'object': 'job2'},
+        ]
+        self.cluster_api.wait_for_job_events(callback)
+        callback.assert_has_calls([
+            call('job1'),
+            call('job2'),
+        ])
+        args, kwargs = mock_watch.Watch.return_value.stream.call_args
+        self.assertEqual(args[1], 'lando-job-runner')
+        self.assertEqual(kwargs['label_selector'], None)
+
+    @patch('lando.k8s.cluster.watch')
+    def test_wait_for_job_events_with_label_selector(self, mock_watch):
+        callback = Mock()
+        mock_watch.Watch.return_value.stream.return_value = []
+        self.cluster_api.wait_for_job_events(Mock(), label_selector='name=mypod')
+        args, kwargs = mock_watch.Watch.return_value.stream.call_args
+        self.assertEqual(args[1], 'lando-job-runner')
+        self.assertEqual(kwargs['label_selector'], 'name=mypod')
 
     def test_delete_job(self):
         self.cluster_api.delete_job(name='myjob')
@@ -106,3 +129,192 @@ class TestClusterApi(TestCase):
         resp = self.cluster_api.read_pod_logs('mypod')
         self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value)
         self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner')
+
+
+class TestContainer(TestCase):
+    def test_minimal_create(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l']
+        )
+        container_dict = container.create().to_dict()
+
+        self.assertEqual(container_dict['name'], 'mycontainer')
+        self.assertEqual(container_dict['image'], 'someimage')
+        self.assertEqual(container_dict['command'], ['wc', '-l'])
+        self.assertEqual(container_dict['args'], [])
+
+    def test_full_create(self):
+        container = Container(
+            name='mycontainer2',
+            image_name='someimage',
+            command=['wc'],
+            args=['-l'],
+            working_dir='/tmp/data',
+            env_dict={
+                'SOMEENV': 'SomeVal'
+            },
+            requested_cpu='2',
+            requested_memory='200M',
+            volumes=[
+                SecretVolume(name='mymountedvolume', mount_path='/secret', secret_name='mysecret')
+            ]
+        )
+        container_dict = container.create().to_dict()
+        expected_container_dict = {
+            'name': 'mycontainer2',
+            'image': 'someimage',
+            'image_pull_policy': None,
+            'command': ['wc'],
+            'args': ['-l'],
+            'working_dir': '/tmp/data',
+            'env': [
+                {
+                    'name': 'SOMEENV',
+                    'value': 'SomeVal',
+                    'value_from': None
+                }
+            ],
+            'env_from': None,
+            'resources': {
+                'limits': None,
+                'requests': {
+                    'cpu': '2',
+                    'memory': '200M'
+                }
+            },
+            'volume_mounts': [
+                {
+                    'mount_path': '/secret',
+                    'mount_propagation': None,
+                    'name': 'mymountedvolume',
+                    'read_only': None,
+                    'sub_path': None
+                }
+            ],
+            'lifecycle': None,
+            'liveness_probe': None,
+            'ports': None,
+            'readiness_probe': None,
+            'security_context': None,
+            'stdin': None,
+            'stdin_once': None,
+            'termination_message_path': None,
+            'termination_message_policy': None,
+            'tty': None,
+            'volume_devices': None, }
+        self.assertEqual(container_dict, expected_container_dict)
+
+    def test_create_env(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l'],
+            env_dict={
+                'USERNAME': 'joe',
+                'PASSWORD': SecretEnvVar(name='mysecret', key='username')
+            }
+        )
+        env = container.create_env()
+        self.assertEqual(len(env), 2)
+
+        self.assertEqual(env[0].name, 'USERNAME')
+        self.assertEqual(env[0].value, 'joe')
+        self.assertEqual(env[0].value_from, None)
+
+        self.assertEqual(env[1].name, 'PASSWORD')
+        self.assertEqual(env[1].value, None)
+        self.assertEqual(env[1].value_from.to_dict()['secret_key_ref'],
+                         {'key': 'username', 'name': 'mysecret', 'optional': None})
+
+    def test_create_resource_requirements(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l'],
+            requested_memory='200M', requested_cpu=4,
+        )
+        requirements = container.create_resource_requirements()
+        expected_requirements = {
+            'limits': None,
+            'requests': {
+                'cpu': 4,
+                'memory': '200M'
+            }
+        }
+        self.assertEqual(requirements.to_dict(), expected_requirements)
+
+
+class TestEnvVarSource(TestCase):
+    def test_create_env_var_source_is_required(self):
+        with self.assertRaises(NotImplementedError):
+            EnvVarSource().create_env_var_source()
+
+
+class TestSecretEnvVar(TestCase):
+    def test_create_env_var_source(self):
+        env_var = SecretEnvVar(name='mysecret', key='mykey')
+        env_var_source_dict = env_var.create_env_var_source().to_dict()
+        self.assertEqual(env_var_source_dict['secret_key_ref'],
+                         {'key': 'mykey', 'name': 'mysecret', 'optional': None})
+
+
+class TestFieldRefEnvVar(TestCase):
+    def test_create_env_var_source(self):
+        env_var = FieldRefEnvVar(field_path='metadata.name')
+        env_var_source_dict = env_var.create_env_var_source().to_dict()
+        self.assertEqual(env_var_source_dict['field_ref'],
+                         {'api_version': None, 'field_path': 'metadata.name'})
+
+
+class TestVolumeBase(TestCase):
+    def test_create_volume_mount(self):
+        volume = VolumeBase(name='myvolume', mount_path='/data')
+        volume_dict = volume.create_volume_mount().to_dict()
+        self.assertEqual(volume_dict, {
+            'mount_path': '/data',
+            'mount_propagation': None,
+            'name': 'myvolume',
+            'read_only': None,
+            'sub_path': None
+        })
+
+    def test_create_volume_is_required(self):
+        volume = VolumeBase(name='myvolume', mount_path='/data')
+        with self.assertRaises(NotImplementedError):
+            volume.create_volume()
+
+
+class TestSecretVolume(TestCase):
+    def test_create_volume(self):
+        volume = SecretVolume(name='myvolume', mount_path='/data2', secret_name='mysecret')
+        volume_dict = volume.create_volume().to_dict()
+        self.assertEqual(volume_dict['secret']['secret_name'], 'mysecret')
+
+
+class TestPersistentClaimVolume(TestCase):
+    def test_create_volume(self):
+        volume = PersistentClaimVolume(name='myvolume', mount_path='/data3', volume_claim_name='mypvc')
+        volume_dict = volume.create_volume().to_dict()
+        self.assertEqual(volume_dict['persistent_volume_claim'],
+                         {'claim_name': 'mypvc', 'read_only': False})
+
+
+class TestConfigMapVolume(TestCase):
+    def test_create_volume(self):
+        volume = ConfigMapVolume(name='myvolume', mount_path='/data/config.dat',
+                                 config_map_name='myconfig', source_key='datastore', source_path='config')
+        volume_dict = volume.create_volume().to_dict()
+        expected_dict = {
+            'default_mode': None,
+            'items': [{'key': 'datastore', 'mode': None, 'path': 'config'}],
+            'name': 'myconfig',
+            'optional': None
+        }
+        self.assertEqual(volume_dict['config_map'], expected_dict)
+
+
+class TestBatchJobSpec(TestCase):
+    def test_create(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l']
+        )
+        spec = BatchJobSpec(name='mybatch', container=container, labels={'service': 'bespin'})
+        spec_dict = spec.create().to_dict()
+        self.assertEqual(spec_dict['template']['metadata']['name'], 'mybatchspec')
+        self.assertEqual(spec_dict['template']['spec']['containers'], [container.create().to_dict()])

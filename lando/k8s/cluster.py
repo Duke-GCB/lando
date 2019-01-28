@@ -79,7 +79,7 @@ class ClusterApi(object):
 
 class Container(object):
     def __init__(self, name, image_name, command, args=[], working_dir=None, env_dict={},
-                 requested_cpu=None, requested_memory=None, volumes=[], init_containers=None):
+                 requested_cpu=None, requested_memory=None, volumes=[]):
         self.name = name
         self.image_name = image_name
         self.command = command
@@ -89,7 +89,6 @@ class Container(object):
         self.requested_cpu = requested_cpu
         self.requested_memory = requested_memory
         self.volumes = volumes
-        self.init_containers = init_containers
 
     def create_env(self):
         environment_variables = []
@@ -128,7 +127,7 @@ class Container(object):
 
 class EnvVarSource(object):
     def create_env_var_source(self):
-        raise NotImplemented("Subclasses of EnvVarSource should implement create_env_var_source.")
+        raise NotImplementedError("Subclasses of EnvVarSource should implement create_env_var_source.")
 
 
 class SecretEnvVar(EnvVarSource):
@@ -169,7 +168,7 @@ class VolumeBase(object):
             mount_path=self.mount_path)
 
     def create_volume(self):
-        raise NotImplemented("Subclasses of VolumeBase should implement create_volume.")
+        raise NotImplementedError("Subclasses of VolumeBase should implement create_volume.")
 
 
 class SecretVolume(VolumeBase):
@@ -222,11 +221,10 @@ class ConfigMapVolume(VolumeBase):
 
 
 class BatchJobSpec(object):
-    def __init__(self, name, container, init_container=None, labels={}):
+    def __init__(self, name, container, labels={}):
         self.name = name
         self.pod_restart_policy = RESTART_POLICY
         self.container = container
-        self.init_container = init_container
         self.labels = labels
 
     def create(self):
@@ -243,18 +241,11 @@ class BatchJobSpec(object):
             containers=self.create_containers(),
             volumes=self.create_volumes(),
             restart_policy=RESTART_POLICY,
-            init_containers=self.create_init_containers(),
         )
 
     def create_containers(self):
         container = self.container.create()
         return [container]
-
-    def create_init_containers(self):
-        init_containers = []
-        if self.init_container:
-            init_containers.append(self.init_container.create())
-        return init_containers
 
     def create_volumes(self):
         return self.container.create_volumes()
