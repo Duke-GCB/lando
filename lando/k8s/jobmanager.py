@@ -279,6 +279,7 @@ class Names(object):
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
 
+
 class Paths(object):
     JOB_DATA = '/bespin/job-data'
     WORKFLOW = '/bespin/job-data/workflow'
@@ -291,6 +292,7 @@ class Paths(object):
 
 class StageDataConfig(object):
     def __init__(self, job, job_settings):
+        # job parameter is not used but is here to allow future customization based on job
         config = job_settings.config
         self.filename = "stagedata.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
@@ -318,6 +320,7 @@ class RunWorkflowConfig(object):
 
 class OrganizeOutputConfig(object):
     def __init__(self, job, job_settings):
+        # job parameter is not used but is here to allow future customization based on job
         config = job_settings.config
 
         organize_output_settings = config.organize_output_settings
@@ -329,6 +332,7 @@ class OrganizeOutputConfig(object):
 
 class SaveOutputConfig(object):
     def __init__(self, job, job_settings):
+        # job parameter is not used but is here to allow future customization based on job
         config = job_settings.config
         self.filename = "saveoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)

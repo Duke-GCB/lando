@@ -1,6 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
-from lando.k8s.jobmanager import JobManager, JobStepTypes, FieldRefEnvVar
+from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
+    OrganizeOutputConfig, SaveOutputConfig
 import json
 
 
@@ -337,3 +338,76 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
             call('job-data-51-jpb'), call('output-data-51-jpb')
         ], 'delete job data and output data volumes once running workflow completes')
+
+
+class TestNames(TestCase):
+    def test_constructor(self):
+        mock_job = Mock(username='jpb', workflow=Mock(url='https://somewhere.com/someworkflow.cwl'))
+        mock_job.id = '123'
+        names = Names(mock_job)
+        self.assertEqual(names.job_data, 'job-data-123-jpb')
+        self.assertEqual(names.output_data, 'output-data-123-jpb')
+        self.assertEqual(names.tmpout, 'tmpout-123-jpb')
+        self.assertEqual(names.tmp, 'tmp-123-jpb')
+
+        self.assertEqual(names.stage_data, 'stage-data-123-jpb')
+        self.assertEqual(names.run_workflow, 'run-workflow-123-jpb')
+        self.assertEqual(names.organize_output, 'organize-output-123-jpb')
+        self.assertEqual(names.save_output, 'save-output-123-jpb')
+
+        self.assertEqual(names.user_data, 'user-data-123-jpb')
+        self.assertEqual(names.data_store_secret, 'data-store-123-jpb')
+        self.assertEqual(names.output_project_name, 'Bespin-job-123-results')
+        self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
+        self.assertEqual(names.system_data, 'system-data-123-jpb')
+
+
+class TestStageDataConfig(TestCase):
+    def test_constructor(self):
+        mock_job_settings = Mock()
+        config = StageDataConfig(job=None, job_settings=mock_job_settings)
+        self.assertEqual(config.path, '/bespin/config/stagedata.json')
+        self.assertEqual(config.data_store_secret_name, mock_job_settings.config.data_store_settings.secret_name)
+        self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
+        self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
+        self.assertEqual(config.image_name, mock_job_settings.config.stage_data_settings.image_name)
+        self.assertEqual(config.command, mock_job_settings.config.stage_data_settings.command)
+        self.assertEqual(config.requested_cpu, mock_job_settings.config.stage_data_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_job_settings.config.stage_data_settings.requested_memory)
+
+
+class TestRunWorkflowConfig(TestCase):
+    def test_constructor(self):
+        mock_job = Mock(vm_settings=Mock(image_name='someimage', cwl_commands=Mock(base_command=['cwltool'])))
+        mock_job_settings = Mock()
+        config = RunWorkflowConfig(job=mock_job, job_settings=mock_job_settings)
+        self.assertEqual(config.image_name, 'someimage')
+        self.assertEqual(config.command, ['cwltool'])
+        self.assertEqual(config.requested_cpu, mock_job_settings.config.run_workflow_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_job_settings.config.run_workflow_settings.requested_memory)
+        self.assertEqual(config.system_data_volume, mock_job_settings.config.run_workflow_settings.system_data_volume)
+
+
+class TestOrganizeOutputConfig(TestCase):
+    def test_constructor(self):
+        mock_job_settings = Mock()
+        config = OrganizeOutputConfig(job=None, job_settings=mock_job_settings)
+        self.assertEqual(config.image_name, mock_job_settings.config.organize_output_settings.image_name)
+        self.assertEqual(config.command, mock_job_settings.config.organize_output_settings.command)
+        self.assertEqual(config.requested_cpu, mock_job_settings.config.organize_output_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_job_settings.config.organize_output_settings.requested_memory)
+
+
+class TestSaveOutputConfig(TestCase):
+    def test_constructor(self):
+        mock_job_settings = Mock()
+        config = SaveOutputConfig(job=None, job_settings=mock_job_settings)
+        self.assertEqual(config.path, '/bespin/config/saveoutput.json')
+        self.assertEqual(config.data_store_secret_name, mock_job_settings.config.data_store_settings.secret_name)
+        self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
+        self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
+        self.assertEqual(config.image_name, mock_job_settings.config.save_output_settings.image_name)
+        self.assertEqual(config.command, mock_job_settings.config.save_output_settings.command)
+        self.assertEqual(config.requested_cpu, mock_job_settings.config.save_output_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_job_settings.config.save_output_settings.requested_memory)
