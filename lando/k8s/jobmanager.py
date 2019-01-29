@@ -21,12 +21,12 @@ class JobStepTypes(object):
 
 
 class JobManager(object):
-    def __init__(self, cluster_api, job_settings, job):
+    def __init__(self, cluster_api, config, job):
         self.cluster_api = cluster_api
-        self.job_settings = job_settings
+        self.config = config
         self.job = job
         self.names = Names(job)
-        self.storage_class_name = job_settings.config.storage_class_name
+        self.storage_class_name = config.storage_class_name
 
     def make_job_labels(self, job_step_type):
         return {
@@ -67,7 +67,7 @@ class JobManager(object):
         self.create_job_data_persistent_volume()
 
     def create_stage_data_job(self, input_files):
-        stage_data_config = StageDataConfig(self.job, self.job_settings)
+        stage_data_config = StageDataConfig(self.job, self.config)
         self._create_stage_data_config_map(name=self.names.stage_data,
                                            filename=stage_data_config.filename,
                                            workflow_url=self.job.workflow.url,
@@ -129,7 +129,7 @@ class JobManager(object):
         self.create_tmp_persistent_volume()
 
     def create_run_workflow_job(self):
-        run_workflow_config = RunWorkflowConfig(self.job, self.job_settings)
+        run_workflow_config = RunWorkflowConfig(self.job, self.config)
         system_data_volume = run_workflow_config.system_data_volume
         volumes = [
             PersistentClaimVolume(self.names.tmp,
@@ -181,7 +181,7 @@ class JobManager(object):
         self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
     def create_organize_output_project_job(self):
-        organize_output_config = OrganizeOutputConfig(self.job, self.job_settings)
+        organize_output_config = OrganizeOutputConfig(self.job, self.config)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
@@ -208,7 +208,7 @@ class JobManager(object):
         self.cluster_api.delete_job(self.names.organize_output)
 
     def create_save_output_job(self):
-        save_output_config = SaveOutputConfig(self.job, self.job_settings)
+        save_output_config = SaveOutputConfig(self.job, self.config)
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename)
         volumes = [
@@ -292,9 +292,8 @@ class Paths(object):
 
 
 class StageDataConfig(object):
-    def __init__(self, job, job_settings):
+    def __init__(self, job, config):
         # job parameter is not used but is here to allow future customization based on job
-        config = job_settings.config
         self.filename = "stagedata.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
@@ -309,21 +308,19 @@ class StageDataConfig(object):
 
 
 class RunWorkflowConfig(object):
-    def __init__(self, job, job_settings):
+    def __init__(self, job, config):
         self.image_name = job.vm_settings.image_name
         self.command = job.vm_settings.cwl_commands.base_command
 
-        run_workflow_settings = job_settings.config.run_workflow_settings
+        run_workflow_settings = config.run_workflow_settings
         self.requested_cpu = run_workflow_settings.requested_cpu
         self.requested_memory = run_workflow_settings.requested_memory
         self.system_data_volume = run_workflow_settings.system_data_volume
 
 
 class OrganizeOutputConfig(object):
-    def __init__(self, job, job_settings):
+    def __init__(self, job, config):
         # job parameter is not used but is here to allow future customization based on job
-        config = job_settings.config
-
         organize_output_settings = config.organize_output_settings
         self.image_name = organize_output_settings.image_name
         self.command = organize_output_settings.command
@@ -332,9 +329,8 @@ class OrganizeOutputConfig(object):
 
 
 class SaveOutputConfig(object):
-    def __init__(self, job, job_settings):
+    def __init__(self, job, config):
         # job parameter is not used but is here to allow future customization based on job
-        config = job_settings.config
         self.filename = "saveoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
