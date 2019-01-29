@@ -4,6 +4,7 @@ import json
 import os
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
+TMP_VOLUME_SIZE_IN_G = 1
 
 
 class JobLabels(object):
@@ -37,28 +38,28 @@ class JobManager(object):
     def create_job_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.job_data,
-            storage_size_in_g=self.job.volume_size,  # TODO better calculate this
+            storage_size_in_g=self.job.volume_size,
             storage_class_name=self.storage_class_name
         )
 
     def create_output_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.output_data,
-            storage_size_in_g=self.job.volume_size,  # TODO better calculate this
+            storage_size_in_g=self.job.volume_size,
             storage_class_name=self.storage_class_name
         )
 
     def create_tmpout_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmpout,
-            storage_size_in_g=self.job.volume_size,  # TODO better calculate this
+            storage_size_in_g=self.job.volume_size,
             storage_class_name=self.storage_class_name
         )
 
     def create_tmp_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmp,
-            storage_size_in_g=1,  # TODO better calculate this
+            storage_size_in_g=TMP_VOLUME_SIZE_IN_G,
             storage_class_name=self.storage_class_name
         )
 
