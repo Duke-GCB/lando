@@ -27,9 +27,10 @@ class ClusterApi(object):
         self.namespace = namespace
 
     def create_persistent_volume_claim(self, name, storage_size_in_g, storage_class_name,
-                                       access_modes=[AccessModes.READ_WRITE_MANY]):
+                                       access_modes=[AccessModes.READ_WRITE_MANY],
+                                       labels={}):
         pvc = client.V1PersistentVolumeClaim()
-        pvc.metadata = client.V1ObjectMeta(name=name)
+        pvc.metadata = client.V1ObjectMeta(name=name, labels=labels)
         storage_size = "{}Gi".format(storage_size_in_g)
         resources = client.V1ResourceRequirements(requests={"storage": storage_size})
         pvc.spec = client.V1PersistentVolumeClaimSpec(access_modes=access_modes,
@@ -40,16 +41,17 @@ class ClusterApi(object):
     def delete_persistent_volume_claim(self, name):
         self.core.delete_namespaced_persistent_volume_claim(name, self.namespace, client.V1DeleteOptions())
 
-    def create_secret(self, name, string_value_dict):
-        body = client.V1Secret(string_data=string_value_dict, metadata={'name': name})
+    def create_secret(self, name, string_value_dict, labels={}):
+        body = client.V1Secret(string_data=string_value_dict,
+                               metadata=client.V1ObjectMeta(name=name, labels=labels))
         return self.core.create_namespaced_secret(namespace=self.namespace, body=body)
 
     def delete_secret(self, name):
         self.core.delete_namespaced_secret(name, self.namespace, body=client.V1DeleteOptions())
 
-    def create_job(self, name, batch_job_spec):
+    def create_job(self, name, batch_job_spec, labels={}):
         body = client.V1Job(
-            metadata=client.V1ObjectMeta(name=name),
+            metadata=client.V1ObjectMeta(name=name, labels=labels),
             spec=batch_job_spec.create())
         return self.batch.create_namespaced_job(self.namespace, body)
 
@@ -63,9 +65,9 @@ class ClusterApi(object):
         body = client.V1DeleteOptions(propagation_policy=propagation_policy)
         self.batch.delete_namespaced_job(name, self.namespace, body=body)
 
-    def create_config_map(self, name, data):
+    def create_config_map(self, name, data, labels={}):
         body = client.V1ConfigMap(
-            metadata=client.V1ObjectMeta(name=name),
+            metadata=client.V1ObjectMeta(name=name, labels=labels),
             data=data
         )
         return self.core.create_namespaced_config_map(self.namespace, body)
@@ -75,6 +77,22 @@ class ClusterApi(object):
 
     def read_pod_logs(self, name):
         return self.core.read_namespaced_pod_log(name, self.namespace)
+
+    def list_persistent_volume_claims(self, field_selector=None, label_selector=None):
+        return self.core.list_namespaced_persistent_volume_claim(self.namespace,
+                                                                 field_selector=field_selector,
+                                                                 label_selector=label_selector).items()
+
+    def list_jobs(self, field_selector=None, label_selector=None):
+        return self.batch.list_namespaced_job(self.namespace,
+                                              field_selector=field_selector,
+                                              label_selector=label_selector).items()
+
+    def list_config_maps(self, field_selector=None, label_selector=None):
+        return self.core.list_namespaced_config_map(self.namespace,
+                                                    field_selector=field_selector,
+                                                    label_selector=label_selector).items()
+
 
 
 class Container(object):
