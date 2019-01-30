@@ -200,11 +200,11 @@ class JobApi(object):
     def get_input_files(self):
         """
         Get the list of input files(files that need to be staged) for a job.
-        :return: [InputFile]: list of files to be downloaded.
+        :return: InputFiles: list of files to be downloaded.
         """
         job = self.get_job()
         stage_group = self.api.get_file_stage_group(job.stage_group)
-        return [InputFiles(stage_group)]
+        return InputFiles(stage_group)
 
     def get_credentials(self):
         """
