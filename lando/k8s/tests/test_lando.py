@@ -1,4 +1,5 @@
 from lando.k8s.lando import K8sJobSettings, K8sJobActions, K8sLando, JobStates, JobSteps
+import json
 from unittest import TestCase
 from unittest.mock import patch, Mock, call
 
@@ -191,6 +192,7 @@ class TestK8sJobActions(TestCase):
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_save_output_job.return_value = k8s_job
+        mock_manager.read_save_output_pod_logs.return_value = json.dumps({"project_id": "1", "readme_file_id": "2"})
 
         self.actions.store_job_output_complete(None)
 
@@ -198,6 +200,7 @@ class TestK8sJobActions(TestCase):
         self.actions._show_status.assert_has_calls([
             call('Marking job finished'),
         ])
+        self.mock_job_api.save_project_details.assert_called_with('1', '2')
 
     @patch('lando.k8s.lando.JobManager')
     def test_cancel_job(self, mock_job_manager):

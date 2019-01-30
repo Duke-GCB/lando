@@ -6,6 +6,7 @@ import os
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 TMP_VOLUME_SIZE_IN_G = 1
 BESPIN_JOB_LABEL_VALUE = "true"
+WAIT_THEN_CAT_FILE = "while [ ! -f {} ]; do   sleep 1; done; cat {}"
 
 
 class JobLabels(object):
@@ -32,6 +33,7 @@ class JobManager(object):
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
             JobLabels.JOB_ID: str(self.job.id),
         }
+        self.label_selector = '{}={}'.format(JobLabels.BESPIN_JOB, BESPIN_JOB_LABEL_VALUE)
 
     def make_job_labels(self, job_step_type):
         labels = dict(self.default_metadata_labels)
@@ -236,14 +238,20 @@ class JobManager(object):
             name=self.names.save_output,
             image_name=save_output_config.image_name,
             command=save_output_config.command,
-            args=[save_output_config.path],
+            args=[save_output_config.path, save_output_config.sidecar_filepath],
             working_dir=Paths.OUTPUT_DATA,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
             volumes=volumes)
+        save_output_container = Container(
+            name=save_output_config.sidecar_filepath,
+            image_name=save_output_config.sidecar_image_name,
+            command=save_output_config.sidecar_command
+        )
         job_spec = BatchJobSpec(self.names.save_output,
                                 container=container,
+                                additional_containers=[save_output_container],
                                 labels=self.make_job_labels(JobStepTypes.SAVE_OUTPUT))
         return self.cluster_api.create_job(self.names.save_output, job_spec, labels=self.default_metadata_labels)
 
@@ -257,6 +265,12 @@ class JobManager(object):
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
+    def read_save_output_pod_logs(self):
+        save_output_pod_selector = '{}={}'.format(JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT)
+        pods = self.cluster_api.list_pods(label_selector=save_output_pod_selector)
+        sidecar_pod = pods[1]
+        return self.cluster_api.read_pod_logs(sidecar_pod.metadata.name)
+
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
         self.cluster_api.delete_config_map(self.names.save_output)
@@ -264,19 +278,20 @@ class JobManager(object):
         self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
 
     def cleanup_all(self):
-        label_selector = '{}={}'.format(JobLabels.BESPIN_JOB, BESPIN_JOB_LABEL_VALUE)
+        self.cleanup_jobs_and_config_maps()
 
+        # Delete all PVC
+        for pvc in self.cluster_api.list_persistent_volume_claims(label_selector=self.label_selector):
+            self.cluster_api.delete_persistent_volume_claim(pvc.metadata.name)
+
+    def cleanup_jobs_and_config_maps(self):
         # Delete all Jobs
-        for job in self.cluster_api.list_jobs(label_selector=label_selector):
+        for job in self.cluster_api.list_jobs(label_selector=self.label_selector):
             self.cluster_api.delete_job(job.metadata.name)
 
         # Delete all config maps
-        for pvc in self.cluster_api.list_config_maps(label_selector=label_selector):
-            self.cluster_api.delete_config_map(pvc.metadata.name)
-
-        # Delete all PVC
-        for pvc in self.cluster_api.list_persistent_volume_claims(label_selector=label_selector):
-            self.cluster_api.delete_persistent_volume_claim(pvc.metadata.name)
+        for config_map in self.cluster_api.list_config_maps(label_selector=self.label_selector):
+            self.cluster_api.delete_config_map(config_map.metadata.name)
 
 
 class Names(object):
@@ -295,6 +310,7 @@ class Names(object):
         self.organize_output = 'organize-output-{}'.format(suffix)
         self.save_output = 'save-output-{}'.format(suffix)
 
+        self.save_output_sidecar = 'save-output-{}-sidecar'.format(suffix)
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
@@ -358,6 +374,13 @@ class SaveOutputConfig(object):
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
+
+        self.sidecar_filepath = "/tmp/results.json"
+        self.sidecar_image_name = "busybox"
+        self.sidecar_command = [
+            "bash", "-c",
+            WAIT_THEN_CAT_FILE.format(self.sidecar_filepath, self.sidecar_filepath)
+        ]
 
         save_output_settings = config.save_output_settings
         self.image_name = save_output_settings.image_name

@@ -297,8 +297,9 @@ class TestJobManager(TestCase):
                          'save output image name is based on a config setting')
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
-        self.assertEqual(job_container.args, ['/bespin/config/saveoutput.json'],
-                         'save output command should receive config file as an argument')
+        self.assertEqual(job_container.args,
+                         ['/bespin/config/saveoutput.json', '/tmp/results.json'],
+                         'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
         self.assertEqual(job_container.requested_cpu, mock_config.save_output_settings.requested_cpu,

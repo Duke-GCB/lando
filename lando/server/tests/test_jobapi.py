@@ -151,15 +151,13 @@ class TestJobApi(TestCase):
         args, kwargs = mock_requests.get.call_args
         self.assertEqual(args[0], 'APIURL/admin/job-file-stage-groups/4')
 
-        self.assertEqual(1, len(files))
-        file = files[0]
-        self.assertEqual(1, len(file.dds_files))
-        dds_file = file.dds_files[0]
+        self.assertEqual(1, len(files.dds_files))
+        dds_file = files.dds_files[0]
         self.assertEqual(123, dds_file.file_id)
         self.assertEqual('seq1.fasta', dds_file.destination_path)
         self.assertEqual(823, dds_file.user_id)
-        self.assertEqual(1, len(file.url_files))
-        url_file = file.url_files[0]
+        self.assertEqual(1, len(files.url_files))
+        url_file = files.url_files[0]
         self.assertEqual('https://stuff.com/file123.model', url_file.url)
         self.assertEqual('file123.model', url_file.destination_path)
 

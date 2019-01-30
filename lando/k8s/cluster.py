@@ -78,6 +78,11 @@ class ClusterApi(object):
     def read_pod_logs(self, name):
         return self.core.read_namespaced_pod_log(name, self.namespace)
 
+    def list_pods(self, field_selector=None, label_selector=None):
+        return self.core.list_namespaced_pod(self.namespace,
+                                             field_selector=field_selector,
+                                             label_selector=label_selector).items()
+
     def list_persistent_volume_claims(self, field_selector=None, label_selector=None):
         return self.core.list_namespaced_persistent_volume_claim(self.namespace,
                                                                  field_selector=field_selector,
@@ -239,10 +244,11 @@ class ConfigMapVolume(VolumeBase):
 
 
 class BatchJobSpec(object):
-    def __init__(self, name, container, labels={}):
+    def __init__(self, name, container, additional_containers=None, labels={}):
         self.name = name
         self.pod_restart_policy = RESTART_POLICY
         self.container = container
+        self.additional_containers = additional_containers
         self.labels = labels
 
     def create(self):
@@ -262,8 +268,10 @@ class BatchJobSpec(object):
         )
 
     def create_containers(self):
-        container = self.container.create()
-        return [container]
+        result = [self.container.create()]
+        if self.additional_containers:
+            result.append(self.additional_containers)
+        return result
 
     def create_volumes(self):
         return self.container.create_volumes()

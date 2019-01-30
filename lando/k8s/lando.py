@@ -1,4 +1,5 @@
 import logging
+import json
 from lando.server.lando import Lando, JobStates, JobSteps, JobSettings, BaseJobActions
 from lando.k8s.cluster import ClusterApi
 from lando.k8s.jobmanager import JobManager
@@ -39,6 +40,10 @@ class K8sJobActions(BaseJobActions):
         self._show_status("Creating stage data persistent volumes")
         manager.create_stage_data_persistent_volumes()
 
+        self.perform_staging_step()
+
+    def perform_staging_step(self):
+        manager = self.make_job_manager()
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Creating Stage data job")
         input_files = self.job_api.get_input_files()
@@ -63,6 +68,10 @@ class K8sJobActions(BaseJobActions):
         self._show_status("Creating volumes for running workflow")
         manager.create_run_workflow_persistent_volumes()
 
+        self.run_workflow_job()
+
+    def run_workflow_job(self):
+        manager = self.make_job_manager()
         self._show_status("Creating run workflow job")
         job = manager.create_run_workflow_job()
         self._show_status("Launched run workflow job: {}".format(job.metadata.name))
@@ -80,6 +89,10 @@ class K8sJobActions(BaseJobActions):
         manager = self.make_job_manager()
         manager.cleanup_run_workflow_job()
 
+        self.organize_output_project()
+
+    def organize_output_project(self):
+        manager = self.make_job_manager()
         self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
         self._show_status("Creating organize output project job")
         job = manager.create_organize_output_project_job()
@@ -92,7 +105,10 @@ class K8sJobActions(BaseJobActions):
             return
         manager = self.make_job_manager()
         manager.cleanup_organize_output_project_job()
+        self.save_output()
 
+    def save_output(self):
+        manager = self.make_job_manager()
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
         job = manager.create_save_output_job()
@@ -108,24 +124,26 @@ class K8sJobActions(BaseJobActions):
             # ignore request to perform incompatible step
             logging.info("Ignoring request to cleanup for job:{} wrong step/state".format(self.job_id))
             return
-        # TODO self.record_output_project_info(payload.output_project_info)
+
+        self.record_output_project_info()
+
         manager = self.make_job_manager()
         manager.cleanup_save_output_job()
         self._show_status("Marking job finished")
         self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.FINISHED)
 
-    def record_output_project_info(self, output_project_info):
+    def record_output_project_info(self):
         """
-        Records the output project id and readme file id that were created by the worker with the results of the job.
-        :param output_project_info: staging.ProjectDetails: info about the project created containing job results
+        Records the output project id and readme file id that based on the store output pod logs.
         """
+        manager = self.make_job_manager()
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        project_id = output_project_info.project_id
-        readme_file_id = output_project_info.readme_file_id
+        details = json.loads(manager.read_save_output_pod_logs())
+        project_id = details['project_id']
+        readme_file_id = details['readme_file_id']
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
         self.job_api.save_project_details(project_id, readme_file_id)
-        self._show_status("Terminating VM and queue")
 
     def restart_job(self, payload):
         """
@@ -134,8 +152,38 @@ class K8sJobActions(BaseJobActions):
         :param payload:RestartJobPayload contains job_id we should restart
         """
         job = self.job_api.get_job()
-        self.cannot_restart_step_error(step_name=job.step)
-        # TODO: figure out how to handle this
+        manager = self.make_job_manager()
+
+        # when to cleanup vs not?
+        full_restart = False
+        if job.state != JobStates.CANCELED:
+            if job.step == JobSteps.CREATE_VM:
+                self.cleanup_jobs_and_config_maps()
+                self.start_job(None)
+            if job.step == JobSteps.STAGING:
+                self._set_job_state(JobStates.RUNNING)
+                self._set_job_step(JobSteps.RUNNING)
+                self.perform_staging_step()
+            elif job.step == JobSteps.RUNNING:
+                self._set_job_state(JobStates.RUNNING)
+                self._set_job_step(JobSteps.RUNNING)
+                self.run_workflow_job()
+            elif job.step == JobSteps.ORGANIZE_OUTPUT_PROJECT:
+                self._set_job_state(JobStates.RUNNING)
+                self.organize_output_project()
+            elif job.step == JobSteps.STORING_JOB_OUTPUT:
+                self._set_job_state(JobStates.RUNNING)
+                self._save_output()
+            elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
+                self._set_job_state(JobStates.RUNNING)
+            else:
+                full_restart = True
+        else:
+            full_restart = True
+
+        if full_restart:
+            manager.cleanup_all()
+            self.start_job(None)
 
     def cancel_job(self, payload):
         """
