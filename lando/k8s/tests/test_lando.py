@@ -199,6 +199,16 @@ class TestK8sJobActions(TestCase):
             call('Marking job finished'),
         ])
 
+    @patch('lando.k8s.lando.JobManager')
+    def test_cancel_job(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+
+        self.actions.cancel_job(None)
+
+        self.mock_job_api.set_job_step.assert_called_with(JobSteps.NONE)
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.CANCELED)
+        mock_manager.cleanup_all.assert_called_with()
+
 
 class TestK8sLando(TestCase):
     @patch('lando.k8s.lando.ClusterApi')

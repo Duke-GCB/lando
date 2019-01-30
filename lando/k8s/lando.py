@@ -140,13 +140,14 @@ class K8sJobActions(BaseJobActions):
     def cancel_job(self, payload):
         """
         Request from user to cancel a running a job.
-        Sets status to canceled and terminates the associated VM and deletes the queue.
+        Sets status to canceled and terminates the associated jobs, configmaps and pvcs
         :param payload: CancelJobPayload: contains job id we should cancel
         """
         self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
-        # TODO: stop running job / cleanup
+        manager = self.make_job_manager()
+        manager.cleanup_all()
 
     def stage_job_error(self, payload):
         """
