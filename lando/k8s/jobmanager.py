@@ -5,6 +5,7 @@ import os
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 TMP_VOLUME_SIZE_IN_G = 1
+BESPIN_JOB_LABEL_VALUE = "true"
 
 
 class JobLabels(object):
@@ -27,40 +28,46 @@ class JobManager(object):
         self.job = job
         self.names = Names(job)
         self.storage_class_name = config.storage_class_name
+        self.default_metadata_labels = {
+            JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
+            JobLabels.JOB_ID: str(self.job.id),
+        }
 
     def make_job_labels(self, job_step_type):
-        return {
-            JobLabels.BESPIN_JOB: "true",
-            JobLabels.JOB_ID: str(self.job.id),
-            JobLabels.STEP_TYPE: job_step_type
-        }
+        labels = dict(self.default_metadata_labels)
+        labels[JobLabels.STEP_TYPE] = job_step_type
+        return labels
 
     def create_job_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.job_data,
             storage_size_in_g=self.job.volume_size,
-            storage_class_name=self.storage_class_name
+            storage_class_name=self.storage_class_name,
+            labels=self.default_metadata_labels,
         )
 
     def create_output_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.output_data,
             storage_size_in_g=self.job.volume_size,
-            storage_class_name=self.storage_class_name
+            storage_class_name=self.storage_class_name,
+            labels=self.default_metadata_labels,
         )
 
     def create_tmpout_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmpout,
             storage_size_in_g=self.job.volume_size,
-            storage_class_name=self.storage_class_name
+            storage_class_name=self.storage_class_name,
+            labels=self.default_metadata_labels,
         )
 
     def create_tmp_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmp,
             storage_size_in_g=TMP_VOLUME_SIZE_IN_G,
-            storage_class_name=self.storage_class_name
+            storage_class_name=self.storage_class_name,
+            labels=self.default_metadata_labels,
         )
 
     def create_stage_data_persistent_volumes(self):
@@ -99,7 +106,7 @@ class JobManager(object):
         job_spec = BatchJobSpec(self.names.stage_data,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.STAGE_DATA))
-        return self.cluster_api.create_job(self.names.stage_data, job_spec)
+        return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=self.default_metadata_labels)
 
     def _create_stage_data_config_map(self, name, filename, workflow_url, job_order, input_files):
         items = [
@@ -113,7 +120,7 @@ class JobManager(object):
         payload = {
             filename: json.dumps(config_data)
         }
-        self.cluster_api.create_config_map(name=name, data=payload)
+        self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     @staticmethod
     def _stage_data_config_item(type, source, dest):
@@ -173,7 +180,7 @@ class JobManager(object):
         job_spec = BatchJobSpec(self.names.run_workflow,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.RUN_WORKFLOW))
-        return self.cluster_api.create_job(self.names.run_workflow, job_spec)
+        return self.cluster_api.create_job(self.names.run_workflow, job_spec, labels=self.default_metadata_labels)
 
     def cleanup_run_workflow_job(self):
         self.cluster_api.delete_job(self.names.run_workflow)
@@ -202,7 +209,7 @@ class JobManager(object):
         job_spec = BatchJobSpec(self.names.organize_output,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.ORGANIZE_OUTPUT))
-        return self.cluster_api.create_job(self.names.organize_output, job_spec)
+        return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=self.default_metadata_labels)
 
     def cleanup_organize_output_project_job(self):
         self.cluster_api.delete_job(self.names.organize_output)
@@ -238,7 +245,7 @@ class JobManager(object):
         job_spec = BatchJobSpec(self.names.save_output,
                                 container=container,
                                 labels=self.make_job_labels(JobStepTypes.SAVE_OUTPUT))
-        return self.cluster_api.create_job(self.names.save_output, job_spec)
+        return self.cluster_api.create_job(self.names.save_output, job_spec, labels=self.default_metadata_labels)
 
     def _create_save_output_config_map(self, name, filename):
         config_data = {
@@ -248,13 +255,28 @@ class JobManager(object):
         payload = {
             filename: json.dumps(config_data)
         }
-        self.cluster_api.create_config_map(name=name, data=payload)
+        self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
         self.cluster_api.delete_config_map(self.names.save_output)
         self.cluster_api.delete_persistent_volume_claim(self.names.job_data)
         self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
+
+    def cleanup_all(self):
+        label_selector = '{}={}'.format(JobLabels.BESPIN_JOB, BESPIN_JOB_LABEL_VALUE)
+
+        # Delete all Jobs
+        for job in self.cluster_api.list_jobs(label_selector=label_selector):
+            self.cluster_api.delete_job(job.metadata.name)
+
+        # Delete all config maps
+        for pvc in self.cluster_api.list_config_maps(label_selector=label_selector):
+            self.cluster_api.delete_config_map(pvc.metadata.name)
+
+        # Delete all PVC
+        for pvc in self.cluster_api.list_persistent_volume_claims(label_selector=label_selector):
+            self.cluster_api.delete_persistent_volume_claim(pvc.metadata.name)
 
 
 class Names(object):

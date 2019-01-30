@@ -14,6 +14,7 @@ class TestJobManager(TestCase):
         self.mock_job.id = '51'
         self.mock_job.vm_settings.cwl_commands.base_command = ['cwltool']
         self.mock_job.vm_settings.image_name = 'calrissian:latest'
+        self.expected_metadata_labels = {'bespin-job': 'true', 'bespin-job-id': '51'}
 
     def test_make_job_labels(self):
         manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
@@ -28,7 +29,10 @@ class TestJobManager(TestCase):
         manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
         manager.create_stage_data_persistent_volumes()
         manager.cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('job-data-51-jpb', storage_class_name=manager.storage_class_name, storage_size_in_g=3)
+            call('job-data-51-jpb',
+                 storage_class_name=manager.storage_class_name,
+                 storage_size_in_g=3,
+                 labels=self.expected_metadata_labels)
         ])
 
     def test_create_stage_data_job(self):
@@ -63,7 +67,8 @@ class TestJobManager(TestCase):
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='stage-data-51-jpb',
-                                                              data=config_map_payload)
+                                                              data=config_map_payload,
+                                                              labels=self.expected_metadata_labels)
 
         # it should have created a job
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -125,9 +130,12 @@ class TestJobManager(TestCase):
         manager.create_run_workflow_persistent_volumes()
 
         mock_cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3),
-            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3),
-            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=1),
+            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
+                 labels=self.expected_metadata_labels),
+            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
+                 labels=self.expected_metadata_labels),
+            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=1,
+                 labels=self.expected_metadata_labels),
         ])
 
     def test_create_run_workflow_job(self):
@@ -273,7 +281,8 @@ class TestJobManager(TestCase):
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='save-output-51-jpb',
-                                                              data=config_map_payload)
+                                                              data=config_map_payload,
+                                                              labels=self.expected_metadata_labels)
 
         # it should have created a job
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -329,6 +338,27 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
             call('job-data-51-jpb'), call('output-data-51-jpb')
         ], 'delete job data and output data volumes once running workflow completes')
+
+    def test_cleanup_all(self):
+        mock_job = Mock()
+        mock_job.metadata.name = 'job_1'
+        mock_config_map = Mock()
+        mock_config_map.metadata.name = 'config_map_1'
+        mock_pvc = Mock()
+        mock_pvc.metadata.name = 'pvc_1'
+
+        mock_cluster_api = Mock()
+        mock_cluster_api.list_jobs.return_value = [mock_job]
+        mock_cluster_api.list_config_maps.return_value = [mock_config_map]
+        mock_cluster_api.list_persistent_volume_claims.return_value = [mock_pvc]
+        mock_config = Mock(storage_class_name='nfs')
+
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
+        manager.cleanup_all()
+
+        mock_cluster_api.delete_job.assert_called_with('job_1')
+        mock_cluster_api.delete_config_map.assert_called_with('config_map_1')
+        mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
 
 
 class TestNames(TestCase):
