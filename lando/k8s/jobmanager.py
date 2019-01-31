@@ -196,10 +196,11 @@ class JobManager(object):
         self.cluster_api.delete_persistent_volume_claim(self.names.tmpout)
         self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
-    def create_organize_output_project_job(self):
+    def create_organize_output_project_job(self, methods_document_content):
         organize_output_config = OrganizeOutputConfig(self.job, self.config)
         self._create_organize_output_config_map(name=self.names.organize_output,
-                                                filename=organize_output_config.filename,)
+                                                filename=organize_output_config.filename,
+                                                methods_document_content=methods_document_content)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
@@ -229,7 +230,7 @@ class JobManager(object):
                                 labels=labels)
         return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=labels)
 
-    def _create_organize_output_config_map(self, name, filename):
+    def _create_organize_output_config_map(self, name, filename, methods_document_content):
         config_data = {
             "destination_dir": Paths.OUTPUT_RESULTS_DIR,
             "workflow_path": self.names.workflow_path,
@@ -237,7 +238,7 @@ class JobManager(object):
             "job_data_path": "TODO",
             "cwltool_stdout_path": self.names.run_workflow_stdout_path,
             "cwltool_stderr_path": self.names.run_workflow_stderr_path,
-            "methods_template": "TODO",
+            "methods_template": methods_document_content,
         }
         payload = {
             filename: json.dumps(config_data)

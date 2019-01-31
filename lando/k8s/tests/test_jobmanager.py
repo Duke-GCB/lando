@@ -226,7 +226,7 @@ class TestJobManager(TestCase):
         mock_config = Mock(storage_class_name='nfs')
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
-        manager.create_organize_output_project_job()
+        manager.create_organize_output_project_job(methods_document_content='markdown')
 
         # it should have created a job to run the workflow with several volumes mounted
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -245,6 +245,23 @@ class TestJobManager(TestCase):
                          'organize output requested cpu is based on a config setting')
         self.assertEqual(job_container.requested_memory, mock_config.organize_output_settings.requested_memory,
                          'organize output requested memory is based on a config setting')
+
+        mock_cluster_api.create_config_map.assert_called_with(
+            name='organize-output-51-jpb',
+            data={
+                'organizeoutput.json':
+                    json.dumps({
+                        "destination_dir": "/bespin/output-data/results",
+                        "workflow_path": "/bespin/job-data/workflow/someurl",
+                        "job_order_path": "/bespin/job-data/job-order.json",
+                        "job_data_path": "TODO",
+                        "cwltool_stdout_path": "/bespin/output-data/cwltool-output.json",
+                        "cwltool_stderr_path": "/bespin/output-data/cwltool-output.log",
+                        "methods_template": "markdown"
+                    })
+                },
+            labels={'bespin-job': 'true', 'bespin-job-id': '51'}
+        )
 
         self.assertEqual(len(job_container.volumes), 3)
 
