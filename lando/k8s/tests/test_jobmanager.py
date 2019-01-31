@@ -291,6 +291,7 @@ class TestJobManager(TestCase):
 
         manager.cleanup_organize_output_project_job()
 
+        mock_cluster_api.delete_config_map.assert_called_with('organize-output-51-jpb')
         mock_cluster_api.delete_job.assert_called_with('organize-output-51-jpb')
 
     def test_create_save_output_job(self):

@@ -246,6 +246,7 @@ class JobManager(object):
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def cleanup_organize_output_project_job(self):
+        self.cluster_api.delete_config_map(self.names.organize_output)
         self.cluster_api.delete_job(self.names.organize_output)
 
     def create_save_output_job(self, share_dds_ids):
