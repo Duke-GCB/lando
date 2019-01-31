@@ -304,7 +304,7 @@ class TestJobManager(TestCase):
         config_map_payload = {
             'saveoutput.json': json.dumps({
                 "destination": "Bespin-job-51-results",
-                "paths": ["/bespin/output-data"],
+                "paths": ["/bespin/output-data/results"],
                 "share": {"dds_user_ids": ["123", "456"]}
             })
         }

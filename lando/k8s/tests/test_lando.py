@@ -139,6 +139,9 @@ class TestK8sJobActions(TestCase):
         mock_manager.create_organize_output_project_job.assert_called_with(
             self.mock_job_api.get_workflow_methods_document.return_value.content
         )
+        self.mock_job_api.get_workflow_methods_document.assert_called_with(
+            self.mock_job_api.get_job.return_value.workflow.methods_document
+        )
         self.actions._show_status.assert_has_calls([
             call('Creating organize output project job'),
             call('Launched organize output project job: job-45-john'),

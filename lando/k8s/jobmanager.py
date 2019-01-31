@@ -299,7 +299,7 @@ class JobManager(object):
     def _create_save_output_config_map(self, name, filename, share_dds_ids):
         config_data = {
             "destination": self.names.output_project_name,
-            "paths": [Paths.OUTPUT_DATA],
+            "paths": [Paths.OUTPUT_RESULTS_DIR],
             "share": {
                 "dds_user_ids": share_dds_ids
             }

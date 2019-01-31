@@ -94,7 +94,8 @@ class K8sJobActions(BaseJobActions):
         manager = self.make_job_manager()
         self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
         self._show_status("Creating organize output project job")
-        methods_document = self.job_api.get_workflow_methods_document()
+        job = self.job_api.get_job()
+        methods_document = self.job_api.get_workflow_methods_document(job.workflow.methods_document)
         job = manager.create_organize_output_project_job(methods_document.content)
         self._show_status("Launched organize output project job: {}".format(job.metadata.name))
 
