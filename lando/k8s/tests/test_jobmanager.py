@@ -160,7 +160,10 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, ['bash', '-c', 'cwltool --tmp-outdir-prefix /bespin/tmpout/ '
                                                                '--outdir /bespin/output-data/results/ '
                                                                '/bespin/job-data/workflow/someurl '
-                                                               '/bespin/job-data/job-order.json'],
+                                                               '/bespin/job-data/job-order.json '
+                                                               '>/bespin/output-data/cwltool-output.json '
+                                                               '2>/bespin/output-data/cwltool-output.log'
+                                                ],
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
                          'We should store the pod name in a CALRISSIAN_POD_NAME environment variable')
@@ -243,7 +246,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.requested_memory, mock_config.organize_output_settings.requested_memory,
                          'organize output requested memory is based on a config setting')
 
-        self.assertEqual(len(job_container.volumes), 2)
+        self.assertEqual(len(job_container.volumes), 3)
 
         job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
@@ -256,6 +259,13 @@ class TestJobManager(TestCase):
         self.assertEqual(output_data_volume.mount_path, '/bespin/output-data')
         self.assertEqual(output_data_volume.volume_claim_name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.read_only, False)
+
+        config_map_volume = job_container.volumes[2]
+        self.assertEqual(config_map_volume.name, 'organize-output-51-jpb')
+        self.assertEqual(config_map_volume.mount_path, '/bespin/config')
+        self.assertEqual(config_map_volume.config_map_name, 'organize-output-51-jpb')
+        self.assertEqual(config_map_volume.source_key, 'organizeoutput.json')
+        self.assertEqual(config_map_volume.source_path, 'organizeoutput.json')
 
     def test_cleanup_organize_output_project_job(self):
         mock_cluster_api = Mock()

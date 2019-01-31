@@ -168,7 +168,12 @@ class JobManager(object):
         command_parts = run_workflow_config.command
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
                               "--outdir", Paths.OUTPUT_RESULTS_DIR + "/"])
-        command_parts.extend([self.names.workflow_path, self.names.job_order_path])
+        command_parts.extend([
+            self.names.workflow_path,
+            self.names.job_order_path,
+            ">{}".format(self.names.run_workflow_stdout_path),
+            "2>{}".format(self.names.run_workflow_stderr_path),
+        ])
         container = Container(
             name=self.names.run_workflow,
             image_name=run_workflow_config.image_name,
@@ -193,6 +198,8 @@ class JobManager(object):
 
     def create_organize_output_project_job(self):
         organize_output_config = OrganizeOutputConfig(self.job, self.config)
+        self._create_organize_output_config_map(name=self.names.organize_output,
+                                                filename=organize_output_config.filename,)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
@@ -202,11 +209,17 @@ class JobManager(object):
                                   mount_path=Paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
                                   read_only=False),
+            ConfigMapVolume(self.names.organize_output,
+                            mount_path=Paths.CONFIG_DIR,
+                            config_map_name=self.names.organize_output,
+                            source_key=organize_output_config.filename,
+                            source_path=organize_output_config.filename),
         ]
         container = Container(
             name=self.names.organize_output,
             image_name=organize_output_config.image_name,
             command=organize_output_config.command,
+            args=[organize_output_config.path],
             requested_cpu=organize_output_config.requested_cpu,
             requested_memory=organize_output_config.requested_memory,
             volumes=volumes)
@@ -215,6 +228,21 @@ class JobManager(object):
                                 container=container,
                                 labels=labels)
         return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=labels)
+
+    def _create_organize_output_config_map(self, name, filename):
+        config_data = {
+            "destination_dir": Paths.OUTPUT_RESULTS_DIR,
+            "workflow_path": self.names.workflow_path,
+            "job_order_path": self.names.job_order_path,
+            "job_data_path": "TODO",
+            "cwltool_stdout_path": self.names.run_workflow_stdout_path,
+            "cwltool_stderr_path": self.names.run_workflow_stderr_path,
+            "methods_template": "TODO",
+        }
+        payload = {
+            filename: json.dumps(config_data)
+        }
+        self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def cleanup_organize_output_project_job(self):
         self.cluster_api.delete_job(self.names.organize_output)
@@ -335,6 +363,8 @@ class Names(object):
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
+        self.run_workflow_stdout_path = '{}/cwltool-output.json'.format(Paths.OUTPUT_DATA)
+        self.run_workflow_stderr_path = '{}/cwltool-output.log'.format(Paths.OUTPUT_DATA)
 
 
 class Paths(object):
@@ -378,6 +408,8 @@ class RunWorkflowConfig(object):
 
 class OrganizeOutputConfig(object):
     def __init__(self, job, config):
+        self.filename = "organizeoutput.json"
+        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         # job parameter is not used but is here to allow future customization based on job
         organize_output_settings = config.organize_output_settings
         self.image_name = organize_output_settings.image_name
