@@ -1,12 +1,12 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
-    ConfigMapVolume, Container, FieldRefEnvVar, AccessModes
+    ConfigMapVolume, EmptyDirVolume, Container, FieldRefEnvVar, AccessModes
 import json
 import os
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 TMP_VOLUME_SIZE_IN_G = 1
 BESPIN_JOB_LABEL_VALUE = "true"
-WAIT_THEN_CAT_FILE = "while [ ! -f {} ]; do   sleep 1; done; cat {}"
+WAIT_THEN_CAT_FILE = "while [ ! -f {} ]; do sleep 1; done; cat {}; echo ''"
 
 
 class JobLabels(object):
@@ -105,10 +105,11 @@ class JobManager(object):
             requested_cpu=stage_data_config.requested_cpu,
             requested_memory=stage_data_config.requested_memory,
             volumes=volumes)
+        labels = self.make_job_labels(JobStepTypes.STAGE_DATA)
         job_spec = BatchJobSpec(self.names.stage_data,
                                 container=container,
-                                labels=self.make_job_labels(JobStepTypes.STAGE_DATA))
-        return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=self.default_metadata_labels)
+                                labels=labels)
+        return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=labels)
 
     def _create_stage_data_config_map(self, name, filename, workflow_url, job_order, input_files):
         items = [
@@ -166,7 +167,7 @@ class JobManager(object):
                 read_only=True))
         command_parts = run_workflow_config.command
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
-                              "--outdir", Paths.OUTPUT_DATA + "/"])
+                              "--outdir", Paths.OUTPUT_RESULTS_DIR + "/"])
         command_parts.extend([self.names.workflow_path, self.names.job_order_path])
         container = Container(
             name=self.names.run_workflow,
@@ -179,10 +180,11 @@ class JobManager(object):
             requested_memory=run_workflow_config.requested_memory,
             volumes=volumes
         )
+        labels = self.make_job_labels(JobStepTypes.RUN_WORKFLOW)
         job_spec = BatchJobSpec(self.names.run_workflow,
                                 container=container,
-                                labels=self.make_job_labels(JobStepTypes.RUN_WORKFLOW))
-        return self.cluster_api.create_job(self.names.run_workflow, job_spec, labels=self.default_metadata_labels)
+                                labels=labels)
+        return self.cluster_api.create_job(self.names.run_workflow, job_spec, labels=labels)
 
     def cleanup_run_workflow_job(self):
         self.cluster_api.delete_job(self.names.run_workflow)
@@ -208,22 +210,29 @@ class JobManager(object):
             requested_cpu=organize_output_config.requested_cpu,
             requested_memory=organize_output_config.requested_memory,
             volumes=volumes)
+        labels = self.make_job_labels(JobStepTypes.ORGANIZE_OUTPUT)
         job_spec = BatchJobSpec(self.names.organize_output,
                                 container=container,
-                                labels=self.make_job_labels(JobStepTypes.ORGANIZE_OUTPUT))
-        return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=self.default_metadata_labels)
+                                labels=labels)
+        return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=labels)
 
     def cleanup_organize_output_project_job(self):
         self.cluster_api.delete_job(self.names.organize_output)
 
-    def create_save_output_job(self):
+    def create_save_output_job(self, share_dds_ids):
         save_output_config = SaveOutputConfig(self.job, self.config)
         self._create_save_output_config_map(name=self.names.save_output,
-                                            filename=save_output_config.filename)
+                                            filename=save_output_config.filename,
+                                            share_dds_ids=share_dds_ids)
+        sidecar_volume = EmptyDirVolume(self.names.save_output_sidecar_volume, mount_path=Paths.SIDECAR_OUTPUT_DIR)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
+                                  read_only=True),
+            PersistentClaimVolume(self.names.output_data,
+                                  mount_path=Paths.OUTPUT_DATA,
+                                  volume_claim_name=self.names.output_data,
                                   read_only=True),
             ConfigMapVolume(self.names.stage_data,
                             mount_path=Paths.CONFIG_DIR,
@@ -233,32 +242,38 @@ class JobManager(object):
             SecretVolume(self.names.data_store_secret,
                          mount_path=save_output_config.data_store_secret_path,
                          secret_name=save_output_config.data_store_secret_name),
+            sidecar_volume,
         ]
         container = Container(
             name=self.names.save_output,
             image_name=save_output_config.image_name,
             command=save_output_config.command,
             args=[save_output_config.path, save_output_config.sidecar_filepath],
-            working_dir=Paths.OUTPUT_DATA,
+            working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
             volumes=volumes)
         save_output_container = Container(
-            name=save_output_config.sidecar_filepath,
+            name=self.names.save_output_sidecar,
             image_name=save_output_config.sidecar_image_name,
-            command=save_output_config.sidecar_command
+            command=save_output_config.sidecar_command,
+            volumes=[sidecar_volume]
         )
+        labels = self.make_job_labels(JobStepTypes.SAVE_OUTPUT)
         job_spec = BatchJobSpec(self.names.save_output,
                                 container=container,
                                 additional_containers=[save_output_container],
-                                labels=self.make_job_labels(JobStepTypes.SAVE_OUTPUT))
-        return self.cluster_api.create_job(self.names.save_output, job_spec, labels=self.default_metadata_labels)
+                                labels=labels)
+        return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
 
-    def _create_save_output_config_map(self, name, filename):
+    def _create_save_output_config_map(self, name, filename, share_dds_ids):
         config_data = {
             "destination": self.names.output_project_name,
-            "paths": [Paths.OUTPUT_DATA]
+            "paths": [Paths.OUTPUT_DATA],
+            "share": {
+                "dds_user_ids": share_dds_ids
+            }
         }
         payload = {
             filename: json.dumps(config_data)
@@ -266,10 +281,12 @@ class JobManager(object):
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def read_save_output_pod_logs(self):
+        # TODO what if there are failed pods and on that finally succeeds?
+        # TODO Need to filter by job id as well
         save_output_pod_selector = '{}={}'.format(JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT)
         pods = self.cluster_api.list_pods(label_selector=save_output_pod_selector)
-        sidecar_pod = pods[1]
-        return self.cluster_api.read_pod_logs(sidecar_pod.metadata.name)
+        pod = pods[0]
+        return self.cluster_api.read_pod_logs(pod.metadata.name, container=self.names.save_output_sidecar)
 
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
@@ -311,6 +328,7 @@ class Names(object):
         self.save_output = 'save-output-{}'.format(suffix)
 
         self.save_output_sidecar = 'save-output-{}-sidecar'.format(suffix)
+        self.save_output_sidecar_volume = 'save-output-{}-sidecar-volume'.format(suffix)
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
@@ -325,8 +343,10 @@ class Paths(object):
     CONFIG_DIR = '/bespin/config'
     STAGE_DATA_CONFIG_FILE = '/bespin/config/stagedata.json'
     OUTPUT_DATA = '/bespin/output-data'
+    OUTPUT_RESULTS_DIR = '/bespin/output-data/results'
     TMPOUT_DATA = '/bespin/tmpout'
     TMP = '/tmp'
+    SIDECAR_OUTPUT_DIR = '/sidecar'
 
 
 class StageDataConfig(object):
@@ -375,10 +395,10 @@ class SaveOutputConfig(object):
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
-        self.sidecar_filepath = "/tmp/results.json"
+        self.sidecar_filepath = "{}/results.json".format(Paths.SIDECAR_OUTPUT_DIR)
         self.sidecar_image_name = "busybox"
         self.sidecar_command = [
-            "bash", "-c",
+            "sh", "-c",
             WAIT_THEN_CAT_FILE.format(self.sidecar_filepath, self.sidecar_filepath)
         ]
 

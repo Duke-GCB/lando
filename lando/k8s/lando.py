@@ -25,7 +25,6 @@ class K8sJobActions(BaseJobActions):
 
     def job_is_at_state_and_step(self, state, step):
         job = self.job_api.get_job()
-        logging.info("Job: {} state:{} step:{}".format(self.job_id, job.state, job.step))
         return job.state == state and job.step == step
 
     def start_job(self, payload):
@@ -108,10 +107,12 @@ class K8sJobActions(BaseJobActions):
         self.save_output()
 
     def save_output(self):
+        store_output_data = self.job_api.get_store_output_job_data()
+        # get_store_output_job_data
         manager = self.make_job_manager()
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
-        job = manager.create_save_output_job()
+        job = manager.create_save_output_job(store_output_data.share_dds_ids)
         self._show_status("Launched save output job: {}".format(job.metadata.name))
 
     def store_job_output_complete(self, payload):
@@ -141,7 +142,7 @@ class K8sJobActions(BaseJobActions):
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
         details = json.loads(manager.read_save_output_pod_logs())
         project_id = details['project_id']
-        readme_file_id = details['readme_file_id']
+        readme_file_id = details.get('readme_file_id', '123')
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
         self.job_api.save_project_details(project_id, readme_file_id)
 
@@ -173,7 +174,7 @@ class K8sJobActions(BaseJobActions):
                 self.organize_output_project()
             elif job.step == JobSteps.STORING_JOB_OUTPUT:
                 self._set_job_state(JobStates.RUNNING)
-                self._save_output()
+                self.save_output()
             elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
                 self._set_job_state(JobStates.RUNNING)
             else:

@@ -214,7 +214,8 @@ class JobActions(BaseJobActions):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(vm_instance_name)
-        worker_client.stage_job(credentials, job, [self.job_api.get_input_files()], vm_instance_name)
+        input_files_ary = [self.job_api.get_input_files()]
+        worker_client.stage_job(credentials, job, input_files_ary, vm_instance_name)
 
     def stage_job_complete(self, payload):
         """

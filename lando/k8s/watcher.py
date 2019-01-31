@@ -70,7 +70,6 @@ class JobWatcher(object):
             self.send_step_complete_message(bespin_job_step, bespin_job_id)
 
     def send_step_complete_message(self, bespin_job_step, bespin_job_id):
-        print("\n\nsend complete for job: {} step: {}".format(bespin_job_id, bespin_job_step))
         job_command = COMPLETE_JOB_STEP_TO_COMMAND.get(bespin_job_step)
         if job_command:
             payload = JobStepPayload(bespin_job_id, None, job_command)
@@ -85,6 +84,7 @@ class JobWatcher(object):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
+            # TODO handle 404 here if the logs are gone
             logs = self.cluster_api.read_pod_logs(job.metadata.name)
             self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
 

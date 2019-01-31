@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
 from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
-    OrganizeOutputConfig, SaveOutputConfig
+    OrganizeOutputConfig, SaveOutputConfig, EmptyDirVolume
 import json
 
 
@@ -158,7 +158,7 @@ class TestJobManager(TestCase):
                          'run workflow image name is based on job settings')
 
         self.assertEqual(job_container.command, ['bash', '-c', 'cwltool --tmp-outdir-prefix /bespin/tmpout/ '
-                                                               '--outdir /bespin/output-data/ '
+                                                               '--outdir /bespin/output-data/results/ '
                                                                '/bespin/job-data/workflow/someurl '
                                                                '/bespin/job-data/job-order.json'],
                          'run workflow command combines job settings and staged files')
@@ -271,13 +271,14 @@ class TestJobManager(TestCase):
         mock_config = Mock(storage_class_name='nfs')
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
-        manager.create_save_output_job()
+        manager.create_save_output_job(share_dds_ids=['123','456'])
 
         # it should have created a config map of what needs to be staged
         config_map_payload = {
             'saveoutput.json': json.dumps({
                 "destination": "Bespin-job-51-results",
-                "paths": ["/bespin/output-data"]
+                "paths": ["/bespin/output-data"],
+                "share": {"dds_user_ids": ["123", "456"]}
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='save-output-51-jpb',
@@ -298,7 +299,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
         self.assertEqual(job_container.args,
-                         ['/bespin/config/saveoutput.json', '/tmp/results.json'],
+                         ['/bespin/config/saveoutput.json', '/sidecar/results.json'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -306,7 +307,7 @@ class TestJobManager(TestCase):
                          'stage data requested cpu is based on a config setting')
         self.assertEqual(job_container.requested_memory, mock_config.save_output_settings.requested_memory,
                          'stage data requested memory is based on a config setting')
-        self.assertEqual(len(job_container.volumes), 3)
+        self.assertEqual(len(job_container.volumes), 5)
 
         job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
@@ -314,18 +315,29 @@ class TestJobManager(TestCase):
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.read_only, True)
 
-        config_map_volume = job_container.volumes[1]
+        job_data_volume = job_container.volumes[1]
+        self.assertEqual(job_data_volume.name, 'output-data-51-jpb')
+        self.assertEqual(job_data_volume.mount_path, '/bespin/output-data')
+        self.assertEqual(job_data_volume.volume_claim_name, 'output-data-51-jpb')
+        self.assertEqual(job_data_volume.read_only, True)
+
+        config_map_volume = job_container.volumes[2]
         self.assertEqual(config_map_volume.name, 'stage-data-51-jpb')
         self.assertEqual(config_map_volume.mount_path, '/bespin/config')
         self.assertEqual(config_map_volume.config_map_name, 'save-output-51-jpb')
         self.assertEqual(config_map_volume.source_key, 'saveoutput.json')
         self.assertEqual(config_map_volume.source_path, 'saveoutput.json')
 
-        secret_volume = job_container.volumes[2]
+        secret_volume = job_container.volumes[3]
         self.assertEqual(secret_volume.name, 'data-store-51-jpb')
         self.assertEqual(secret_volume.mount_path, '/etc/ddsclient')
         self.assertEqual(secret_volume.secret_name, mock_config.data_store_settings.secret_name,
                          'name of DukeDS secret is based on a config setting')
+
+        emptydir_volume = job_container.volumes[4]
+        self.assertEqual(emptydir_volume.name, 'save-output-51-jpb-sidecar-volume')
+        self.assertEqual(emptydir_volume.__class__, EmptyDirVolume)
+
 
     def test_cleanup_save_output_job(self):
         mock_cluster_api = Mock()

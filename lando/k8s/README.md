@@ -30,3 +30,30 @@ Use this file to populate the DukeDS secret for your agent.
 ```
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.cred
 ```
+
+Build the calrissian image
+```
+oc create -f https://raw.githubusercontent.com/Duke-GCB/calrissian/master/openshift/BuildConfig.yaml
+oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
+oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
+```
+
+Build the lando-util image
+```
+oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/openshift/BuildConfig.yml
+```
+
+If desired create a persistent volume for holding system data.
+
+Create a config file.
+TODO
+
+In one terminal run the k8s watcher
+```
+
+```
+
+In another terminal run k8s lando
+```
+
+```

@@ -166,7 +166,9 @@ class TestK8sJobActions(TestCase):
         self.actions.organize_output_complete(None)
 
         mock_manager.cleanup_organize_output_project_job.assert_called_with()
-        mock_manager.create_save_output_job.assert_called_with()
+        mock_manager.create_save_output_job.assert_called_with(
+            self.mock_job_api.get_store_output_job_data.return_value.share_dds_ids
+        )
         self.actions._show_status.assert_has_calls([
             call('Creating store output job'),
             call('Launched save output job: job-45-john'),

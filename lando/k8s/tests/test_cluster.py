@@ -135,33 +135,35 @@ class TestClusterApi(TestCase):
         self.assertEqual(args[1], 'lando-job-runner')
 
     def test_read_pod_logs(self):
-        resp = self.cluster_api.read_pod_logs('mypod')
-        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value)
-        self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner')
+        resp = self.cluster_api.read_pod_logs('mypod', container='mycontainer')
+        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
+        self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
+                                                                      container='mycontainer',
+                                                                      _preload_content=False)
 
     def test_list_persistent_volume_claims(self):
-        resp = self.cluster_api.list_persistent_volume_claims(field_selector='name=joe', label_selector='bespin=true')
+        resp = self.cluster_api.list_persistent_volume_claims(label_selector='bespin=true')
         self.mock_core_api.list_namespaced_persistent_volume_claim.assert_called_with(
-            'lando-job-runner', field_selector='name=joe', label_selector='bespin=true'
+            'lando-job-runner', label_selector='bespin=true'
         )
         mock_pvc_list = self.mock_core_api.list_namespaced_persistent_volume_claim.return_value
-        self.assertEqual(resp, mock_pvc_list.items.return_value)
+        self.assertEqual(resp, mock_pvc_list.items)
 
     def test_list_jobs(self):
-        resp = self.cluster_api.list_jobs(field_selector='name=joe', label_selector='bespin=true')
+        resp = self.cluster_api.list_jobs(label_selector='bespin=true')
         self.mock_batch_api.list_namespaced_job.assert_called_with(
-            'lando-job-runner', field_selector='name=joe', label_selector='bespin=true'
+            'lando-job-runner', label_selector='bespin=true'
         )
         mock_job_list = self.mock_batch_api.list_namespaced_job.return_value
-        self.assertEqual(resp, mock_job_list.items.return_value)
+        self.assertEqual(resp, mock_job_list.items)
 
     def test_list_config_maps(self):
-        resp = self.cluster_api.list_config_maps(field_selector='name=joe', label_selector='bespin=true')
+        resp = self.cluster_api.list_config_maps(label_selector='bespin=true')
         self.mock_core_api.list_namespaced_config_map.assert_called_with(
-            'lando-job-runner', field_selector='name=joe', label_selector='bespin=true'
+            'lando-job-runner', label_selector='bespin=true'
         )
         mock_config_map_list = self.mock_core_api.list_namespaced_config_map.return_value
-        self.assertEqual(resp, mock_config_map_list.items.return_value)
+        self.assertEqual(resp, mock_config_map_list.items)
 
 
 class TestContainer(TestCase):

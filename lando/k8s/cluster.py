@@ -75,28 +75,21 @@ class ClusterApi(object):
     def delete_config_map(self, name):
         self.core.delete_namespaced_config_map(name, self.namespace, body=client.V1DeleteOptions())
 
-    def read_pod_logs(self, name):
-        return self.core.read_namespaced_pod_log(name, self.namespace)
+    def read_pod_logs(self, name, container):
+        return self.core.read_namespaced_pod_log(name, self.namespace, container=container,
+                                                 _preload_content=False).read()
 
-    def list_pods(self, field_selector=None, label_selector=None):
-        return self.core.list_namespaced_pod(self.namespace,
-                                             field_selector=field_selector,
-                                             label_selector=label_selector).items()
+    def list_pods(self, label_selector):
+        return self.core.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
-    def list_persistent_volume_claims(self, field_selector=None, label_selector=None):
-        return self.core.list_namespaced_persistent_volume_claim(self.namespace,
-                                                                 field_selector=field_selector,
-                                                                 label_selector=label_selector).items()
+    def list_persistent_volume_claims(self, label_selector=None):
+        return self.core.list_namespaced_persistent_volume_claim(self.namespace, label_selector=label_selector).items
 
-    def list_jobs(self, field_selector=None, label_selector=None):
-        return self.batch.list_namespaced_job(self.namespace,
-                                              field_selector=field_selector,
-                                              label_selector=label_selector).items()
+    def list_jobs(self, label_selector):
+        return self.batch.list_namespaced_job(self.namespace, label_selector=label_selector).items
 
-    def list_config_maps(self, field_selector=None, label_selector=None):
-        return self.core.list_namespaced_config_map(self.namespace,
-                                                    field_selector=field_selector,
-                                                    label_selector=label_selector).items()
+    def list_config_maps(self, label_selector):
+        return self.core.list_namespaced_config_map(self.namespace, label_selector=label_selector).items
 
 
 
@@ -243,8 +236,18 @@ class ConfigMapVolume(VolumeBase):
                                               items=items)
 
 
+class EmptyDirVolume(VolumeBase):
+    def __init__(self, name, mount_path):
+        super(EmptyDirVolume, self).__init__(name, mount_path)
+
+    def create_volume(self):
+        return client.V1Volume(
+                name=self.name,
+                empty_dir=client.V1EmptyDirVolumeSource())
+
+
 class BatchJobSpec(object):
-    def __init__(self, name, container, additional_containers=None, labels={}):
+    def __init__(self, name, container, additional_containers=[], labels={}):
         self.name = name
         self.pod_restart_policy = RESTART_POLICY
         self.container = container
@@ -268,10 +271,8 @@ class BatchJobSpec(object):
         )
 
     def create_containers(self):
-        result = [self.container.create()]
-        if self.additional_containers:
-            result.append(self.additional_containers)
-        return result
+        containers = [self.container] + self.additional_containers
+        return [c.create() for c in containers]
 
     def create_volumes(self):
         return self.container.create_volumes()
