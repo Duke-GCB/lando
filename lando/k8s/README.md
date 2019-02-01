@@ -118,3 +118,12 @@ In another terminal run k8s lando
 ```
 python -m lando.k8s.lando k8s.config
 ```
+
+## External services
+
+You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
+[postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks).
+`bespin-api` will need a vm settings with the appropriate image name and cwl base command
+### Example VM Settings
+image name: `calrissian:latest`
+cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
