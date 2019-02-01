@@ -199,7 +199,10 @@ class TestK8sJobActions(TestCase):
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_save_output_job.return_value = k8s_job
-        mock_manager.read_save_output_pod_logs.return_value = json.dumps({"project_id": "1", "readme_file_id": "2"})
+        mock_manager.read_save_output_project_details.return_value = {
+            "project_id": "1",
+            "readme_file_id": "2"
+        }
 
         self.actions.store_job_output_complete(None)
 

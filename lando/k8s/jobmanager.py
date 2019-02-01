@@ -310,14 +310,16 @@ class JobManager(object):
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
-    def read_save_output_pod_logs(self):
+    def read_save_output_project_details(self):
         save_output_pod_selector = '{}={},{}={}'.format(
             JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT,
             JobLabels.JOB_ID, str(self.job.id)
         )
         pods = self.cluster_api.list_pods(label_selector=save_output_pod_selector)
         last_pod = pods[-1]
-        return self.cluster_api.read_pod_logs(last_pod.metadata.name, container=self.names.save_output_sidecar)
+        logs = self.cluster_api.read_pod_logs(last_pod.metadata.name, container=self.names.save_output_sidecar)
+        return json.loads(logs)
+
 
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)

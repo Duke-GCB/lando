@@ -366,7 +366,6 @@ class TestJobManager(TestCase):
         self.assertEqual(emptydir_volume.name, 'save-output-51-jpb-sidecar-volume')
         self.assertEqual(emptydir_volume.__class__, EmptyDirVolume)
 
-
     def test_cleanup_save_output_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
@@ -401,7 +400,7 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_config_map.assert_called_with('config_map_1')
         mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
 
-    def test_read_save_output_pod_logs(self):
+    def test_read_save_output_project_details(self):
         mock_job = Mock()
         mock_job.metadata.name = 'job_1'
         mock_cluster_api = Mock()
@@ -411,11 +410,12 @@ class TestJobManager(TestCase):
         mock_cluster_api.list_pods.return_value = [
             mock_pod
         ]
+        mock_cluster_api.read_pod_logs.return_value = json.dumps({"project_id": "123", "readme_file_id": "456"})
 
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
-        logs = manager.read_save_output_pod_logs()
+        details = manager.read_save_output_project_details()
 
-        self.assertEqual(logs, mock_cluster_api.read_pod_logs.return_value)
+        self.assertEqual(details, {"project_id":"123", "readme_file_id": "456"})
         mock_cluster_api.list_pods.assert_called_with(label_selector='bespin-job-step=save_output,bespin-job-id=51')
         mock_cluster_api.read_pod_logs.assert_called_with('mypod', container='save-output-51-jpb-sidecar')
 

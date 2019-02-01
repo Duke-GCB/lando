@@ -144,7 +144,7 @@ class K8sJobActions(BaseJobActions):
         """
         manager = self.make_job_manager()
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        details = json.loads(manager.read_save_output_pod_logs())
+        details = manager.read_save_output_project_details()
         project_id = details['project_id']
         readme_file_id = details['readme_file_id']
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
@@ -159,24 +159,20 @@ class K8sJobActions(BaseJobActions):
         job = self.job_api.get_job()
         manager = self.make_job_manager()
 
-        # when to cleanup vs not?
         full_restart = False
+        self.cleanup_jobs_and_config_maps()
         if job.state != JobStates.CANCELED:
             if job.step == JobSteps.STAGING:
                 self._set_job_state(JobStates.RUNNING)
-                self.cleanup_jobs_and_config_maps()
                 self.perform_staging_step()
             elif job.step == JobSteps.RUNNING:
                 self._set_job_state(JobStates.RUNNING)
-                self.cleanup_jobs_and_config_maps()
                 self.run_workflow_job()
             elif job.step == JobSteps.ORGANIZE_OUTPUT_PROJECT:
                 self._set_job_state(JobStates.RUNNING)
-                self.cleanup_jobs_and_config_maps()
                 self.organize_output_project()
             elif job.step == JobSteps.STORING_JOB_OUTPUT:
                 self._set_job_state(JobStates.RUNNING)
-                self.cleanup_jobs_and_config_maps()
                 self.save_output()
             elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
                 self.cannot_restart_step_error(step_name="record output project")
