@@ -311,12 +311,13 @@ class JobManager(object):
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def read_save_output_pod_logs(self):
-        # TODO what if there are failed pods and on that finally succeeds?
-        # TODO Need to filter by job id as well
-        save_output_pod_selector = '{}={}'.format(JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT)
+        save_output_pod_selector = '{}={},{}={}'.format(
+            JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT,
+            JobLabels.JOB_ID, str(self.job.id)
+        )
         pods = self.cluster_api.list_pods(label_selector=save_output_pod_selector)
-        pod = pods[0]
-        return self.cluster_api.read_pod_logs(pod.metadata.name, container=self.names.save_output_sidecar)
+        last_pod = pods[-1]
+        return self.cluster_api.read_pod_logs(last_pod.metadata.name, container=self.names.save_output_sidecar)
 
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
