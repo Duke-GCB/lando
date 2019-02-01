@@ -61,8 +61,6 @@ class JobWatcher(object):
             self.on_job_succeeded(job)
         elif check_condition_status(job, JobConditionType.FAILED):
             self.on_job_failed(job)
-        # TODO cleanup handling this
-        self.lando_client.work_queue_client.connection.close()
 
     def on_job_succeeded(self, job):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
