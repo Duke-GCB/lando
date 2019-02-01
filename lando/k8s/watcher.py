@@ -3,6 +3,7 @@ from lando.k8s.config import create_server_config
 from lando.k8s.jobmanager import JobLabels, JobStepTypes
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import JobCommands
+from kubernetes.client.rest import ApiException
 import logging
 import sys
 
@@ -84,8 +85,11 @@ class JobWatcher(object):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
-            # TODO handle 404 here if the logs are gone
-            logs = self.cluster_api.read_pod_logs(job.metadata.name)
+            try:
+                logs = self.cluster_api.read_pod_logs(job.metadata.name)
+            except ApiException as ex:
+                logging.error("Unable to read logs {}".format(str(ex)))
+                logs = "Unable to read logs."
             self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
 
     def send_step_error_message(self, bespin_job_step, bespin_job_id, error_message):
