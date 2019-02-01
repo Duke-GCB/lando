@@ -160,8 +160,8 @@ class K8sJobActions(BaseJobActions):
         manager = self.make_job_manager()
 
         full_restart = False
-        self.cleanup_jobs_and_config_maps()
         if job.state != JobStates.CANCELED:
+            manager.cleanup_jobs_and_config_maps()
             if job.step == JobSteps.STAGING:
                 self._set_job_state(JobStates.RUNNING)
                 self.perform_staging_step()

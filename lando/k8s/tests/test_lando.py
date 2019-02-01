@@ -213,6 +213,82 @@ class TestK8sJobActions(TestCase):
         self.mock_job_api.save_project_details.assert_called_with('1', '2')
 
     @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_when_canceled_starts_from_beginning(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.CANCELED
+        self.mock_job.step = JobSteps.RUNNING
+        self.actions.start_job = Mock()
+
+        self.actions.restart_job(None)
+
+        mock_manager.cleanup_all.assert_called_with()
+        self.actions.start_job.assert_called_with(None)
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_continues_staging(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.ERRORED
+        self.mock_job.step = JobSteps.STAGING
+        self.actions.perform_staging_step = Mock()
+
+        self.actions.restart_job(None)
+
+        mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.actions.perform_staging_step.assert_called_with()
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_continues_running(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.ERRORED
+        self.mock_job.step = JobSteps.RUNNING
+        self.actions.run_workflow_job = Mock()
+
+        self.actions.restart_job(None)
+
+        mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.actions.run_workflow_job.assert_called_with()
+
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_continues_organizing_output_project(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.ERRORED
+        self.mock_job.step = JobSteps.ORGANIZE_OUTPUT_PROJECT
+        self.actions.organize_output_project = Mock()
+
+        self.actions.restart_job(None)
+
+        mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.actions.organize_output_project.assert_called_with()
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_continues_save_output(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.ERRORED
+        self.mock_job.step = JobSteps.STORING_JOB_OUTPUT
+        self.actions.save_output = Mock()
+
+        self.actions.restart_job(None)
+
+        mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.actions.save_output.assert_called_with()
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_restart_job_record_output_step_not_allowed(self, mock_job_manager):
+        self.mock_job.state = JobStates.ERRORED
+        self.mock_job.step = JobSteps.RECORD_OUTPUT_PROJECT
+        self.actions.cannot_restart_step_error = Mock()
+
+        self.actions.restart_job(None)
+
+        self.actions.cannot_restart_step_error.assert_called_with(step_name='record output project')
+
+
+    @patch('lando.k8s.lando.JobManager')
     def test_cancel_job(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
 

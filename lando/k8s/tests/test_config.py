@@ -54,6 +54,7 @@ FULL_CONFIG = {
         'host': 'somehost2',
         'token': 'myToken1',
         'namespace': 'lando-job-runner',
+        'verify_ssl': False,
     },
     'bespin_api': {
         'url': 'someurl',
@@ -114,6 +115,7 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.cluster_api_settings.host, 'somehost2')
         self.assertEqual(config.cluster_api_settings.token, 'myToken1')
         self.assertEqual(config.cluster_api_settings.namespace, 'lando-job-runner')
+        self.assertEqual(config.cluster_api_settings.verify_ssl, True)
 
         self.assertIsNotNone(config.bespin_api_settings)
 
@@ -153,3 +155,4 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.organize_output_settings.requested_memory, '4G')
         self.assertEqual(config.save_output_settings.requested_cpu, 5)
         self.assertEqual(config.save_output_settings.requested_memory, '5G')
+        self.assertEqual(config.cluster_api_settings.verify_ssl, False)

@@ -58,7 +58,6 @@ class TestClusterApi(TestCase):
         self.assertEqual(kwargs['namespace'], 'lando-job-runner')
         self.assertEqual(kwargs['body'].metadata.name, 'mysecret')
         self.assertEqual(kwargs['body'].metadata.labels, {"bespin": "true"})
-        self.assertEqual(kwargs['body'].metadata.labels, {"bespin": "true"})
         self.assertEqual(kwargs['body'].string_data, {'password': 's3cr3t'})
 
     def test_delete_secret(self):
@@ -126,6 +125,7 @@ class TestClusterApi(TestCase):
         args, kwargs = self.mock_core_api.create_namespaced_config_map.call_args
         self.assertEqual(args[0], 'lando-job-runner')
         self.assertEqual(args[1].metadata.name, 'myconfig')
+        self.assertEqual(args[1].metadata.labels, {"bespin": "true"})
         self.assertEqual(args[1].data, {'threads': 2})
 
     def test_delete_config_map(self):
@@ -135,11 +135,21 @@ class TestClusterApi(TestCase):
         self.assertEqual(args[1], 'lando-job-runner')
 
     def test_read_pod_logs(self):
+        # Added _preload_content argument to allow fetching actual text instead of parsed
+        # based on https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
         resp = self.cluster_api.read_pod_logs('mypod', container='mycontainer')
         self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
         self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
                                                                       container='mycontainer',
                                                                       _preload_content=False)
+
+    def test_list_pods(self):
+        resp = self.cluster_api.list_pods(label_selector='bespin=true')
+        self.mock_core_api.list_namespaced_pod.assert_called_with(
+            'lando-job-runner', label_selector='bespin=true'
+        )
+        mock_pod_list = self.mock_core_api.list_namespaced_pod.return_value
+        self.assertEqual(resp, mock_pod_list.items)
 
     def test_list_persistent_volume_claims(self):
         resp = self.cluster_api.list_persistent_volume_claims(label_selector='bespin=true')

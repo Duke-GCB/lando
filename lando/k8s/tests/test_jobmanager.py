@@ -429,6 +429,8 @@ class TestNames(TestCase):
         self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
+        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/cwltool-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/cwltool-output.log')
 
 
 class TestStageDataConfig(TestCase):
@@ -461,6 +463,8 @@ class TestOrganizeOutputConfig(TestCase):
     def test_constructor(self):
         mock_config = Mock()
         config = OrganizeOutputConfig(job=None, config=mock_config)
+        self.assertEqual(config.filename, "organizeoutput.json")
+        self.assertEqual(config.path, "/bespin/config/organizeoutput.json")
         self.assertEqual(config.image_name, mock_config.organize_output_settings.image_name)
         self.assertEqual(config.command, mock_config.organize_output_settings.command)
         self.assertEqual(config.requested_cpu, mock_config.organize_output_settings.requested_cpu)
@@ -479,3 +483,4 @@ class TestSaveOutputConfig(TestCase):
         self.assertEqual(config.command, mock_config.save_output_settings.command)
         self.assertEqual(config.requested_cpu, mock_config.save_output_settings.requested_cpu)
         self.assertEqual(config.requested_memory, mock_config.save_output_settings.requested_memory)
+        self.assertEqual(config.project_details_path, '/tmp/project_details.json')
