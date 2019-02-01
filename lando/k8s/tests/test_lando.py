@@ -64,6 +64,7 @@ class TestK8sJobActions(TestCase):
         actions.start_job(None)
 
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.assertEqual(actions.bespin_job.state, JobStates.RUNNING)
         self.mock_job_api.set_job_step.assert_has_calls([
             call(JobSteps.CREATE_VM),
             call(JobSteps.STAGING),
@@ -102,6 +103,7 @@ class TestK8sJobActions(TestCase):
         actions.stage_job_complete(None)
 
         self.mock_job_api.set_job_step.assert_called_with(JobSteps.RUNNING)
+        self.assertEqual(actions.bespin_job.step, JobSteps.RUNNING)
         mock_manager.cleanup_stage_data_job.assert_called_with()
         mock_manager.create_run_workflow_persistent_volumes.assert_called_with()
         mock_manager.create_run_workflow_job.assert_called_with()
@@ -309,7 +311,9 @@ class TestK8sJobActions(TestCase):
         actions.cancel_job(None)
 
         self.mock_job_api.set_job_step.assert_called_with(JobSteps.NONE)
+        self.assertEqual(actions.bespin_job.step, JobSteps.NONE)
         self.mock_job_api.set_job_state.assert_called_with(JobStates.CANCELED)
+        self.assertEqual(actions.bespin_job.state, JobStates.CANCELED)
         mock_manager.cleanup_all.assert_called_with()
 
 

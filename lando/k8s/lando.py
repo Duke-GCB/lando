@@ -23,6 +23,16 @@ class K8sJobActions(BaseJobActions):
         self.bespin_job = self.job_api.get_job()
         self.manager = JobManager(self.cluster_api, settings.config, self.bespin_job)
 
+    def _set_job_state(self, state):
+        # Keep cached bespin_job state up to date
+        super(K8sJobActions, self)._set_job_state(state)
+        self.bespin_job.state = state
+
+    def _set_job_step(self, step):
+        # Keep cached bespin_job step up to date
+        super(K8sJobActions, self)._set_job_step(step)
+        self.bespin_job.step = step
+
     def job_is_at_state_and_step(self, state, step):
         return self.bespin_job.state == state and self.bespin_job.step == step
 
