@@ -45,15 +45,16 @@ oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/opensh
 
 If desired create a persistent volume for holding system data.
 
-Create a config file.
+Create a config file named `k8s.config`.
+
 TODO
 
 In one terminal run the k8s watcher
 ```
-
+python -m lando.k8s.watcher k8s.config
 ```
 
 In another terminal run k8s lando
 ```
-
+python -m lando.k8s.lando k8s.config
 ```

@@ -1,8 +1,10 @@
 import logging
 import json
+import sys
 from lando.server.lando import Lando, JobStates, JobSteps, JobSettings, BaseJobActions
 from lando.k8s.cluster import ClusterApi
 from lando.k8s.jobmanager import JobManager
+from lando.k8s.config import create_server_config
 
 
 class K8sJobSettings(JobSettings):
@@ -160,25 +162,24 @@ class K8sJobActions(BaseJobActions):
         # when to cleanup vs not?
         full_restart = False
         if job.state != JobStates.CANCELED:
-            if job.step == JobSteps.CREATE_VM:
-                self.cleanup_jobs_and_config_maps()
-                self.start_job(None)
             if job.step == JobSteps.STAGING:
                 self._set_job_state(JobStates.RUNNING)
-                self._set_job_step(JobSteps.RUNNING)
+                self.cleanup_jobs_and_config_maps()
                 self.perform_staging_step()
             elif job.step == JobSteps.RUNNING:
                 self._set_job_state(JobStates.RUNNING)
-                self._set_job_step(JobSteps.RUNNING)
+                self.cleanup_jobs_and_config_maps()
                 self.run_workflow_job()
             elif job.step == JobSteps.ORGANIZE_OUTPUT_PROJECT:
                 self._set_job_state(JobStates.RUNNING)
+                self.cleanup_jobs_and_config_maps()
                 self.organize_output_project()
             elif job.step == JobSteps.STORING_JOB_OUTPUT:
                 self._set_job_state(JobStates.RUNNING)
+                self.cleanup_jobs_and_config_maps()
                 self.save_output()
             elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
-                self._set_job_state(JobStates.RUNNING)
+                self.cannot_restart_step_error(step_name="record output project")
             else:
                 full_restart = True
         else:
@@ -241,3 +242,14 @@ def create_job_actions(lando, job_id):
 class K8sLando(Lando):
     def __init__(self, config):
         super(K8sLando, self).__init__(config, create_job_actions)
+
+
+def main():
+    config = create_server_config(sys.argv[1])
+    logging.basicConfig(stream=sys.stdout, level=config.log_level)
+    lando = K8sLando(config)
+    lando.listen_for_messages()
+
+
+if __name__ == "__main__":
+    main()
