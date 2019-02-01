@@ -55,11 +55,13 @@ class ClusterApi(object):
             spec=batch_job_spec.create())
         return self.batch.create_namespaced_job(self.namespace, body)
 
-    def wait_for_job_events(self, callback, label_selector=None):
+    def wait_for_job_events(self, callback, label_selector=None, event_types=['ADDED']):
         w = watch.Watch()
         for event in w.stream(self.batch.list_namespaced_job, self.namespace, label_selector=label_selector):
+            type = event['type']
             job = event['object']
-            callback(job)
+            if type in event_types:
+                callback(job)
 
     def delete_job(self, name, propagation_policy='Background'):
         body = client.V1DeleteOptions(propagation_policy=propagation_policy)

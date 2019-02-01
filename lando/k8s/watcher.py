@@ -7,36 +7,32 @@ from kubernetes.client.rest import ApiException
 import logging
 import sys
 
-
-COMPLETE_JOB_STEP_TO_COMMAND = {
-    JobStepTypes.STAGE_DATA: JobCommands.STAGE_JOB_COMPLETE,
-    JobStepTypes.RUN_WORKFLOW: JobCommands.RUN_JOB_COMPLETE,
-    JobStepTypes.ORGANIZE_OUTPUT: JobCommands.ORGANIZE_OUTPUT_COMPLETE,
-    JobStepTypes.SAVE_OUTPUT: JobCommands.STORE_JOB_OUTPUT_COMPLETE
+JOB_STEP_TO_COMMANDS = {
+    JobStepTypes.STAGE_DATA: (JobCommands.STAGE_JOB_COMPLETE, JobCommands.STAGE_JOB_ERROR),
+    JobStepTypes.RUN_WORKFLOW: (JobCommands.RUN_JOB_COMPLETE, JobCommands.RUN_JOB_ERROR),
+    JobStepTypes.ORGANIZE_OUTPUT: (JobCommands.ORGANIZE_OUTPUT_COMPLETE, JobCommands.ORGANIZE_OUTPUT_ERROR),
+    JobStepTypes.SAVE_OUTPUT: (JobCommands.STORE_JOB_OUTPUT_COMPLETE, JobCommands.STORE_JOB_OUTPUT_ERROR)
 }
-
-ERROR_JOB_STEP_TO_COMMAND = {
-    JobStepTypes.STAGE_DATA: JobCommands.STAGE_JOB_ERROR,
-    JobStepTypes.RUN_WORKFLOW: JobCommands.RUN_JOB_ERROR,
-    JobStepTypes.ORGANIZE_OUTPUT: JobCommands.ORGANIZE_OUTPUT_ERROR,
-    JobStepTypes.SAVE_OUTPUT: JobCommands.STORE_JOB_OUTPUT_ERROR,
-}
-
 
 def check_condition_status(job, condition_type):
+    """
+    Determines if a generic job has a condition type: Complete(Success) or Failure
+    """
     conditions = job.status.conditions
     if conditions:
         for condition in conditions:
-            if condition.type == condition_type and condition.status:
+            if condition.type == condition_type and condition.status == "True":
                 return True
     return False
 
 
 class JobStepPayload(object):
-    def __init__(self, job_id, vm_instance_name, success_command):
+    def __init__(self, job_id, job_step):
         self.job_id = job_id
-        self.vm_instance_name = vm_instance_name
-        self.success_command = success_command
+        self.vm_instance_name = None
+        commands = JOB_STEP_TO_COMMANDS[job_step]
+        self.success_command = commands[0]
+        self.error_command = commands[1]
 
 
 class JobWatcher(object):
@@ -57,46 +53,35 @@ class JobWatcher(object):
                                              label_selector=bespin_job_label_selector)
 
     def on_job_change(self, job):
-        if check_condition_status(job, JobConditionType.COMPLETE):
-            self.on_job_succeeded(job)
-        elif check_condition_status(job, JobConditionType.FAILED):
-            self.on_job_failed(job)
-
-    def on_job_succeeded(self, job):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
-            self.send_step_complete_message(bespin_job_step, bespin_job_id)
-
-    def send_step_complete_message(self, bespin_job_step, bespin_job_id):
-        job_command = COMPLETE_JOB_STEP_TO_COMMAND.get(bespin_job_step)
-        if job_command:
-            payload = JobStepPayload(bespin_job_id, None, job_command)
-            if job_command == JobCommands.STORE_JOB_OUTPUT_COMPLETE:
-                self.lando_client.job_step_store_output_complete(payload, None)
+            if bespin_job_step in JOB_STEP_TO_COMMANDS:
+                if check_condition_status(job, JobConditionType.COMPLETE):
+                    self.on_job_succeeded(bespin_job_id, bespin_job_step)
+                elif check_condition_status(job, JobConditionType.FAILED):
+                    self.on_job_failed(job.metadata.name, bespin_job_id, bespin_job_step)
             else:
-                self.lando_client.job_step_complete(payload)
-        else:
-            logging.error("Unable to find job command:", bespin_job_step, bespin_job_id)
+                logging.error("Unable to find job commands:", bespin_job_step, bespin_job_id)
 
-    def on_job_failed(self, job):
-        bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
-        bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
-        if bespin_job_id and bespin_job_step:
-            try:
-                logs = self.cluster_api.read_pod_logs(job.metadata.name)
-            except ApiException as ex:
-                logging.error("Unable to read logs {}".format(str(ex)))
-                logs = "Unable to read logs."
-            self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
-
-    def send_step_error_message(self, bespin_job_step, bespin_job_id, error_message):
-        job_command = ERROR_JOB_STEP_TO_COMMAND.get(bespin_job_step)
-        if job_command:
-            payload = JobStepPayload(bespin_job_id, None, job_command)
-            self.lando_client.job_step_error(payload, error_message)
+    def on_job_succeeded(self, bespin_job_id, bespin_job_step):
+        payload = JobStepPayload(bespin_job_id, bespin_job_step)
+        if payload.success_command == JobCommands.STORE_JOB_OUTPUT_COMPLETE:
+            self.lando_client.job_step_store_output_complete(payload, None)
         else:
-            logging.error("Unable to find job command:", bespin_job_step, bespin_job_id)
+            self.lando_client.job_step_complete(payload)
+
+    def on_job_failed(self, job_name, bespin_job_id, bespin_job_step):
+        try:
+            logs = self.cluster_api.read_pod_logs(job_name)
+        except ApiException as ex:
+            logging.error("Unable to read logs {}".format(str(ex)))
+            logs = "Unable to read logs."
+        self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
+
+    def send_step_error_message(self, bespin_job_step, bespin_job_id, message):
+        payload = JobStepPayload(bespin_job_id, bespin_job_step)
+        self.lando_client.job_step_error(payload, message)
 
 
 def main():
