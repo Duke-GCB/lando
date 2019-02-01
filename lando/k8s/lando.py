@@ -144,7 +144,7 @@ class K8sJobActions(BaseJobActions):
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
         details = json.loads(manager.read_save_output_pod_logs())
         project_id = details['project_id']
-        readme_file_id = details.get('readme_file_id', '123')
+        readme_file_id = details['readme_file_id']
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
         self.job_api.save_project_details(project_id, readme_file_id)
 
