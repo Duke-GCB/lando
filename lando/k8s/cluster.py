@@ -247,11 +247,10 @@ class EmptyDirVolume(VolumeBase):
 
 
 class BatchJobSpec(object):
-    def __init__(self, name, container, additional_containers=[], labels={}):
+    def __init__(self, name, container, labels={}):
         self.name = name
         self.pod_restart_policy = RESTART_POLICY
         self.container = container
-        self.additional_containers = additional_containers
         self.labels = labels
 
     def create(self):
@@ -271,8 +270,7 @@ class BatchJobSpec(object):
         )
 
     def create_containers(self):
-        containers = [self.container] + self.additional_containers
-        return [c.create() for c in containers]
+        return [self.container.create()]
 
     def create_volumes(self):
         return self.container.create_volumes()

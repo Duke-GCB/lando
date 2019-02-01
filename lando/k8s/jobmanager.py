@@ -1,5 +1,5 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
-    ConfigMapVolume, EmptyDirVolume, Container, FieldRefEnvVar, AccessModes
+    ConfigMapVolume, Container, FieldRefEnvVar
 import json
 import os
 

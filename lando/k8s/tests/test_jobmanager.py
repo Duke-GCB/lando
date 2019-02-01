@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
 from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
-    OrganizeOutputConfig, SaveOutputConfig, EmptyDirVolume
+    OrganizeOutputConfig, SaveOutputConfig
 import json
 
 
