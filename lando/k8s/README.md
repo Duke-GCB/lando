@@ -46,8 +46,68 @@ oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/opensh
 If desired create a persistent volume for holding system data.
 
 Create a config file named `k8s.config`.
+Example content:
+```
+work_queue:
+  host: TODO
+  username: TODO
+  password: TODO
+  worker_username: TODO
+  worker_password: TODO
+  listen_queue: TODO
 
-TODO
+cluster_api_settings:
+  host: TODO
+  token: TODO
+  namespace: lando-job-runner
+  verify_ssl: False
+
+bespin_api:
+  token: TODO
+  url: TODO
+
+stage_data_settings:
+  image_name: lando-util:latest
+  command:
+    - python
+    - -m
+    - lando_util.download
+  env_dict:
+  requested_cpu: 1
+  requested_memory: 1G
+
+run_workflow_settings:
+  requested_cpu: 1
+  requested_memory: 2G
+  system_data_volume:
+     volume_claim_name: system-data
+     mount_path: "/bespin/system/"
+
+organize_output_settings:
+  image_name: lando-util:latest
+  command:
+    - python
+    - -m
+    - lando_util.organize_project
+  requested_cpu: 1
+  requested_memory: 256M
+
+save_output_settings:
+  image_name: lando-util:latest
+  command:
+    - python
+    - -m
+    - lando_util.upload
+  requested_cpu: 1
+  requested_memory: 1G
+
+data_store_settings:
+  secret_name: ddsclient-agent
+
+storage_class_name: glusterfs-storage
+
+log_level: INFO
+```
 
 In one terminal run the k8s watcher
 ```
