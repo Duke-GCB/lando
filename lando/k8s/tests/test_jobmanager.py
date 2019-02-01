@@ -327,7 +327,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
         self.assertEqual(job_container.args,
-                         ['/bespin/config/saveoutput.json', '/sidecar/results.json'],
+                         ['/bespin/config/saveoutput.json', '/tmp/project_details.json'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -335,7 +335,7 @@ class TestJobManager(TestCase):
                          'stage data requested cpu is based on a config setting')
         self.assertEqual(job_container.requested_memory, mock_config.save_output_settings.requested_memory,
                          'stage data requested memory is based on a config setting')
-        self.assertEqual(len(job_container.volumes), 5)
+        self.assertEqual(len(job_container.volumes), 4)
 
         job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
@@ -362,9 +362,6 @@ class TestJobManager(TestCase):
         self.assertEqual(secret_volume.secret_name, mock_config.data_store_settings.secret_name,
                          'name of DukeDS secret is based on a config setting')
 
-        emptydir_volume = job_container.volumes[4]
-        self.assertEqual(emptydir_volume.name, 'save-output-51-jpb-sidecar-volume')
-        self.assertEqual(emptydir_volume.__class__, EmptyDirVolume)
 
     def test_cleanup_save_output_job(self):
         mock_cluster_api = Mock()
@@ -401,23 +398,14 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
 
     def test_read_save_output_project_details(self):
-        mock_job = Mock()
-        mock_job.metadata.name = 'job_1'
+        # NOTE: This is just a placeholder for a real test until a good method to fetch project details is implemented.
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_pod = Mock()
-        mock_pod.metadata.name = 'mypod'
-        mock_cluster_api.list_pods.return_value = [
-            mock_pod
-        ]
-        mock_cluster_api.read_pod_logs.return_value = json.dumps({"project_id": "123", "readme_file_id": "456"})
 
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
         details = manager.read_save_output_project_details()
 
-        self.assertEqual(details, {"project_id":"123", "readme_file_id": "456"})
-        mock_cluster_api.list_pods.assert_called_with(label_selector='bespin-job-step=save_output,bespin-job-id=51')
-        mock_cluster_api.read_pod_logs.assert_called_with('mypod', container='save-output-51-jpb-sidecar')
+        self.assertEqual(details, {"project_id": "TODO", "readme_file_id": "TODO"})
 
 
 class TestNames(TestCase):

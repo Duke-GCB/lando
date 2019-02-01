@@ -6,7 +6,6 @@ import os
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 TMP_VOLUME_SIZE_IN_G = 1
 BESPIN_JOB_LABEL_VALUE = "true"
-WAIT_THEN_CAT_FILE = "while [ ! -f {} ]; do sleep 1; done; cat {}; echo ''"
 
 
 class JobLabels(object):
@@ -254,7 +253,6 @@ class JobManager(object):
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename,
                                             share_dds_ids=share_dds_ids)
-        sidecar_volume = EmptyDirVolume(self.names.save_output_sidecar_volume, mount_path=Paths.SIDECAR_OUTPUT_DIR)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
@@ -272,28 +270,20 @@ class JobManager(object):
             SecretVolume(self.names.data_store_secret,
                          mount_path=save_output_config.data_store_secret_path,
                          secret_name=save_output_config.data_store_secret_name),
-            sidecar_volume,
         ]
         container = Container(
             name=self.names.save_output,
             image_name=save_output_config.image_name,
             command=save_output_config.command,
-            args=[save_output_config.path, save_output_config.sidecar_filepath],
+            args=[save_output_config.path, save_output_config.project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
             volumes=volumes)
-        save_output_container = Container(
-            name=self.names.save_output_sidecar,
-            image_name=save_output_config.sidecar_image_name,
-            command=save_output_config.sidecar_command,
-            volumes=[sidecar_volume]
-        )
         labels = self.make_job_labels(JobStepTypes.SAVE_OUTPUT)
         job_spec = BatchJobSpec(self.names.save_output,
                                 container=container,
-                                additional_containers=[save_output_container],
                                 labels=labels)
         return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
 
@@ -311,15 +301,10 @@ class JobManager(object):
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     def read_save_output_project_details(self):
-        save_output_pod_selector = '{}={},{}={}'.format(
-            JobLabels.STEP_TYPE, JobStepTypes.SAVE_OUTPUT,
-            JobLabels.JOB_ID, str(self.job.id)
-        )
-        pods = self.cluster_api.list_pods(label_selector=save_output_pod_selector)
-        last_pod = pods[-1]
-        logs = self.cluster_api.read_pod_logs(last_pod.metadata.name, container=self.names.save_output_sidecar)
-        return json.loads(logs)
-
+        return {
+            "project_id": "TODO",
+            "readme_file_id": "TODO",
+        }
 
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
@@ -360,8 +345,6 @@ class Names(object):
         self.organize_output = 'organize-output-{}'.format(suffix)
         self.save_output = 'save-output-{}'.format(suffix)
 
-        self.save_output_sidecar = 'save-output-{}-sidecar'.format(suffix)
-        self.save_output_sidecar_volume = 'save-output-{}-sidecar-volume'.format(suffix)
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
@@ -381,7 +364,7 @@ class Paths(object):
     OUTPUT_RESULTS_DIR = '/bespin/output-data/results'
     TMPOUT_DATA = '/bespin/tmpout'
     TMP = '/tmp'
-    SIDECAR_OUTPUT_DIR = '/sidecar'
+    PROJECT_DETAILS_DIR = '/tmp'
 
 
 class StageDataConfig(object):
@@ -431,13 +414,7 @@ class SaveOutputConfig(object):
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
-
-        self.sidecar_filepath = "{}/results.json".format(Paths.SIDECAR_OUTPUT_DIR)
-        self.sidecar_image_name = "busybox"
-        self.sidecar_command = [
-            "sh", "-c",
-            WAIT_THEN_CAT_FILE.format(self.sidecar_filepath, self.sidecar_filepath)
-        ]
+        self.project_details_path = '{}/project_details.json'.format(Paths.PROJECT_DETAILS_DIR)
 
         save_output_settings = config.save_output_settings
         self.image_name = save_output_settings.image_name
