@@ -56,6 +56,8 @@ class ClusterApi(object):
         return self.batch.create_namespaced_job(self.namespace, body)
 
     def wait_for_job_events(self, callback, label_selector=None, event_types=['ADDED']):
+        # The event type of ADDED is for this stream and not when the job was created.
+        # So if there is a running job and this method is called it will receive an ADDED event for that job.
         w = watch.Watch()
         for event in w.stream(self.batch.list_namespaced_job, self.namespace, label_selector=label_selector):
             type = event['type']
