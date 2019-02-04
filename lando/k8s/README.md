@@ -40,7 +40,7 @@ Create a DukeDS agent secret that will be used to stage data and save output.
 Create a file containing your ddsclient config named `ddsclient.conf`.
 Use this file to populate the DukeDS secret for your agent.
 ```
-oc create secret generic ddsclient-agent --from-file=config=ddsclient.cred
+oc create secret generic ddsclient-agent --from-file=config=ddsclient.conf
 ```
 
 Build the CWL workflow running image (calrissian)
