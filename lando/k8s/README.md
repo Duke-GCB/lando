@@ -1,3 +1,11 @@
+# Kubernetes Lando
+This module provides support for running Bespin jobs via a k8s cluster.
+
+## Setup
+
+### Cluster setup
+Connect to your k8s cluster.
+
 Create a project
 ```
 oc new-project lando-job-runner
@@ -22,7 +30,7 @@ Determine the token value:
 ```
 oc describe secret <tokename>
 ```
-This value will need to be added to your k8s lando config file.
+This value will need to be added to your k8s lando config file under `cluster_api_settings.token`.
 
 Create a DukeDS agent secret
 Create a file containing your ddsclient config named `ddsclient.conf`.
@@ -45,6 +53,7 @@ oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/opensh
 
 If desired create a persistent volume for holding system data.
 
+### Config file setup
 Create a config file named `k8s.config`.
 Example content:
 ```
@@ -109,6 +118,19 @@ storage_class_name: glusterfs-storage
 log_level: INFO
 ```
 
+### External services
+
+You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
+[postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks) first to interact with k8s lando.
+
+`bespin-api` will need a vm settings with the appropriate image name and cwl base command
+```
+- image name: `calrissian:latest`
+- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+```
+
+
+## Running
 In one terminal run the k8s watcher
 ```
 python -m lando.k8s.watcher k8s.config
@@ -119,11 +141,4 @@ In another terminal run k8s lando
 python -m lando.k8s.lando k8s.config
 ```
 
-## External services
-
-You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
-[postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks).
-`bespin-api` will need a vm settings with the appropriate image name and cwl base command
-### Example VM Settings
-- image name: `calrissian:latest`
-- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+Then start a job via bespin-api.
