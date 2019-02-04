@@ -1,14 +1,26 @@
-Create a project
+# Kubernetes Lando
+This module provides support for running Bespin jobs via a k8s cluster. This consists of two services. 
+- `k8s.lando` which listens for messages and runs k8s jobs while updating bespin-api
+- `k8s.watcher` which watches the k8s job listing and updates lando when jobs have completed, and logs failed jobs
+
+This requires bespin-api, postgres, and rabbitmq services to be running as outlined in [External services](#external-services) below.
+
+## Setup
+
+### k8s Cluster setup
+Connect to your k8s cluster.
+
+Create a project where the jobs will be run
 ```
 oc new-project lando-job-runner
 ```
 
-Create a service account
+Create a service account that will be used by k8s.lando to create jobs.
 ```
 oc create sa lando
 ```
 
-Give this account admin priv (for now)
+Give this account admin priv
 ```
 oc create rolebinding lando-binding --clusterrole=admin --serviceaccount=lando-job-runner:lando
 ```
@@ -22,29 +34,30 @@ Determine the token value:
 ```
 oc describe secret <tokename>
 ```
-This value will need to be added to your k8s lando config file.
+This value will need to be added to your k8s lando config file under `cluster_api_settings.token`.
 
-Create a DukeDS agent secret
+Create a DukeDS agent secret that will be used to stage data and save output.
 Create a file containing your ddsclient config named `ddsclient.conf`.
 Use this file to populate the DukeDS secret for your agent.
 ```
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.cred
 ```
 
-Build the calrissian image
+Build the CWL workflow running image (calrissian)
 ```
 oc create -f https://raw.githubusercontent.com/Duke-GCB/calrissian/master/openshift/BuildConfig.yaml
 oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
 ```
 
-Build the lando-util image
+Build the lando-util image that will be used for the stage data, organize output, and upload results jobs.
 ```
 oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/openshift/BuildConfig.yml
 ```
 
-If desired create a persistent volume for holding system data.
+Create a persistent volume for holding system data matching the name in `run_workflow_settings.volume_claim_name` from the config file below.
 
+### Config file setup
 Create a config file named `k8s.config`.
 Example content:
 ```
@@ -109,6 +122,19 @@ storage_class_name: glusterfs-storage
 log_level: INFO
 ```
 
+### External services
+
+You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
+[postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks) first to interact with k8s lando.
+
+`bespin-api` will need a vm settings with the appropriate image name and cwl base command
+```
+- image name: `calrissian:latest`
+- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+```
+
+
+## Running
 In one terminal run the k8s watcher
 ```
 python -m lando.k8s.watcher k8s.config
@@ -119,11 +145,4 @@ In another terminal run k8s lando
 python -m lando.k8s.lando k8s.config
 ```
 
-## External services
-
-You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
-[postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks).
-`bespin-api` will need a vm settings with the appropriate image name and cwl base command
-### Example VM Settings
-- image name: `calrissian:latest`
-- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+Then start a job via bespin-api.
