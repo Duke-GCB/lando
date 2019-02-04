@@ -235,8 +235,8 @@ class JobManager(object):
             "workflow_path": self.names.workflow_path,
             "job_order_path": self.names.job_order_path,
             "job_data_path": "TODO",
-            "cwltool_stdout_path": self.names.run_workflow_stdout_path,
-            "cwltool_stderr_path": self.names.run_workflow_stderr_path,
+            "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
+            "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
             "methods_template": methods_document_content,
         }
         payload = {
@@ -351,8 +351,8 @@ class Names(object):
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
-        self.run_workflow_stdout_path = '{}/cwltool-output.json'.format(Paths.OUTPUT_DATA)
-        self.run_workflow_stderr_path = '{}/cwltool-output.log'.format(Paths.OUTPUT_DATA)
+        self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
+        self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
 
 
 class Paths(object):

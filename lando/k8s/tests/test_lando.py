@@ -25,31 +25,29 @@ class TestK8sJobActions(TestCase):
         self.mock_job = Mock(state=JobStates.AUTHORIZED, step=JobSteps.NONE,
                              workflow=Mock(url='someurl.cwl'))
         self.mock_job.id = '49'
-        self.actions = K8sJobActions(self.mock_settings)
         self.mock_job_api = self.mock_settings.get_job_api.return_value
         self.mock_job_api.get_job.return_value = self.mock_job
 
-    @patch('lando.k8s.lando.ClusterApi')
-    def test_constructor(self, mock_cluster_api):
-        self.assertEqual(self.actions.cluster_api, self.mock_settings.get_cluster_api.return_value)
+    def create_actions(self):
+        actions = K8sJobActions(self.mock_settings)
+        actions.job_api = self.mock_job_api
+        return actions
 
+    @patch('lando.k8s.lando.ClusterApi')
     @patch('lando.k8s.lando.JobManager')
-    def test_make_job_manager(self, mock_job_manager):
-        manager = self.actions.make_job_manager()
-        self.assertEqual(manager, mock_job_manager.return_value)
-        mock_job_manager.assert_called_with(
-            self.mock_settings.get_cluster_api.return_value,
-            self.mock_settings.config,
-            self.mock_settings.get_job_api.return_value.get_job.return_value
-        )
+    def test_constructor(self, mock_job_manager, mock_cluster_api):
+        actions = self.create_actions()
+        self.assertEqual(actions.cluster_api, self.mock_settings.get_cluster_api.return_value)
+        self.assertEqual(actions.manager, mock_job_manager.return_value)
 
     def test_job_is_at_state_and_step(self):
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.STAGING
+        actions = self.create_actions()
 
-        self.assertTrue(self.actions.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STAGING))
-        self.assertFalse(self.actions.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RUNNING))
-        self.assertFalse(self.actions.job_is_at_state_and_step(JobStates.ERRORED, JobSteps.STAGING))
+        self.assertTrue(actions.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STAGING))
+        self.assertFalse(actions.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RUNNING))
+        self.assertFalse(actions.job_is_at_state_and_step(JobStates.ERRORED, JobSteps.STAGING))
 
     @patch('lando.k8s.lando.JobManager')
     def test_start_job(self, mock_job_manager):
@@ -59,18 +57,21 @@ class TestK8sJobActions(TestCase):
         k8s_job = Mock()
         k8s_job.metadata.name = 'job1'
         mock_manager.create_stage_data_job.return_value = k8s_job
-        self.actions._show_status = Mock()
 
-        self.actions.start_job(None)
+        actions = self.create_actions()
+        actions._show_status = Mock()
+
+        actions.start_job(None)
 
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
+        self.assertEqual(actions.bespin_job.state, JobStates.RUNNING)
         self.mock_job_api.set_job_step.assert_has_calls([
             call(JobSteps.CREATE_VM),
             call(JobSteps.STAGING),
         ])
         mock_manager.create_stage_data_persistent_volumes.assert_called_with()
         mock_manager.create_stage_data_job.assert_called_with(mock_input_file)
-        self.actions._show_status.assert_has_calls([
+        actions._show_status.assert_has_calls([
             call('Creating stage data persistent volumes'),
             call('Creating Stage data job'),
             call('Launched stage data job: job1'),
@@ -82,7 +83,8 @@ class TestK8sJobActions(TestCase):
         self.mock_job.state = JobStates.AUTHORIZED
         self.mock_job.step = JobSteps.NONE
 
-        self.actions.stage_job_complete(None)
+        actions = self.create_actions()
+        actions.stage_job_complete(None)
 
         mock_logging.info.assert_called_with("Ignoring request to run job:49 wrong step/state")
         self.mock_job_api._set_job_step.assert_not_called()
@@ -92,19 +94,21 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.STAGING
-        self.actions._show_status = Mock()
+        actions = self.create_actions()
+        actions._show_status = Mock()
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_run_workflow_job.return_value = k8s_job
 
-        self.actions.stage_job_complete(None)
+        actions.stage_job_complete(None)
 
         self.mock_job_api.set_job_step.assert_called_with(JobSteps.RUNNING)
+        self.assertEqual(actions.bespin_job.step, JobSteps.RUNNING)
         mock_manager.cleanup_stage_data_job.assert_called_with()
         mock_manager.create_run_workflow_persistent_volumes.assert_called_with()
         mock_manager.create_run_workflow_job.assert_called_with()
 
-        self.actions._show_status.assert_has_calls([
+        actions._show_status.assert_has_calls([
             call('Cleaning up after stage data'),
             call('Creating volumes for running workflow'),
             call('Creating run workflow job'),
@@ -117,7 +121,8 @@ class TestK8sJobActions(TestCase):
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.STORING_JOB_OUTPUT
 
-        self.actions.run_job_complete(None)
+        actions = self.create_actions()
+        actions.run_job_complete(None)
 
         mock_logging.info.assert_called_with("Ignoring request to store output for job:49 wrong step/state")
         self.mock_job_api._set_job_step.assert_not_called()
@@ -127,12 +132,13 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.RUNNING
-        self.actions._show_status = Mock()
+        actions = self.create_actions()
+        actions._show_status = Mock()
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_organize_output_project_job.return_value = k8s_job
 
-        self.actions.run_job_complete(None)
+        actions.run_job_complete(None)
 
         mock_manager.cleanup_run_workflow_job.assert_called_with()
         self.mock_job_api.set_job_step.assert_called_with(JobSteps.ORGANIZE_OUTPUT_PROJECT)
@@ -142,7 +148,7 @@ class TestK8sJobActions(TestCase):
         self.mock_job_api.get_workflow_methods_document.assert_called_with(
             self.mock_job_api.get_job.return_value.workflow.methods_document
         )
-        self.actions._show_status.assert_has_calls([
+        actions._show_status.assert_has_calls([
             call('Creating organize output project job'),
             call('Launched organize output project job: job-45-john'),
         ])
@@ -153,7 +159,8 @@ class TestK8sJobActions(TestCase):
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.STORING_JOB_OUTPUT
 
-        self.actions.organize_output_complete(None)
+        actions = self.create_actions()
+        actions.organize_output_complete(None)
 
         mock_logging.info.assert_called_with("Ignoring request to organize output project for job:49 wrong step/state")
         self.mock_job_api._set_job_step.assert_not_called()
@@ -163,18 +170,19 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.ORGANIZE_OUTPUT_PROJECT
-        self.actions._show_status = Mock()
+        actions = self.create_actions()
+        actions._show_status = Mock()
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_save_output_job.return_value = k8s_job
 
-        self.actions.organize_output_complete(None)
+        actions.organize_output_complete(None)
 
         mock_manager.cleanup_organize_output_project_job.assert_called_with()
         mock_manager.create_save_output_job.assert_called_with(
             self.mock_job_api.get_store_output_job_data.return_value.share_dds_ids
         )
-        self.actions._show_status.assert_has_calls([
+        actions._show_status.assert_has_calls([
             call('Creating store output job'),
             call('Launched save output job: job-45-john'),
         ])
@@ -185,7 +193,8 @@ class TestK8sJobActions(TestCase):
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.NONE
 
-        self.actions.store_job_output_complete(None)
+        actions = self.create_actions()
+        actions.store_job_output_complete(None)
 
         mock_logging.info.assert_called_with("Ignoring request to cleanup for job:49 wrong step/state")
         self.mock_job_api._set_job_step.assert_not_called()
@@ -195,7 +204,8 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.RUNNING
         self.mock_job.step = JobSteps.STORING_JOB_OUTPUT
-        self.actions._show_status = Mock()
+        actions = self.create_actions()
+        actions._show_status = Mock()
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
         mock_manager.create_save_output_job.return_value = k8s_job
@@ -204,10 +214,10 @@ class TestK8sJobActions(TestCase):
             "readme_file_id": "2"
         }
 
-        self.actions.store_job_output_complete(None)
+        actions.store_job_output_complete(None)
 
         mock_manager.cleanup_save_output_job.assert_called_with()
-        self.actions._show_status.assert_has_calls([
+        actions._show_status.assert_has_calls([
             call('Marking job finished'),
         ])
         self.mock_job_api.save_project_details.assert_called_with('1', '2')
@@ -217,38 +227,41 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.CANCELED
         self.mock_job.step = JobSteps.RUNNING
-        self.actions.start_job = Mock()
+        actions = self.create_actions()
+        actions.start_job = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
         mock_manager.cleanup_all.assert_called_with()
-        self.actions.start_job.assert_called_with(None)
+        actions.start_job.assert_called_with(None)
 
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_continues_staging(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.ERRORED
         self.mock_job.step = JobSteps.STAGING
-        self.actions.perform_staging_step = Mock()
+        actions = self.create_actions()
+        actions.perform_staging_step = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
         mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
-        self.actions.perform_staging_step.assert_called_with()
+        actions.perform_staging_step.assert_called_with()
 
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_continues_running(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.ERRORED
         self.mock_job.step = JobSteps.RUNNING
-        self.actions.run_workflow_job = Mock()
+        actions = self.create_actions()
+        actions.run_workflow_job = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
         mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
-        self.actions.run_workflow_job.assert_called_with()
+        actions.run_workflow_job.assert_called_with()
 
 
     @patch('lando.k8s.lando.JobManager')
@@ -256,52 +269,60 @@ class TestK8sJobActions(TestCase):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.ERRORED
         self.mock_job.step = JobSteps.ORGANIZE_OUTPUT_PROJECT
-        self.actions.organize_output_project = Mock()
+        actions = self.create_actions()
+        actions.organize_output_project = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
         mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
-        self.actions.organize_output_project.assert_called_with()
+        actions.organize_output_project.assert_called_with()
 
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_continues_save_output(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
         self.mock_job.state = JobStates.ERRORED
         self.mock_job.step = JobSteps.STORING_JOB_OUTPUT
-        self.actions.save_output = Mock()
+        actions = self.create_actions()
+        actions.save_output = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
         mock_manager.cleanup_jobs_and_config_maps.assert_called_with()
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
-        self.actions.save_output.assert_called_with()
+        actions.save_output.assert_called_with()
 
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_record_output_step_not_allowed(self, mock_job_manager):
         self.mock_job.state = JobStates.ERRORED
         self.mock_job.step = JobSteps.RECORD_OUTPUT_PROJECT
-        self.actions.cannot_restart_step_error = Mock()
+        actions = self.create_actions()
+        actions.cannot_restart_step_error = Mock()
 
-        self.actions.restart_job(None)
+        actions.restart_job(None)
 
-        self.actions.cannot_restart_step_error.assert_called_with(step_name='record output project')
-
+        actions.cannot_restart_step_error.assert_called_with(step_name='record output project')
 
     @patch('lando.k8s.lando.JobManager')
     def test_cancel_job(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
 
-        self.actions.cancel_job(None)
+        actions = self.create_actions()
+        actions.cancel_job(None)
 
         self.mock_job_api.set_job_step.assert_called_with(JobSteps.NONE)
+        self.assertEqual(actions.bespin_job.step, JobSteps.NONE)
         self.mock_job_api.set_job_state.assert_called_with(JobStates.CANCELED)
+        self.assertEqual(actions.bespin_job.state, JobStates.CANCELED)
         mock_manager.cleanup_all.assert_called_with()
 
 
 class TestK8sLando(TestCase):
     @patch('lando.k8s.lando.ClusterApi')
-    def test_constructor_creates_appropriate_job_actions(self, mock_cluster_api):
+    @patch('lando.k8s.lando.K8sJobSettings')
+    @patch('lando.k8s.lando.JobManager')
+    def test_constructor_creates_appropriate_job_actions(self, mock_job_manager, mock_k8s_job_settings,
+                                                         mock_cluster_api):
         mock_config = Mock()
         lando = K8sLando(mock_config)
         job_actions = lando._make_actions(job_id=2)

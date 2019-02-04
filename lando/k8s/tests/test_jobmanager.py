@@ -161,8 +161,8 @@ class TestJobManager(TestCase):
                                                                '--outdir /bespin/output-data/results/ '
                                                                '/bespin/job-data/workflow/someurl '
                                                                '/bespin/job-data/job-order.json '
-                                                               '>/bespin/output-data/cwltool-output.json '
-                                                               '2>/bespin/output-data/cwltool-output.log'
+                                                               '>/bespin/output-data/bespin-workflow-output.json '
+                                                               '2>/bespin/output-data/bespin-workflow-output.log'
                                                 ],
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
@@ -255,8 +255,8 @@ class TestJobManager(TestCase):
                         "workflow_path": "/bespin/job-data/workflow/someurl",
                         "job_order_path": "/bespin/job-data/job-order.json",
                         "job_data_path": "TODO",
-                        "cwltool_stdout_path": "/bespin/output-data/cwltool-output.json",
-                        "cwltool_stderr_path": "/bespin/output-data/cwltool-output.log",
+                        "bespin_workflow_stdout_path": "/bespin/output-data/bespin-workflow-output.json",
+                        "bespin_workflow_stderr_path": "/bespin/output-data/bespin-workflow-output.log",
                         "methods_template": "markdown"
                     })
                 },
@@ -429,8 +429,8 @@ class TestNames(TestCase):
         self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
-        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/cwltool-output.json')
-        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/cwltool-output.log')
+        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
 
 
 class TestStageDataConfig(TestCase):

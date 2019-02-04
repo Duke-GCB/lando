@@ -20,14 +20,21 @@ class K8sJobActions(BaseJobActions):
     def __init__(self, settings):
         super(K8sJobActions, self).__init__(settings)
         self.cluster_api = settings.get_cluster_api()
+        self.bespin_job = self.job_api.get_job()
+        self.manager = JobManager(self.cluster_api, settings.config, self.bespin_job)
 
-    def make_job_manager(self):
-        job = self.job_api.get_job()
-        return JobManager(self.cluster_api, self.settings.config, job)
+    def _set_job_state(self, state):
+        # Keep cached bespin_job state up to date
+        super(K8sJobActions, self)._set_job_state(state)
+        self.bespin_job.state = state
+
+    def _set_job_step(self, step):
+        # Keep cached bespin_job step up to date
+        super(K8sJobActions, self)._set_job_step(step)
+        self.bespin_job.step = step
 
     def job_is_at_state_and_step(self, state, step):
-        job = self.job_api.get_job()
-        return job.state == state and job.step == step
+        return self.bespin_job.state == state and self.bespin_job.step == step
 
     def start_job(self, payload):
         """
@@ -36,69 +43,61 @@ class K8sJobActions(BaseJobActions):
         """
         self._set_job_state(JobStates.RUNNING)
         self._set_job_step(JobSteps.CREATE_VM)
-        manager = self.make_job_manager()
 
         self._show_status("Creating stage data persistent volumes")
-        manager.create_stage_data_persistent_volumes()
+        self.manager.create_stage_data_persistent_volumes()
 
         self.perform_staging_step()
 
     def perform_staging_step(self):
-        manager = self.make_job_manager()
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Creating Stage data job")
         input_files = self.job_api.get_input_files()
-        job = manager.create_stage_data_job(input_files)
+        job = self.manager.create_stage_data_job(input_files)
         self._show_status("Launched stage data job: {}".format(job.metadata.name))
 
     def stage_job_complete(self, payload):
         """
         Message from worker that a the staging job step is complete and successful.
         Sets the job state to RUNNING and puts the run job message into the queue for the worker.
-        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name(unused)
         """
         if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STAGING):
             # ignore request to perform incompatible step
             logging.info("Ignoring request to run job:{} wrong step/state".format(self.job_id))
             return
         self._set_job_step(JobSteps.RUNNING)
-        manager = self.make_job_manager()
         self._show_status("Cleaning up after stage data")
-        manager.cleanup_stage_data_job()
+        self.manager.cleanup_stage_data_job()
 
         self._show_status("Creating volumes for running workflow")
-        manager.create_run_workflow_persistent_volumes()
+        self.manager.create_run_workflow_persistent_volumes()
 
         self.run_workflow_job()
 
     def run_workflow_job(self):
-        manager = self.make_job_manager()
         self._show_status("Creating run workflow job")
-        job = manager.create_run_workflow_job()
+        job = self.manager.create_run_workflow_job()
         self._show_status("Launched run workflow job: {}".format(job.metadata.name))
 
     def run_job_complete(self, payload):
         """
         Message from worker that a the run job step is complete and successful.
         Sets the job state to STORING_OUTPUT and puts the store output message into the queue for the worker.
-        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name(unused)
         """
         if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RUNNING):
             # ignore request to perform incompatible step
             logging.info("Ignoring request to store output for job:{} wrong step/state".format(self.job_id))
             return
-        manager = self.make_job_manager()
-        manager.cleanup_run_workflow_job()
-
+        self.manager.cleanup_run_workflow_job()
         self.organize_output_project()
 
     def organize_output_project(self):
-        manager = self.make_job_manager()
         self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
         self._show_status("Creating organize output project job")
-        job = self.job_api.get_job()
-        methods_document = self.job_api.get_workflow_methods_document(job.workflow.methods_document)
-        job = manager.create_organize_output_project_job(methods_document.content)
+        methods_document = self.job_api.get_workflow_methods_document(self.bespin_job.workflow.methods_document)
+        job = self.manager.create_organize_output_project_job(methods_document.content)
         self._show_status("Launched organize output project job: {}".format(job.metadata.name))
 
     def organize_output_complete(self, payload):
@@ -106,24 +105,22 @@ class K8sJobActions(BaseJobActions):
             # ignore request to perform incompatible step
             logging.info("Ignoring request to organize output project for job:{} wrong step/state".format(self.job_id))
             return
-        manager = self.make_job_manager()
-        manager.cleanup_organize_output_project_job()
+        self.manager.cleanup_organize_output_project_job()
         self.save_output()
 
     def save_output(self):
         store_output_data = self.job_api.get_store_output_job_data()
         # get_store_output_job_data
-        manager = self.make_job_manager()
         self._set_job_step(JobSteps.STORING_JOB_OUTPUT)
         self._show_status("Creating store output job")
-        job = manager.create_save_output_job(store_output_data.share_dds_ids)
+        job = self.manager.create_save_output_job(store_output_data.share_dds_ids)
         self._show_status("Launched save output job: {}".format(job.metadata.name))
 
     def store_job_output_complete(self, payload):
         """
         Message from worker that a the store output job step is complete and successful.
         Records information about the resulting output project and frees cloud resources.
-        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name(unused)
         """
         if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.STORING_JOB_OUTPUT):
             # ignore request to perform incompatible step
@@ -132,8 +129,7 @@ class K8sJobActions(BaseJobActions):
 
         self.record_output_project_info()
 
-        manager = self.make_job_manager()
-        manager.cleanup_save_output_job()
+        self.manager.cleanup_save_output_job()
         self._show_status("Marking job finished")
         self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.FINISHED)
@@ -142,9 +138,8 @@ class K8sJobActions(BaseJobActions):
         """
         Records the output project id and readme file id that based on the store output pod logs.
         """
-        manager = self.make_job_manager()
         self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        details = manager.read_save_output_project_details()
+        details = self.manager.read_save_output_project_details()
         project_id = details['project_id']
         readme_file_id = details['readme_file_id']
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
@@ -152,29 +147,26 @@ class K8sJobActions(BaseJobActions):
 
     def restart_job(self, payload):
         """
-        Request from user to resume running a job. It will resume based on the value of job.step
-        returned from the job api. Canceled jobs will always restart from the beginning(vm was terminated).
+        Request from user to resume running a job. It will resume based on the value of bespin_job.step
+        returned from the job api. Canceled jobs will always restart from the beginning
         :param payload:RestartJobPayload contains job_id we should restart
         """
-        job = self.job_api.get_job()
-        manager = self.make_job_manager()
-
         full_restart = False
-        if job.state != JobStates.CANCELED:
-            manager.cleanup_jobs_and_config_maps()
-            if job.step == JobSteps.STAGING:
+        if self.bespin_job.state != JobStates.CANCELED:
+            self.manager.cleanup_jobs_and_config_maps()
+            if self.bespin_job.step == JobSteps.STAGING:
                 self._set_job_state(JobStates.RUNNING)
                 self.perform_staging_step()
-            elif job.step == JobSteps.RUNNING:
+            elif self.bespin_job.step == JobSteps.RUNNING:
                 self._set_job_state(JobStates.RUNNING)
                 self.run_workflow_job()
-            elif job.step == JobSteps.ORGANIZE_OUTPUT_PROJECT:
+            elif self.bespin_job.step == JobSteps.ORGANIZE_OUTPUT_PROJECT:
                 self._set_job_state(JobStates.RUNNING)
                 self.organize_output_project()
-            elif job.step == JobSteps.STORING_JOB_OUTPUT:
+            elif self.bespin_job.step == JobSteps.STORING_JOB_OUTPUT:
                 self._set_job_state(JobStates.RUNNING)
                 self.save_output()
-            elif job.step == JobSteps.RECORD_OUTPUT_PROJECT:
+            elif self.bespin_job.step == JobSteps.RECORD_OUTPUT_PROJECT:
                 self.cannot_restart_step_error(step_name="record output project")
             else:
                 full_restart = True
@@ -182,7 +174,7 @@ class K8sJobActions(BaseJobActions):
             full_restart = True
 
         if full_restart:
-            manager.cleanup_all()
+            self.manager.cleanup_all()
             self.start_job(None)
 
     def cancel_job(self, payload):
@@ -194,8 +186,7 @@ class K8sJobActions(BaseJobActions):
         self._set_job_step(JobSteps.NONE)
         self._set_job_state(JobStates.CANCELED)
         self._show_status("Canceling job")
-        manager = self.make_job_manager()
-        manager.cleanup_all()
+        self.manager.cleanup_all()
 
     def stage_job_error(self, payload):
         """
