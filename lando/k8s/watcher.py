@@ -14,6 +14,7 @@ JOB_STEP_TO_COMMANDS = {
     JobStepTypes.SAVE_OUTPUT: (JobCommands.STORE_JOB_OUTPUT_COMPLETE, JobCommands.STORE_JOB_OUTPUT_ERROR)
 }
 
+
 def check_condition_status(job, condition_type):
     """
     Determines if a generic job has a condition type: Complete(Success) or Failure
