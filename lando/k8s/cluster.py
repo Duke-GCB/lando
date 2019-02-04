@@ -27,9 +27,10 @@ class ClusterApi(object):
         self.namespace = namespace
 
     def create_persistent_volume_claim(self, name, storage_size_in_g, storage_class_name,
-                                       access_modes=[AccessModes.READ_WRITE_MANY]):
+                                       access_modes=[AccessModes.READ_WRITE_MANY],
+                                       labels={}):
         pvc = client.V1PersistentVolumeClaim()
-        pvc.metadata = client.V1ObjectMeta(name=name)
+        pvc.metadata = client.V1ObjectMeta(name=name, labels=labels)
         storage_size = "{}Gi".format(storage_size_in_g)
         resources = client.V1ResourceRequirements(requests={"storage": storage_size})
         pvc.spec = client.V1PersistentVolumeClaimSpec(access_modes=access_modes,
@@ -40,16 +41,17 @@ class ClusterApi(object):
     def delete_persistent_volume_claim(self, name):
         self.core.delete_namespaced_persistent_volume_claim(name, self.namespace, client.V1DeleteOptions())
 
-    def create_secret(self, name, string_value_dict):
-        body = client.V1Secret(string_data=string_value_dict, metadata={'name': name})
+    def create_secret(self, name, string_value_dict, labels={}):
+        body = client.V1Secret(string_data=string_value_dict,
+                               metadata=client.V1ObjectMeta(name=name, labels=labels))
         return self.core.create_namespaced_secret(namespace=self.namespace, body=body)
 
     def delete_secret(self, name):
         self.core.delete_namespaced_secret(name, self.namespace, body=client.V1DeleteOptions())
 
-    def create_job(self, name, batch_job_spec):
+    def create_job(self, name, batch_job_spec, labels={}):
         body = client.V1Job(
-            metadata=client.V1ObjectMeta(name=name),
+            metadata=client.V1ObjectMeta(name=name, labels=labels),
             spec=batch_job_spec.create())
         return self.batch.create_namespaced_job(self.namespace, body)
 
@@ -63,9 +65,9 @@ class ClusterApi(object):
         body = client.V1DeleteOptions(propagation_policy=propagation_policy)
         self.batch.delete_namespaced_job(name, self.namespace, body=body)
 
-    def create_config_map(self, name, data):
+    def create_config_map(self, name, data, labels={}):
         body = client.V1ConfigMap(
-            metadata=client.V1ObjectMeta(name=name),
+            metadata=client.V1ObjectMeta(name=name, labels=labels),
             data=data
         )
         return self.core.create_namespaced_config_map(self.namespace, body)
@@ -73,8 +75,27 @@ class ClusterApi(object):
     def delete_config_map(self, name):
         self.core.delete_namespaced_config_map(name, self.namespace, body=client.V1DeleteOptions())
 
-    def read_pod_logs(self, name):
-        return self.core.read_namespaced_pod_log(name, self.namespace)
+    def read_pod_logs(self, name, container):
+        # The read_namespaced_pod_log method by default performs some formatting on the data
+        # This can cause double quotes to change to single quotes and other unexpected formatting.
+        # So instead we are using the _preload_content flag and calling read() based on the following comment:
+        # https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
+        # This changes the returned value so we must add an additional call to read()
+        return self.core.read_namespaced_pod_log(name, self.namespace, container=container,
+                                                 _preload_content=False).read()
+
+    def list_pods(self, label_selector):
+        return self.core.list_namespaced_pod(self.namespace, label_selector=label_selector).items
+
+    def list_persistent_volume_claims(self, label_selector=None):
+        return self.core.list_namespaced_persistent_volume_claim(self.namespace, label_selector=label_selector).items
+
+    def list_jobs(self, label_selector):
+        return self.batch.list_namespaced_job(self.namespace, label_selector=label_selector).items
+
+    def list_config_maps(self, label_selector):
+        return self.core.list_namespaced_config_map(self.namespace, label_selector=label_selector).items
+
 
 
 class Container(object):
@@ -220,6 +241,16 @@ class ConfigMapVolume(VolumeBase):
                                               items=items)
 
 
+class EmptyDirVolume(VolumeBase):
+    def __init__(self, name, mount_path):
+        super(EmptyDirVolume, self).__init__(name, mount_path)
+
+    def create_volume(self):
+        return client.V1Volume(
+                name=self.name,
+                empty_dir=client.V1EmptyDirVolumeSource())
+
+
 class BatchJobSpec(object):
     def __init__(self, name, container, labels={}):
         self.name = name
@@ -244,8 +275,7 @@ class BatchJobSpec(object):
         )
 
     def create_containers(self):
-        container = self.container.create()
-        return [container]
+        return [self.container.create()]
 
     def create_volumes(self):
         return self.container.create_volumes()

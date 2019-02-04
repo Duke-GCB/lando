@@ -66,16 +66,69 @@ class JobSettings(object):
         return WorkProgressQueue(self.config, WORK_PROGRESS_EXCHANGE_NAME)
 
 
-class JobActions(object):
-    """
-    Used by LandoRouter to handle messages at a job specific context.
-    """
+class BaseJobActions(object):
     def __init__(self, settings):
         self.settings = settings
         self.job_id = settings.job_id
         self.config = settings.config
         self.job_api = settings.get_job_api()
         self.work_progress_queue = settings.get_work_progress_queue()
+
+    def cannot_restart_step_error(self, step_name):
+        """
+        Set job to error due to trying to restart a job in a step that cannot be restarted.
+        :param step_name: str:
+        """
+        msg = "Cannot restart {} step.".format(step_name)
+        self._set_job_state(JobStates.ERRORED)
+        self._show_status(msg)
+        self._log_error(message=msg)
+
+    def _log_error(self, message):
+        job = self.job_api.get_job()
+        self.job_api.save_error_details(job.step, message)
+
+    def _set_job_state(self, state):
+        self.job_api.set_job_state(state)
+        self._send_job_progress_notification()
+
+    def _set_job_step(self, step):
+        self.job_api.set_job_step(step)
+        if step:
+            self._send_job_progress_notification()
+
+    def _send_job_progress_notification(self):
+        job = self.job_api.get_job()
+        payload = json.dumps({
+            "job": job.id,
+            "state": job.state,
+            "step": job.step,
+        })
+        self.work_progress_queue.send(payload)
+
+    def _get_cloud_service(self, job):
+        return self.settings.get_cloud_service(job.vm_settings)
+
+    def _show_status(self, message):
+        format_str = "{}: {} for job: {}."
+        logging.info(format_str.format(datetime.now(), message, self.job_id))
+
+    def generic_job_error(self, action_name, details):
+        """
+        Sets current job state to error and creates a job error with the details.
+        :param action_name: str: name of the action that failed
+        :param details: str: details about what went wrong typically a stack trace
+        """
+        self._set_job_state(JobStates.ERRORED)
+        message = "Running {} failed with {}".format(action_name, details)
+        self._show_status(message)
+        self._log_error(message=message)
+
+
+class JobActions(BaseJobActions):
+    """
+    Used by LandoRouter to handle messages at a job specific context.
+    """
 
     def make_worker_client(self, vm_instance_name):
         """
@@ -161,7 +214,8 @@ class JobActions(object):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(vm_instance_name)
-        worker_client.stage_job(credentials, job, self.job_api.get_input_files(), vm_instance_name)
+        input_files_ary = [self.job_api.get_input_files()]
+        worker_client.stage_job(credentials, job, input_files_ary, vm_instance_name)
 
     def stage_job_complete(self, payload):
         """
@@ -267,55 +321,9 @@ class JobActions(object):
         self._show_status("Storing job output failed")
         self._log_error(message=payload.message)
 
-    def cannot_restart_step_error(self, step_name):
-        """
-        Set job to error due to trying to restart a job in a step that cannot be restarted.
-        :param step_name: str:
-        """
-        msg = "Cannot restart {} step.".format(step_name)
-        self._set_job_state(JobStates.ERRORED)
-        self._show_status(msg)
-        self._log_error(message=msg)
 
-    def _log_error(self, message):
-        job = self.job_api.get_job()
-        self.job_api.save_error_details(job.step, message)
-
-    def _set_job_state(self, state):
-        self.job_api.set_job_state(state)
-        self._send_job_progress_notification()
-
-    def _set_job_step(self, step):
-        self.job_api.set_job_step(step)
-        if step:
-            self._send_job_progress_notification()
-
-    def _send_job_progress_notification(self):
-        job = self.job_api.get_job()
-        payload = json.dumps({
-            "job": job.id,
-            "state": job.state,
-            "step": job.step,
-        })
-        self.work_progress_queue.send(payload)
-
-    def _get_cloud_service(self, job):
-        return self.settings.get_cloud_service(job.vm_settings)
-
-    def _show_status(self, message):
-        format_str = "{}: {} for job: {}."
-        logging.info(format_str.format(datetime.now(), message, self.job_id))
-
-    def generic_job_error(self, action_name, details):
-        """
-        Sets current job state to error and creates a job error with the details.
-        :param action_name: str: name of the action that failed
-        :param details: str: details about what went wrong typically a stack trace
-        """
-        self._set_job_state(JobStates.ERRORED)
-        message = "Running {} failed with {}".format(action_name, details)
-        self._show_status(message)
-        self._log_error(message=message)
+def create_job_actions(lando, job_id):
+    return JobActions(JobSettings(job_id, lando.config))
 
 
 class Lando(object):
@@ -324,12 +332,14 @@ class Lando(object):
     Main function is to unpack incoming messages creating a JobActions object for the job id
     and running the appropriate method.
     """
-    def __init__(self, config):
+    def __init__(self, config, job_actions_constructor=create_job_actions):
         """
         Setup configuration.
         :param config: ServerConfig: settings used by JobActions methods
+        :param job_actions_constructor: func(lando, job_id) that returns JobActions
         """
         self.config = config
+        self.job_actions_constructor = job_actions_constructor
 
     def _make_actions(self, job_id):
         """
@@ -337,7 +347,7 @@ class Lando(object):
         :param job_id: int: unique id for the job
         :return: JobActions: object with methods for processing messages received in listen_for_messages
         """
-        return JobActions(self._make_job_settings(job_id, self.config))
+        return self.job_actions_constructor(self, job_id)
 
     @staticmethod
     def _make_job_settings(job_id, config):

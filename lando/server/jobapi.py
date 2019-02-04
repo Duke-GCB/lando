@@ -200,11 +200,11 @@ class JobApi(object):
     def get_input_files(self):
         """
         Get the list of input files(files that need to be staged) for a job.
-        :return: [InputFile]: list of files to be downloaded.
+        :return: InputFiles: list of files to be downloaded.
         """
         job = self.get_job()
         stage_group = self.api.get_file_stage_group(job.stage_group)
-        return [InputFiles(stage_group)]
+        return InputFiles(stage_group)
 
     def get_credentials(self):
         """
@@ -440,6 +440,7 @@ class JobStates(object):
     Values for state that must match up those supported by Bespin.
     """
     NEW = 'N'
+    AUTHORIZED = 'A'
     RUNNING = 'R'
     FINISHED = 'F'
     ERRORED = 'E'
@@ -453,6 +454,7 @@ class JobSteps(object):
     CREATE_VM = 'V'
     STAGING = 'S'
     RUNNING = 'R'
+    ORGANIZE_OUTPUT_PROJECT = 'o'
     STORING_JOB_OUTPUT = 'O'
     RECORD_OUTPUT_PROJECT = 'P'
     TERMINATE_VM = 'T'

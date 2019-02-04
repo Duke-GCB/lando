@@ -56,6 +56,7 @@ class ClusterApiSettings(object):
         self.host = get_or_raise_config_exception(data, 'host')
         self.token = get_or_raise_config_exception(data, 'token')
         self.namespace = get_or_raise_config_exception(data, 'namespace')
+        self.verify_ssl = data.get('verify_ssl', True)
 
 
 class ImageCommandSettings(object):

@@ -21,13 +21,15 @@ class TestClusterApi(TestCase):
 
     def test_create_persistent_volume_claim(self):
         resp = self.cluster_api.create_persistent_volume_claim(name='myvolume', storage_size_in_g=2,
-                                                               storage_class_name='gluster')
+                                                               storage_class_name='gluster',
+                                                               labels={"bespin": "true"})
         self.assertEqual(resp, self.mock_core_api.create_namespaced_persistent_volume_claim.return_value)
         args, kwargs = self.mock_core_api.create_namespaced_persistent_volume_claim.call_args
         namespace = args[0]
         self.assertEqual(namespace, 'lando-job-runner')
         pvc = args[1]
         self.assertEqual(pvc.metadata.name, 'myvolume')
+        self.assertEqual(pvc.metadata.labels, {"bespin": "true"})
         self.assertEqual(pvc.spec.access_modes, [AccessModes.READ_WRITE_MANY])
         self.assertEqual(pvc.spec.resources.requests, {'storage': '2Gi'})
         self.assertEqual(pvc.spec.storage_class_name, 'gluster')
@@ -50,11 +52,12 @@ class TestClusterApi(TestCase):
     def test_create_secret(self):
         resp = self.cluster_api.create_secret(name='mysecret', string_value_dict={
             'password': 's3cr3t'
-        })
+        }, labels={"bespin": "true"})
         self.assertEqual(resp, self.mock_core_api.create_namespaced_secret.return_value)
         args, kwargs = self.mock_core_api.create_namespaced_secret.call_args
         self.assertEqual(kwargs['namespace'], 'lando-job-runner')
-        self.assertEqual(kwargs['body'].metadata['name'], 'mysecret')
+        self.assertEqual(kwargs['body'].metadata.name, 'mysecret')
+        self.assertEqual(kwargs['body'].metadata.labels, {"bespin": "true"})
         self.assertEqual(kwargs['body'].string_data, {'password': 's3cr3t'})
 
     def test_delete_secret(self):
@@ -65,12 +68,15 @@ class TestClusterApi(TestCase):
 
     def test_create_job(self):
         mock_batch_job_spec = Mock()
-        resp = self.cluster_api.create_job(name='myjob', batch_job_spec=mock_batch_job_spec)
+        resp = self.cluster_api.create_job(name='myjob',
+                                           batch_job_spec=mock_batch_job_spec,
+                                           labels={"bespin": "true"})
 
         self.assertEqual(resp, self.mock_batch_api.create_namespaced_job.return_value)
         args, kwargs = self.mock_batch_api.create_namespaced_job.call_args
         self.assertEqual(args[0], 'lando-job-runner')
         self.assertEqual(args[1].metadata.name, 'myjob')
+        self.assertEqual(args[1].metadata.labels, {"bespin": "true"})
         self.assertEqual(args[1].spec, mock_batch_job_spec.create.return_value)
 
     @patch('lando.k8s.cluster.watch')
@@ -111,12 +117,15 @@ class TestClusterApi(TestCase):
         self.assertEqual(kwargs['body'].propagation_policy, 'Foreground')
 
     def test_create_config_map(self):
-        resp = self.cluster_api.create_config_map(name='myconfig', data={'threads': 2})
+        resp = self.cluster_api.create_config_map(name='myconfig',
+                                                  data={'threads': 2},
+                                                  labels={"bespin": "true"})
 
         self.assertEqual(resp, self.mock_core_api.create_namespaced_config_map.return_value)
         args, kwargs = self.mock_core_api.create_namespaced_config_map.call_args
         self.assertEqual(args[0], 'lando-job-runner')
         self.assertEqual(args[1].metadata.name, 'myconfig')
+        self.assertEqual(args[1].metadata.labels, {"bespin": "true"})
         self.assertEqual(args[1].data, {'threads': 2})
 
     def test_delete_config_map(self):
@@ -125,10 +134,46 @@ class TestClusterApi(TestCase):
         self.assertEqual(args[0], 'myconfig')
         self.assertEqual(args[1], 'lando-job-runner')
 
-    def read_pod_logs(self, name):
-        resp = self.cluster_api.read_pod_logs('mypod')
-        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value)
-        self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner')
+    def test_read_pod_logs(self):
+        # Added _preload_content argument to allow fetching actual text instead of parsed
+        # based on https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
+        resp = self.cluster_api.read_pod_logs('mypod', container='mycontainer')
+        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
+        self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
+                                                                      container='mycontainer',
+                                                                      _preload_content=False)
+
+    def test_list_pods(self):
+        resp = self.cluster_api.list_pods(label_selector='bespin=true')
+        self.mock_core_api.list_namespaced_pod.assert_called_with(
+            'lando-job-runner', label_selector='bespin=true'
+        )
+        mock_pod_list = self.mock_core_api.list_namespaced_pod.return_value
+        self.assertEqual(resp, mock_pod_list.items)
+
+    def test_list_persistent_volume_claims(self):
+        resp = self.cluster_api.list_persistent_volume_claims(label_selector='bespin=true')
+        self.mock_core_api.list_namespaced_persistent_volume_claim.assert_called_with(
+            'lando-job-runner', label_selector='bespin=true'
+        )
+        mock_pvc_list = self.mock_core_api.list_namespaced_persistent_volume_claim.return_value
+        self.assertEqual(resp, mock_pvc_list.items)
+
+    def test_list_jobs(self):
+        resp = self.cluster_api.list_jobs(label_selector='bespin=true')
+        self.mock_batch_api.list_namespaced_job.assert_called_with(
+            'lando-job-runner', label_selector='bespin=true'
+        )
+        mock_job_list = self.mock_batch_api.list_namespaced_job.return_value
+        self.assertEqual(resp, mock_job_list.items)
+
+    def test_list_config_maps(self):
+        resp = self.cluster_api.list_config_maps(label_selector='bespin=true')
+        self.mock_core_api.list_namespaced_config_map.assert_called_with(
+            'lando-job-runner', label_selector='bespin=true'
+        )
+        mock_config_map_list = self.mock_core_api.list_namespaced_config_map.return_value
+        self.assertEqual(resp, mock_config_map_list.items)
 
 
 class TestContainer(TestCase):

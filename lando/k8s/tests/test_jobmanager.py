@@ -14,9 +14,10 @@ class TestJobManager(TestCase):
         self.mock_job.id = '51'
         self.mock_job.vm_settings.cwl_commands.base_command = ['cwltool']
         self.mock_job.vm_settings.image_name = 'calrissian:latest'
+        self.expected_metadata_labels = {'bespin-job': 'true', 'bespin-job-id': '51'}
 
     def test_make_job_labels(self):
-        manager = JobManager(cluster_api=Mock(), job_settings=Mock(), job=self.mock_job)
+        manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
         expected_label_dict = {
             'bespin-job': 'true',
             'bespin-job-id': '51',
@@ -25,17 +26,19 @@ class TestJobManager(TestCase):
         self.assertEqual(manager.make_job_labels(job_step_type=JobStepTypes.STAGE_DATA), expected_label_dict)
 
     def test_create_stage_data_persistent_volumes(self):
-        manager = JobManager(cluster_api=Mock(), job_settings=Mock(), job=self.mock_job)
+        manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
         manager.create_stage_data_persistent_volumes()
         manager.cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('job-data-51-jpb', storage_class_name=manager.storage_class_name, storage_size_in_g=3)
+            call('job-data-51-jpb',
+                 storage_class_name=manager.storage_class_name,
+                 storage_size_in_g=3,
+                 labels=self.expected_metadata_labels)
         ])
 
     def test_create_stage_data_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock()
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
         mock_input_files = Mock(dds_files=[
             Mock(destination_path='file1.txt', file_id='myid')
         ])
@@ -64,7 +67,8 @@ class TestJobManager(TestCase):
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='stage-data-51-jpb',
-                                                              data=config_map_payload)
+                                                              data=config_map_payload,
+                                                              labels=self.expected_metadata_labels)
 
         # it should have created a job
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -111,8 +115,7 @@ class TestJobManager(TestCase):
     def test_cleanup_stage_data_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock()
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.cleanup_stage_data_job()
 
@@ -122,22 +125,23 @@ class TestJobManager(TestCase):
     def test_create_run_workflow_persistent_volumes(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.create_run_workflow_persistent_volumes()
 
         mock_cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3),
-            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3),
-            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=1),
+            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
+                 labels=self.expected_metadata_labels),
+            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
+                 labels=self.expected_metadata_labels),
+            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=1,
+                 labels=self.expected_metadata_labels),
         ])
 
     def test_create_run_workflow_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.create_run_workflow_job()
 
@@ -154,9 +158,12 @@ class TestJobManager(TestCase):
                          'run workflow image name is based on job settings')
 
         self.assertEqual(job_container.command, ['bash', '-c', 'cwltool --tmp-outdir-prefix /bespin/tmpout/ '
-                                                               '--outdir /bespin/output-data/ '
+                                                               '--outdir /bespin/output-data/results/ '
                                                                '/bespin/job-data/workflow/someurl '
-                                                               '/bespin/job-data/job-order.json'],
+                                                               '/bespin/job-data/job-order.json '
+                                                               '>/bespin/output-data/bespin-workflow-output.json '
+                                                               '2>/bespin/output-data/bespin-workflow-output.log'
+                                                ],
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
                          'We should store the pod name in a CALRISSIAN_POD_NAME environment variable')
@@ -205,8 +212,7 @@ class TestJobManager(TestCase):
     def test_cleanup_run_workflow_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.cleanup_run_workflow_job()
 
@@ -218,10 +224,9 @@ class TestJobManager(TestCase):
     def test_create_organize_output_project_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
-        manager.create_organize_output_project_job()
+        manager.create_organize_output_project_job(methods_document_content='markdown')
 
         # it should have created a job to run the workflow with several volumes mounted
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -241,7 +246,24 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.requested_memory, mock_config.organize_output_settings.requested_memory,
                          'organize output requested memory is based on a config setting')
 
-        self.assertEqual(len(job_container.volumes), 2)
+        mock_cluster_api.create_config_map.assert_called_with(
+            name='organize-output-51-jpb',
+            data={
+                'organizeoutput.json':
+                    json.dumps({
+                        "destination_dir": "/bespin/output-data/results",
+                        "workflow_path": "/bespin/job-data/workflow/someurl",
+                        "job_order_path": "/bespin/job-data/job-order.json",
+                        "job_data_path": "TODO",
+                        "bespin_workflow_stdout_path": "/bespin/output-data/bespin-workflow-output.json",
+                        "bespin_workflow_stderr_path": "/bespin/output-data/bespin-workflow-output.log",
+                        "methods_template": "markdown"
+                    })
+                },
+            labels={'bespin-job': 'true', 'bespin-job-id': '51'}
+        )
+
+        self.assertEqual(len(job_container.volumes), 3)
 
         job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
@@ -255,33 +277,41 @@ class TestJobManager(TestCase):
         self.assertEqual(output_data_volume.volume_claim_name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.read_only, False)
 
+        config_map_volume = job_container.volumes[2]
+        self.assertEqual(config_map_volume.name, 'organize-output-51-jpb')
+        self.assertEqual(config_map_volume.mount_path, '/bespin/config')
+        self.assertEqual(config_map_volume.config_map_name, 'organize-output-51-jpb')
+        self.assertEqual(config_map_volume.source_key, 'organizeoutput.json')
+        self.assertEqual(config_map_volume.source_path, 'organizeoutput.json')
+
     def test_cleanup_organize_output_project_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.cleanup_organize_output_project_job()
 
+        mock_cluster_api.delete_config_map.assert_called_with('organize-output-51-jpb')
         mock_cluster_api.delete_job.assert_called_with('organize-output-51-jpb')
 
     def test_create_save_output_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
-        manager.create_save_output_job()
+        manager.create_save_output_job(share_dds_ids=['123','456'])
 
         # it should have created a config map of what needs to be staged
         config_map_payload = {
             'saveoutput.json': json.dumps({
                 "destination": "Bespin-job-51-results",
-                "paths": ["/bespin/output-data"]
+                "paths": ["/bespin/output-data/results"],
+                "share": {"dds_user_ids": ["123", "456"]}
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='save-output-51-jpb',
-                                                              data=config_map_payload)
+                                                              data=config_map_payload,
+                                                              labels=self.expected_metadata_labels)
 
         # it should have created a job
         args, kwargs = mock_cluster_api.create_job.call_args
@@ -296,15 +326,16 @@ class TestJobManager(TestCase):
                          'save output image name is based on a config setting')
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
-        self.assertEqual(job_container.args, ['/bespin/config/saveoutput.json'],
-                         'save output command should receive config file as an argument')
+        self.assertEqual(job_container.args,
+                         ['/bespin/config/saveoutput.json', '/tmp/project_details.json'],
+                         'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
         self.assertEqual(job_container.requested_cpu, mock_config.save_output_settings.requested_cpu,
                          'stage data requested cpu is based on a config setting')
         self.assertEqual(job_container.requested_memory, mock_config.save_output_settings.requested_memory,
                          'stage data requested memory is based on a config setting')
-        self.assertEqual(len(job_container.volumes), 3)
+        self.assertEqual(len(job_container.volumes), 4)
 
         job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
@@ -312,24 +343,30 @@ class TestJobManager(TestCase):
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.read_only, True)
 
-        config_map_volume = job_container.volumes[1]
+        job_data_volume = job_container.volumes[1]
+        self.assertEqual(job_data_volume.name, 'output-data-51-jpb')
+        self.assertEqual(job_data_volume.mount_path, '/bespin/output-data')
+        self.assertEqual(job_data_volume.volume_claim_name, 'output-data-51-jpb')
+        self.assertEqual(job_data_volume.read_only, True)
+
+        config_map_volume = job_container.volumes[2]
         self.assertEqual(config_map_volume.name, 'stage-data-51-jpb')
         self.assertEqual(config_map_volume.mount_path, '/bespin/config')
         self.assertEqual(config_map_volume.config_map_name, 'save-output-51-jpb')
         self.assertEqual(config_map_volume.source_key, 'saveoutput.json')
         self.assertEqual(config_map_volume.source_path, 'saveoutput.json')
 
-        secret_volume = job_container.volumes[2]
+        secret_volume = job_container.volumes[3]
         self.assertEqual(secret_volume.name, 'data-store-51-jpb')
         self.assertEqual(secret_volume.mount_path, '/etc/ddsclient')
         self.assertEqual(secret_volume.secret_name, mock_config.data_store_settings.secret_name,
                          'name of DukeDS secret is based on a config setting')
 
+
     def test_cleanup_save_output_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
-        mock_job_settings = Mock(config=mock_config)
-        manager = JobManager(cluster_api=mock_cluster_api, job_settings=mock_job_settings, job=self.mock_job)
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.cleanup_save_output_job()
 
@@ -338,6 +375,37 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
             call('job-data-51-jpb'), call('output-data-51-jpb')
         ], 'delete job data and output data volumes once running workflow completes')
+
+    def test_cleanup_all(self):
+        mock_job = Mock()
+        mock_job.metadata.name = 'job_1'
+        mock_config_map = Mock()
+        mock_config_map.metadata.name = 'config_map_1'
+        mock_pvc = Mock()
+        mock_pvc.metadata.name = 'pvc_1'
+
+        mock_cluster_api = Mock()
+        mock_cluster_api.list_jobs.return_value = [mock_job]
+        mock_cluster_api.list_config_maps.return_value = [mock_config_map]
+        mock_cluster_api.list_persistent_volume_claims.return_value = [mock_pvc]
+        mock_config = Mock(storage_class_name='nfs')
+
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
+        manager.cleanup_all()
+
+        mock_cluster_api.delete_job.assert_called_with('job_1')
+        mock_cluster_api.delete_config_map.assert_called_with('config_map_1')
+        mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
+
+    def test_read_save_output_project_details(self):
+        # NOTE: This is just a placeholder for a real test until a good method to fetch project details is implemented.
+        mock_cluster_api = Mock()
+        mock_config = Mock(storage_class_name='nfs')
+
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
+        details = manager.read_save_output_project_details()
+
+        self.assertEqual(details, {"project_id": "TODO", "readme_file_id": "TODO"})
 
 
 class TestNames(TestCase):
@@ -361,53 +429,58 @@ class TestNames(TestCase):
         self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
+        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
 
 
 class TestStageDataConfig(TestCase):
     def test_constructor(self):
-        mock_job_settings = Mock()
-        config = StageDataConfig(job=None, job_settings=mock_job_settings)
+        mock_config = Mock()
+        config = StageDataConfig(job=None, config=mock_config)
         self.assertEqual(config.path, '/bespin/config/stagedata.json')
-        self.assertEqual(config.data_store_secret_name, mock_job_settings.config.data_store_settings.secret_name)
+        self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
         self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
-        self.assertEqual(config.image_name, mock_job_settings.config.stage_data_settings.image_name)
-        self.assertEqual(config.command, mock_job_settings.config.stage_data_settings.command)
-        self.assertEqual(config.requested_cpu, mock_job_settings.config.stage_data_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_job_settings.config.stage_data_settings.requested_memory)
+        self.assertEqual(config.image_name, mock_config.stage_data_settings.image_name)
+        self.assertEqual(config.command, mock_config.stage_data_settings.command)
+        self.assertEqual(config.requested_cpu, mock_config.stage_data_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_config.stage_data_settings.requested_memory)
 
 
 class TestRunWorkflowConfig(TestCase):
     def test_constructor(self):
         mock_job = Mock(vm_settings=Mock(image_name='someimage', cwl_commands=Mock(base_command=['cwltool'])))
-        mock_job_settings = Mock()
-        config = RunWorkflowConfig(job=mock_job, job_settings=mock_job_settings)
+        mock_config = Mock()
+        config = RunWorkflowConfig(job=mock_job, config=mock_config)
         self.assertEqual(config.image_name, 'someimage')
         self.assertEqual(config.command, ['cwltool'])
-        self.assertEqual(config.requested_cpu, mock_job_settings.config.run_workflow_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_job_settings.config.run_workflow_settings.requested_memory)
-        self.assertEqual(config.system_data_volume, mock_job_settings.config.run_workflow_settings.system_data_volume)
+        self.assertEqual(config.requested_cpu, mock_config.run_workflow_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_config.run_workflow_settings.requested_memory)
+        self.assertEqual(config.system_data_volume, mock_config.run_workflow_settings.system_data_volume)
 
 
 class TestOrganizeOutputConfig(TestCase):
     def test_constructor(self):
-        mock_job_settings = Mock()
-        config = OrganizeOutputConfig(job=None, job_settings=mock_job_settings)
-        self.assertEqual(config.image_name, mock_job_settings.config.organize_output_settings.image_name)
-        self.assertEqual(config.command, mock_job_settings.config.organize_output_settings.command)
-        self.assertEqual(config.requested_cpu, mock_job_settings.config.organize_output_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_job_settings.config.organize_output_settings.requested_memory)
+        mock_config = Mock()
+        config = OrganizeOutputConfig(job=None, config=mock_config)
+        self.assertEqual(config.filename, "organizeoutput.json")
+        self.assertEqual(config.path, "/bespin/config/organizeoutput.json")
+        self.assertEqual(config.image_name, mock_config.organize_output_settings.image_name)
+        self.assertEqual(config.command, mock_config.organize_output_settings.command)
+        self.assertEqual(config.requested_cpu, mock_config.organize_output_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_config.organize_output_settings.requested_memory)
 
 
 class TestSaveOutputConfig(TestCase):
     def test_constructor(self):
-        mock_job_settings = Mock()
-        config = SaveOutputConfig(job=None, job_settings=mock_job_settings)
+        mock_config = Mock()
+        config = SaveOutputConfig(job=None, config=mock_config)
         self.assertEqual(config.path, '/bespin/config/saveoutput.json')
-        self.assertEqual(config.data_store_secret_name, mock_job_settings.config.data_store_settings.secret_name)
+        self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
         self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
-        self.assertEqual(config.image_name, mock_job_settings.config.save_output_settings.image_name)
-        self.assertEqual(config.command, mock_job_settings.config.save_output_settings.command)
-        self.assertEqual(config.requested_cpu, mock_job_settings.config.save_output_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_job_settings.config.save_output_settings.requested_memory)
+        self.assertEqual(config.image_name, mock_config.save_output_settings.image_name)
+        self.assertEqual(config.command, mock_config.save_output_settings.command)
+        self.assertEqual(config.requested_cpu, mock_config.save_output_settings.requested_cpu)
+        self.assertEqual(config.requested_memory, mock_config.save_output_settings.requested_memory)
+        self.assertEqual(config.project_details_path, '/tmp/project_details.json')
