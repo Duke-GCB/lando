@@ -3,20 +3,20 @@ This module provides support for running Bespin jobs via a k8s cluster.
 
 ## Setup
 
-### Cluster setup
+### k8s Cluster setup
 Connect to your k8s cluster.
 
-Create a project
+Create a project where the jobs will be run
 ```
 oc new-project lando-job-runner
 ```
 
-Create a service account
+Create a service account that will be used by k8s.lando to create jobs.
 ```
 oc create sa lando
 ```
 
-Give this account admin priv (for now)
+Give this account admin priv
 ```
 oc create rolebinding lando-binding --clusterrole=admin --serviceaccount=lando-job-runner:lando
 ```
@@ -32,26 +32,26 @@ oc describe secret <tokename>
 ```
 This value will need to be added to your k8s lando config file under `cluster_api_settings.token`.
 
-Create a DukeDS agent secret
+Create a DukeDS agent secret that will be used to stage data and save output.
 Create a file containing your ddsclient config named `ddsclient.conf`.
 Use this file to populate the DukeDS secret for your agent.
 ```
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.cred
 ```
 
-Build the calrissian image
+Build the CWL workflow running image (calrissian)
 ```
 oc create -f https://raw.githubusercontent.com/Duke-GCB/calrissian/master/openshift/BuildConfig.yaml
 oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
 ```
 
-Build the lando-util image
+Build the lando-util image that will be used for the stage data, organize output, and upload results jobs.
 ```
 oc create -f https://raw.githubusercontent.com/Duke-GCB/lando-util/master/openshift/BuildConfig.yml
 ```
 
-If desired create a persistent volume for holding system data.
+Create a persistent volume for holding system data matching the name in `run_workflow_settings.volume_claim_name` from the config file below.
 
 ### Config file setup
 Create a config file named `k8s.config`.
