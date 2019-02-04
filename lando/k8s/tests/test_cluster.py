@@ -80,17 +80,16 @@ class TestClusterApi(TestCase):
         self.assertEqual(args[1].spec, mock_batch_job_spec.create.return_value)
 
     @patch('lando.k8s.cluster.watch')
-    def test_wait_for_job_events_defaults_to_added(self, mock_watch):
+    def test_wait_for_job_events(self, mock_watch):
         callback = Mock()
         mock_watch.Watch.return_value.stream.return_value = [
-            {'object': 'job0', 'type':'REMOVED'},
-            {'object': 'job1', 'type':'ADDED'},
-            {'object': 'job2', 'type':'ADDED'},
+            {'object': 'job1', 'type': 'ADDED'},
+            {'object': 'job2', 'type': 'ADDED'},
         ]
         self.cluster_api.wait_for_job_events(callback)
         callback.assert_has_calls([
-            call('job1'),
-            call('job2'),
+            call({'object': 'job1', 'type': 'ADDED'}),
+            call({'object': 'job2', 'type': 'ADDED'}),
         ])
         args, kwargs = mock_watch.Watch.return_value.stream.call_args
         self.assertEqual(args[1], 'lando-job-runner')

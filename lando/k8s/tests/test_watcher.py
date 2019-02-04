@@ -1,6 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch, ANY
-from lando.k8s.watcher import JobWatcher, JobLabels, JobStepTypes, JobCommands, JobConditionType, ApiException
+from lando.k8s.watcher import JobWatcher, JobLabels, JobStepTypes, JobCommands, JobConditionType, ApiException, \
+    EventTypes
 
 
 class TestJobWatcher(TestCase):
@@ -26,7 +27,10 @@ class TestJobWatcher(TestCase):
             JobLabels.STEP_TYPE: JobStepTypes.STAGE_DATA,
         }
         job.status.conditions = [Mock(type=JobConditionType.FAILED, status="True")]
-        watcher.on_job_change(job)
+        watcher.on_job_change({
+            'type': EventTypes.ADDED,
+            'object': job
+        })
 
         watcher.on_job_succeeded.assert_not_called()
         watcher.on_job_failed.assert_called_with('job1', '32', JobStepTypes.STAGE_DATA)
@@ -43,10 +47,35 @@ class TestJobWatcher(TestCase):
             JobLabels.STEP_TYPE: JobStepTypes.STAGE_DATA,
         }
         job.status.conditions = [Mock(type=JobConditionType.COMPLETE, status="True")]
-        watcher.on_job_change(job)
+        watcher.on_job_change({
+            'type': EventTypes.MODIFIED,
+            'object': job
+        })
 
         watcher.on_job_succeeded.assert_called_with('32', 'stage_data')
         watcher.on_job_failed.assert_not_called()
+
+    @patch('lando.k8s.watcher.ClusterApi')
+    @patch('lando.k8s.watcher.logging')
+    def test_on_job_change_with_delete_event(self, mock_logging, mock_cluster_api):
+        watcher = JobWatcher(config=Mock())
+        watcher.on_job_succeeded = Mock()
+        watcher.on_job_failed = Mock()
+        job = Mock()
+        job.metadata.name = 'job1'
+        job.metadata.labels = {
+            JobLabels.JOB_ID: '32',
+            JobLabels.STEP_TYPE: JobStepTypes.STAGE_DATA,
+        }
+        job.status.conditions = [Mock(type=JobConditionType.COMPLETE, status="True")]
+        watcher.on_job_change({
+            'type': EventTypes.DELETED,
+            'object': job
+        })
+
+        watcher.on_job_succeeded.assert_not_called()
+        watcher.on_job_failed.assert_not_called()
+        mock_logging.debug.assert_called_with('Ignoring event DELETED')
 
     @patch('lando.k8s.watcher.ClusterApi')
     def test_on_job_change_with_ignored_conditions(self, mock_cluster_api):
@@ -64,7 +93,10 @@ class TestJobWatcher(TestCase):
             Mock(type=JobConditionType.FAILED, status="False"),
             Mock(type="other", status="True"),
         ]
-        watcher.on_job_change(job)
+        watcher.on_job_change({
+            'type': EventTypes.ADDED,
+            'object': job
+        })
 
         watcher.on_job_succeeded.assert_not_called()
         watcher.on_job_failed.assert_not_called()
@@ -81,7 +113,10 @@ class TestJobWatcher(TestCase):
             Mock(type=JobConditionType.COMPLETE, status="True"),
             Mock(type=JobConditionType.FAILED, status="True"),
         ]
-        watcher.on_job_change(job)
+        watcher.on_job_change({
+            'type': EventTypes.ADDED,
+            'object': job
+        })
 
         watcher.on_job_succeeded.assert_not_called()
         watcher.on_job_failed.assert_not_called()

@@ -10,9 +10,16 @@ class AccessModes(object):
     READ_ONLY_MANY = "ReadOnlyMany"
 
 
-class JobConditionType:
+class JobConditionType(object):
     COMPLETE = "Complete"
     FAILED = "Failed"
+
+
+class EventTypes(object):
+    ADDED = "ADDED"
+    MODIFIED = "MODIFIED"
+    DELETED = "DELETED"
+    ERROR = "ERROR"
 
 
 class ClusterApi(object):
@@ -55,15 +62,16 @@ class ClusterApi(object):
             spec=batch_job_spec.create())
         return self.batch.create_namespaced_job(self.namespace, body)
 
-    def wait_for_job_events(self, callback, label_selector=None, event_types=['ADDED']):
-        # The event type of ADDED is for this stream and not when the job was created.
-        # So if there is a running job and this method is called it will receive an ADDED event for that job.
+    def wait_for_job_events(self, callback, label_selector=None):
+        """
+        Run callback for job events that match the specified label selector and event types
+        :param callback: function: receives single parameter of the job
+        :param label_selector: label to filter by
+        :return:
+        """
         w = watch.Watch()
         for event in w.stream(self.batch.list_namespaced_job, self.namespace, label_selector=label_selector):
-            type = event['type']
-            job = event['object']
-            if type in event_types:
-                callback(job)
+            callback(event)
 
     def delete_job(self, name, propagation_policy='Background'):
         body = client.V1DeleteOptions(propagation_policy=propagation_policy)

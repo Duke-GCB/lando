@@ -1,4 +1,4 @@
-from lando.k8s.cluster import ClusterApi, JobConditionType
+from lando.k8s.cluster import ClusterApi, JobConditionType, EventTypes
 from lando.k8s.config import create_server_config
 from lando.k8s.jobmanager import JobLabels, JobStepTypes
 from lando_messaging.clients import LandoClient
@@ -53,7 +53,15 @@ class JobWatcher(object):
         self.cluster_api.wait_for_job_events(self.on_job_change,
                                              label_selector=bespin_job_label_selector)
 
-    def on_job_change(self, job):
+    def on_job_change(self, event):
+        # We only want ADDED or MODIFIED events. We need ADDED to pick up jobs that have 'Failed' or 'Completed'
+        # before we started watching. We need MODIFIED for jobs that 'Failed' or 'Completed' while we are watching.
+        if event['type'] in [EventTypes.ADDED, EventTypes.MODIFIED]:
+            self.on_job_added_or_modified(event['object'])
+        else:
+            logging.debug('Ignoring event {}'.format(event['type']))
+
+    def on_job_added_or_modified(self, job):
         bespin_job_id = job.metadata.labels.get(JobLabels.JOB_ID)
         bespin_job_step = job.metadata.labels.get(JobLabels.STEP_TYPE)
         if bespin_job_id and bespin_job_step:
