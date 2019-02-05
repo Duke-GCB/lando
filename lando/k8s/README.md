@@ -2,8 +2,14 @@
 This module provides support for running Bespin jobs via a k8s cluster. This consists of two services. 
 - `k8s.lando` which listens for messages and runs k8s jobs while updating bespin-api
 - `k8s.watcher` which watches the k8s job listing and updates lando when jobs have completed, and logs failed jobs
-
 This requires bespin-api, postgres, and rabbitmq services to be running as outlined in [External services](#external-services) below.
+
+### External Cloud Support
+This module is designed to allow running workflows on an external kubernetes cloud without permissions to connect directly to the bespin cluster(rabbitmq and bespin-api). Part of the responsibility of `k8s.watcher` is to poll the external k8s cloud for finished jobs and add messages to the rabbitmq queue for lando to continue running the workflow.
+For the local openstack cloud the lando worker directly posts these messages to the rabbitmq queue for lando so there is no need for this watcher.
+
+### Job Monitoring
+The `k8s.watcher` is also necessary to monitor jobs due to the way kubernetes jobs are created/retried in the background. The k8s api returns immediately even if the job may fail to run for some reason. So a k8s job may fail without running any code and cannot report back to `k8s.lando` that the job has failed. Lando does not watch these jobs directly due to it's responsibility to watch the rabbiitmq queue.
 
 ## Setup
 
@@ -20,7 +26,7 @@ Create a service account that will be used by k8s.lando to create jobs.
 oc create sa lando
 ```
 
-Give this account admin priv
+Give this account admin priv. This just just gives admin access to this namespace and not the whole cluster.
 ```
 oc create rolebinding lando-binding --clusterrole=admin --serviceaccount=lando-job-runner:lando
 ```
