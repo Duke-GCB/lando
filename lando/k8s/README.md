@@ -85,7 +85,6 @@ stage_data_settings:
     - python
     - -m
     - lando_util.download
-  env_dict:
   requested_cpu: 1
   requested_memory: 1G
 
