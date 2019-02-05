@@ -83,13 +83,13 @@ class TestClusterApi(TestCase):
     def test_wait_for_job_events(self, mock_watch):
         callback = Mock()
         mock_watch.Watch.return_value.stream.return_value = [
-            {'object': 'job1'},
-            {'object': 'job2'},
+            {'object': 'job1', 'type': 'ADDED'},
+            {'object': 'job2', 'type': 'ADDED'},
         ]
         self.cluster_api.wait_for_job_events(callback)
         callback.assert_has_calls([
-            call('job1'),
-            call('job2'),
+            call({'object': 'job1', 'type': 'ADDED'}),
+            call({'object': 'job2', 'type': 'ADDED'}),
         ])
         args, kwargs = mock_watch.Watch.return_value.stream.call_args
         self.assertEqual(args[1], 'lando-job-runner')
