@@ -6,7 +6,7 @@ This module provides support for running Bespin jobs via a k8s cluster. This con
 This requires bespin-api, postgres, and rabbitmq services to be running as outlined in [External services](#external-services) below.
 
 ### External Cloud Support
-This module is designed to allow running workflows on an external kubernetes cloud without permissions to connect directly to the bespin cluster(rabbitmq and bespin-api). Part of the responsibility of `k8s.watcher` is to poll the external k8s cloud for finished jobs and add messages to the rabbitmq queue for lando to continue running the workflow.
+This module is designed to allow running workflows on an external kubernetes cloud without permissions to connect directly to the bespin cluster(rabbitmq and bespin-api). This allows the main application (bespin-api, rabbit, etc) to run on a private network while we can utilize an external k8s cluster for computation purposes. Part of the responsibility of `k8s.watcher` is to poll the external k8s cloud for finished jobs and add messages to the rabbitmq queue for lando to continue running the workflow.
 For the local openstack cloud the lando worker directly posts these messages to the rabbitmq queue for lando so there is no need for this watcher.
 
 ### Job Monitoring
