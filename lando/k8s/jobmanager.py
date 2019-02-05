@@ -332,7 +332,7 @@ class JobManager(object):
 class Names(object):
     def __init__(self, job):
         job_id = job.id
-        suffix = '{}-{}'.format(job.id, job.username)
+        suffix = '{}-{}'.format(job.id, job.username).replace('@', '_')
         # Volumes
         self.job_data = 'job-data-{}'.format(suffix)
         self.output_data = 'output-data-{}'.format(suffix)
