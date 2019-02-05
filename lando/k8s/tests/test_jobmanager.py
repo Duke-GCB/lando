@@ -432,6 +432,29 @@ class TestNames(TestCase):
         self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
         self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
 
+    def test_strips_username_after_at_sign(self):
+        mock_job = Mock(username='tom@tom.com', workflow=Mock(url='https://somewhere.com/someworkflow.cwl'))
+        mock_job.id = '123'
+        names = Names(mock_job)
+        self.assertEqual(names.job_data, 'job-data-123-tom')
+        self.assertEqual(names.output_data, 'output-data-123-tom')
+        self.assertEqual(names.tmpout, 'tmpout-123-tom')
+        self.assertEqual(names.tmp, 'tmp-123-tom')
+
+        self.assertEqual(names.stage_data, 'stage-data-123-tom')
+        self.assertEqual(names.run_workflow, 'run-workflow-123-tom')
+        self.assertEqual(names.organize_output, 'organize-output-123-tom')
+        self.assertEqual(names.save_output, 'save-output-123-tom')
+
+        self.assertEqual(names.user_data, 'user-data-123-tom')
+        self.assertEqual(names.data_store_secret, 'data-store-123-tom')
+        self.assertEqual(names.output_project_name, 'Bespin-job-123-results')
+        self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
+        self.assertEqual(names.system_data, 'system-data-123-tom')
+        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
+
 
 class TestStageDataConfig(TestCase):
     def test_constructor(self):
