@@ -2,6 +2,8 @@ from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume,
     ConfigMapVolume, Container, FieldRefEnvVar
 import json
 import os
+import re
+
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
 TMP_VOLUME_SIZE_IN_G = 1
@@ -332,7 +334,8 @@ class JobManager(object):
 class Names(object):
     def __init__(self, job):
         job_id = job.id
-        suffix = '{}-{}'.format(job.id, job.username)
+        stripped_username = re.sub(r'@.*', '', job.username)
+        suffix = '{}-{}'.format(job.id, stripped_username)
         # Volumes
         self.job_data = 'job-data-{}'.format(suffix)
         self.output_data = 'output-data-{}'.format(suffix)
