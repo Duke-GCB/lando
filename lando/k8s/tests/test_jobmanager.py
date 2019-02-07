@@ -254,7 +254,7 @@ class TestJobManager(TestCase):
                         "destination_dir": "/bespin/output-data/results",
                         "workflow_path": "/bespin/job-data/workflow/someurl",
                         "job_order_path": "/bespin/job-data/job-order.json",
-                        "job_data_path": "TODO",
+                        "job_data_path": "/dev/null",
                         "bespin_workflow_stdout_path": "/bespin/output-data/bespin-workflow-output.json",
                         "bespin_workflow_stderr_path": "/bespin/output-data/bespin-workflow-output.log",
                         "methods_template": "markdown"

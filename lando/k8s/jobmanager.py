@@ -236,7 +236,7 @@ class JobManager(object):
             "destination_dir": Paths.OUTPUT_RESULTS_DIR,
             "workflow_path": self.names.workflow_path,
             "job_order_path": self.names.job_order_path,
-            "job_data_path": "TODO",
+            "job_data_path": "/dev/null",
             "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
             "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
             "methods_template": methods_document_content,
