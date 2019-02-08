@@ -109,7 +109,6 @@ class ClusterApi(object):
         return self.core.list_namespaced_config_map(self.namespace, label_selector=label_selector).items
 
 
-
 class Container(object):
     def __init__(self, name, image_name, command, args=[], working_dir=None, env_dict={},
                  requested_cpu=None, requested_memory=None, volumes=[]):

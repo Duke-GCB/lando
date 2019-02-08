@@ -327,7 +327,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
         self.assertEqual(job_container.args,
-                         ['/bespin/config/saveoutput.json', '/tmp/project_details.json'],
+                         ['/bespin/config/saveoutput.json', '/bespin/job-data/project_details.json'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -341,7 +341,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.mount_path, '/bespin/job-data')
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
-        self.assertEqual(job_data_volume.read_only, True)
+        self.assertEqual(job_data_volume.read_only, False)
 
         job_data_volume = job_container.volumes[1]
         self.assertEqual(job_data_volume.name, 'output-data-51-jpb')
@@ -396,16 +396,6 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_job.assert_called_with('job_1')
         mock_cluster_api.delete_config_map.assert_called_with('config_map_1')
         mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
-
-    def test_read_save_output_project_details(self):
-        # NOTE: This is just a placeholder for a real test until a good method to fetch project details is implemented.
-        mock_cluster_api = Mock()
-        mock_config = Mock(storage_class_name='nfs')
-
-        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
-        details = manager.read_save_output_project_details()
-
-        self.assertEqual(details, {"project_id": "TODO", "readme_file_id": "TODO"})
 
 
 class TestNames(TestCase):
@@ -506,4 +496,3 @@ class TestSaveOutputConfig(TestCase):
         self.assertEqual(config.command, mock_config.save_output_settings.command)
         self.assertEqual(config.requested_cpu, mock_config.save_output_settings.requested_cpu)
         self.assertEqual(config.requested_memory, mock_config.save_output_settings.requested_memory)
-        self.assertEqual(config.project_details_path, '/tmp/project_details.json')

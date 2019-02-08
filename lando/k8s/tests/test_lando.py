@@ -209,19 +209,43 @@ class TestK8sJobActions(TestCase):
         actions._show_status = Mock()
         k8s_job = Mock()
         k8s_job.metadata.name = 'job-45-john'
-        mock_manager.create_save_output_job.return_value = k8s_job
-        mock_manager.read_save_output_project_details.return_value = {
-            "project_id": "1",
-            "readme_file_id": "2"
-        }
+        mock_manager.create_record_output_project_job.return_value = k8s_job
 
         actions.store_job_output_complete(None)
 
         mock_manager.cleanup_save_output_job.assert_called_with()
         actions._show_status.assert_has_calls([
-            call('Marking job finished'),
+            call('Creating record output project job'),
+            call('Launched record output project job: job-45-john'),
         ])
-        self.mock_job_api.save_project_details.assert_called_with('1', '2')
+        self.mock_job_api.set_job_step.assert_called_with(JobSteps.RECORD_OUTPUT_PROJECT)
+
+    @patch('lando.k8s.lando.JobManager')
+    @patch('lando.k8s.lando.logging')
+    def test_record_output_project_complete_ignores_wrong_state_step(self, mock_logging, mock_job_manager):
+        self.mock_job.state = JobStates.RUNNING
+        self.mock_job.step = JobSteps.NONE
+        actions = self.create_actions()
+
+        actions.record_output_project_complete(None)
+
+        mock_logging.info.assert_called_with("Ignoring request to cleanup for job:49 wrong step/state")
+        self.mock_job_api._set_job_step.assert_not_called()
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_record_output_project_complete(self, mock_job_manager):
+        mock_manager = mock_job_manager.return_value
+        self.mock_job.state = JobStates.RUNNING
+        self.mock_job.step = JobSteps.RECORD_OUTPUT_PROJECT
+        actions = self.create_actions()
+        actions._show_status = Mock()
+        mock_manager.read_record_output_project_details.return_value = '123', '456'
+
+        actions.record_output_project_complete(None)
+
+        mock_manager.cleanup_record_output_project_job.assert_called_with()
+        self.mock_job_api.save_project_details.assert_called_with('123', '456')
+        self.mock_job_api.set_job_step.assert_called_with(JobSteps.NONE)
 
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_when_canceled_starts_from_beginning(self, mock_job_manager):

@@ -21,6 +21,7 @@ class JobStepTypes(object):
     RUN_WORKFLOW = "run_workflow"
     ORGANIZE_OUTPUT = "organize_output"
     SAVE_OUTPUT = "save_output"
+    RECORD_OUTPUT_PROJECT = "record_output_project"
 
 
 class JobManager(object):
@@ -259,7 +260,7 @@ class JobManager(object):
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
-                                  read_only=True),
+                                  read_only=False),
             PersistentClaimVolume(self.names.output_data,
                                   mount_path=Paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
@@ -277,7 +278,7 @@ class JobManager(object):
             name=self.names.save_output,
             image_name=save_output_config.image_name,
             command=save_output_config.command,
-            args=[save_output_config.path, save_output_config.project_details_path],
+            args=[save_output_config.path, self.names.project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
@@ -302,17 +303,51 @@ class JobManager(object):
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
-    def read_save_output_project_details(self):
-        return {
-            "project_id": "TODO",
-            "readme_file_id": "TODO",
-        }
-
     def cleanup_save_output_job(self):
         self.cluster_api.delete_job(self.names.save_output)
         self.cluster_api.delete_config_map(self.names.save_output)
         self.cluster_api.delete_persistent_volume_claim(self.names.job_data)
         self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
+
+    def create_record_output_project_job(self):
+        config = RecordOutputProjectConfig(self.job, self.config)
+        volumes = [
+            PersistentClaimVolume(self.names.job_data,
+                                  mount_path=Paths.JOB_DATA,
+                                  volume_claim_name=self.names.job_data,
+                                  read_only=True),
+        ]
+        container = Container(
+            name=self.names.record_output_project,
+            image_name=config.image_name,
+            command=["kubectl"],
+            args=["annotate", "job", "$(MY_POD_NAME)", "-f", self.names.project_details_path],
+            working_dir=Paths.OUTPUT_RESULTS_DIR,
+            env_dict={"MY_POD_NAME": FieldRefEnvVar(field_path="metadata.name")},
+            volumes=volumes)
+        labels = self.make_job_labels(JobStepTypes.RECORD_OUTPUT_PROJECT)
+        job_spec = BatchJobSpec(self.names.record_output_project,
+                                container=container,
+                                labels=labels)
+        return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
+
+    def read_record_output_project_details(self):
+        job_step_selector='{},{}={}'.format(self.label_selector,
+                                            JobLabels.STEP_TYPE, JobStepTypes.RECORD_OUTPUT_PROJECT)
+        pods = self.cluster_api.list_pods(label_selector=job_step_selector)
+        if len(pods) != 1:
+            raise ValueError("Incorrect number of pods for record output step: {}".format(len(pods)))
+        annotations = pods[0].metadata.annotations
+        project_id = annotations.get('project_id')
+        if project_id:
+            raise ValueError("Missing project_id in pod metadata:{}".format(pods[0].metadata.name))
+        readme_file_id = annotations.get('readme_file_id')
+        if readme_file_id:
+            raise ValueError("Missing readme_file_id in pod metadata:{}".format(pods[0].metadata.name))
+        return project_id, readme_file_id
+
+    def cleanup_record_output_project_job(self):
+        pass
 
     def cleanup_all(self):
         self.cleanup_jobs_and_config_maps()
@@ -347,6 +382,7 @@ class Names(object):
         self.run_workflow = 'run-workflow-{}'.format(suffix)
         self.organize_output = 'organize-output-{}'.format(suffix)
         self.save_output = 'save-output-{}'.format(suffix)
+        self.record_output_project = 'record-output-project-{}'.format(suffix)
 
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
@@ -356,6 +392,7 @@ class Names(object):
         self.system_data = 'system-data-{}'.format(suffix)
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
+        self.project_details_path = '{}/project_details.json'.format(Paths.JOB_DATA)
 
 
 class Paths(object):
@@ -417,10 +454,19 @@ class SaveOutputConfig(object):
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
-        self.project_details_path = '{}/project_details.json'.format(Paths.PROJECT_DETAILS_DIR)
 
         save_output_settings = config.save_output_settings
         self.image_name = save_output_settings.image_name
         self.command = save_output_settings.command
         self.requested_cpu = save_output_settings.requested_cpu
         self.requested_memory = save_output_settings.requested_memory
+
+
+class RecordOutputProjectConfig(object):
+    def __init__(self, job, config):
+        # job parameter is not used but is here to allow future customization based on job
+
+        record_output_project_settings = config.record_output_project_settings
+        self.image_name = record_output_project_settings.image_name
+        self.project_id_fieldname = 'project_id'
+        self.readme_file_id_fieldname = 'readme_file_id'
