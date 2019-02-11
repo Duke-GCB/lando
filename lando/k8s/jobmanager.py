@@ -260,11 +260,11 @@ class JobManager(object):
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
-                                  read_only=False),
+                                  read_only=True),
             PersistentClaimVolume(self.names.output_data,
                                   mount_path=Paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
-                                  read_only=True),
+                                  read_only=False),  # writable so we can write project_details file
             ConfigMapVolume(self.names.stage_data,
                             mount_path=Paths.CONFIG_DIR,
                             config_map_name=self.names.save_output,
@@ -312,9 +312,9 @@ class JobManager(object):
     def create_record_output_project_job(self):
         config = RecordOutputProjectConfig(self.job, self.config)
         volumes = [
-            PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
-                                  volume_claim_name=self.names.job_data,
+            PersistentClaimVolume(self.names.output_data,
+                                  mount_path=Paths.OUTPUT_DATA,
+                                  volume_claim_name=self.names.output_data,
                                   read_only=True),
         ]
         container = Container(
@@ -392,7 +392,7 @@ class Names(object):
         self.system_data = 'system-data-{}'.format(suffix)
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
-        self.project_details_path = '{}/project_details.json'.format(Paths.JOB_DATA)
+        self.project_details_path = '{}/project_details.json'.format(Paths.OUTPUT_DATA)
 
 
 class Paths(object):

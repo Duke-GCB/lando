@@ -327,7 +327,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
         self.assertEqual(job_container.args,
-                         ['/bespin/config/saveoutput.json', '/bespin/job-data/project_details.json'],
+                         ['/bespin/config/saveoutput.json', '/bespin/output-data/project_details.json'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -341,13 +341,13 @@ class TestJobManager(TestCase):
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.mount_path, '/bespin/job-data')
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
-        self.assertEqual(job_data_volume.read_only, False)
+        self.assertEqual(job_data_volume.read_only, True)
 
         job_data_volume = job_container.volumes[1]
         self.assertEqual(job_data_volume.name, 'output-data-51-jpb')
         self.assertEqual(job_data_volume.mount_path, '/bespin/output-data')
         self.assertEqual(job_data_volume.volume_claim_name, 'output-data-51-jpb')
-        self.assertEqual(job_data_volume.read_only, True)
+        self.assertEqual(job_data_volume.read_only, False)
 
         config_map_volume = job_container.volumes[2]
         self.assertEqual(config_map_volume.name, 'stage-data-51-jpb')
