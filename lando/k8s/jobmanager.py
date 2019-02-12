@@ -328,7 +328,7 @@ class JobManager(object):
         job_spec = BatchJobSpec(self.names.record_output_project,
                                 container=container,
                                 labels=labels)
-        return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
+        return self.cluster_api.create_job(self.names.record_output_project, job_spec, labels=labels)
 
     def read_record_output_project_details(self):
         job_step_selector='{},{}={}'.format(self.label_selector,
