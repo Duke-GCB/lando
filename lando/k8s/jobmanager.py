@@ -307,7 +307,6 @@ class JobManager(object):
         self.cluster_api.delete_job(self.names.save_output)
         self.cluster_api.delete_config_map(self.names.save_output)
         self.cluster_api.delete_persistent_volume_claim(self.names.job_data)
-        self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
 
     def create_record_output_project_job(self):
         config = RecordOutputProjectConfig(self.job, self.config)
@@ -347,7 +346,8 @@ class JobManager(object):
         return project_id, readme_file_id
 
     def cleanup_record_output_project_job(self):
-        pass
+        self.cluster_api.delete_job(self.names.record_output_project)
+        self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
 
     def cleanup_all(self):
         self.cleanup_jobs_and_config_maps()

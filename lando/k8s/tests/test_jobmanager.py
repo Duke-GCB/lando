@@ -362,7 +362,6 @@ class TestJobManager(TestCase):
         self.assertEqual(secret_volume.secret_name, mock_config.data_store_settings.secret_name,
                          'name of DukeDS secret is based on a config setting')
 
-
     def test_cleanup_save_output_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
@@ -373,7 +372,7 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_job.assert_called_with('save-output-51-jpb')
         mock_cluster_api.delete_config_map.assert_called_with('save-output-51-jpb')
         mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
-            call('job-data-51-jpb'), call('output-data-51-jpb')
+            call('job-data-51-jpb'),
         ], 'delete job data and output data volumes once running workflow completes')
 
     def test_cleanup_all(self):
