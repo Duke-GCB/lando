@@ -338,11 +338,11 @@ class JobManager(object):
             raise ValueError("Incorrect number of pods for record output step: {}".format(len(pods)))
         annotations = pods[0].metadata.annotations
         project_id = annotations.get('project_id')
-        if project_id:
-            raise ValueError("Missing project_id in pod metadata:{}".format(pods[0].metadata.name))
+        if not project_id:
+            raise ValueError("Missing project_id in pod annotations: {}".format(pods[0].metadata.name))
         readme_file_id = annotations.get('readme_file_id')
-        if readme_file_id:
-            raise ValueError("Missing readme_file_id in pod metadata:{}".format(pods[0].metadata.name))
+        if not readme_file_id:
+            raise ValueError("Missing readme_file_id in pod annotations: {}".format(pods[0].metadata.name))
         return project_id, readme_file_id
 
     def cleanup_record_output_project_job(self):
