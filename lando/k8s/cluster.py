@@ -87,14 +87,13 @@ class ClusterApi(object):
     def delete_config_map(self, name):
         self.core.delete_namespaced_config_map(name, self.namespace, body=client.V1DeleteOptions())
 
-    def read_pod_logs(self, name, container):
+    def read_pod_logs(self, name):
         # The read_namespaced_pod_log method by default performs some formatting on the data
         # This can cause double quotes to change to single quotes and other unexpected formatting.
         # So instead we are using the _preload_content flag and calling read() based on the following comment:
         # https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
         # This changes the returned value so we must add an additional call to read()
-        return self.core.read_namespaced_pod_log(name, self.namespace, container=container,
-                                                 _preload_content=False).read()
+        return self.core.read_namespaced_pod_log(name, self.namespace, _preload_content=False).read()
 
     def list_pods(self, label_selector):
         return self.core.list_namespaced_pod(self.namespace, label_selector=label_selector).items
