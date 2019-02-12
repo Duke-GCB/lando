@@ -320,7 +320,7 @@ class JobManager(object):
             name=self.names.record_output_project,
             image_name=config.image_name,
             command=["kubectl"],
-            args=["annotate", "job", "$(MY_POD_NAME)", "-f", self.names.project_details_path],
+            args=["annotate", "job", "${MY_POD_NAME}", "-f", self.names.project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict={"MY_POD_NAME": FieldRefEnvVar(field_path="metadata.name")},
             volumes=volumes)
