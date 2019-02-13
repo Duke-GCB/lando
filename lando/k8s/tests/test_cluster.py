@@ -362,3 +362,15 @@ class TestBatchJobSpec(TestCase):
         spec_dict = spec.create().to_dict()
         self.assertEqual(spec_dict['template']['metadata']['name'], 'mybatchspec')
         self.assertEqual(spec_dict['template']['spec']['containers'], [container.create().to_dict()])
+
+    def test_create_with_service_account_name(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l']
+        )
+        spec = BatchJobSpec(name='mybatch', container=container,
+                            labels={'service': 'bespin'},
+                            service_account_name='sa-name')
+        spec_dict = spec.create().to_dict()
+        self.assertEqual(spec_dict['template']['metadata']['name'], 'mybatchspec')
+        self.assertEqual(spec_dict['template']['spec']['containers'], [container.create().to_dict()])
+        self.assertEqual(spec_dict['template']['spec']['service_account_name'], 'sa-name')
