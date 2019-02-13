@@ -278,7 +278,7 @@ class JobManager(object):
             name=self.names.save_output,
             image_name=save_output_config.image_name,
             command=save_output_config.command,
-            args=[save_output_config.path, self.names.project_details_path],
+            args=[save_output_config.path, self.names.annotate_project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
@@ -319,15 +319,16 @@ class JobManager(object):
         container = Container(
             name=self.names.record_output_project,
             image_name=config.image_name,
-            command=["kubectl"],
-            args=["annotate", "job", "${MY_POD_NAME}", "-f", self.names.project_details_path],
+            command=["sh"],
+            args=[self.names.annotate_project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict={"MY_POD_NAME": FieldRefEnvVar(field_path="metadata.name")},
             volumes=volumes)
         labels = self.make_job_labels(JobStepTypes.RECORD_OUTPUT_PROJECT)
         job_spec = BatchJobSpec(self.names.record_output_project,
                                 container=container,
-                                labels=labels)
+                                labels=labels,
+                                service_account_name=config.service_account_name)
         return self.cluster_api.create_job(self.names.record_output_project, job_spec, labels=labels)
 
     def read_record_output_project_details(self):
@@ -392,7 +393,7 @@ class Names(object):
         self.system_data = 'system-data-{}'.format(suffix)
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
-        self.project_details_path = '{}/project_details.json'.format(Paths.OUTPUT_DATA)
+        self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
 
 
 class Paths(object):
@@ -468,5 +469,6 @@ class RecordOutputProjectConfig(object):
 
         record_output_project_settings = config.record_output_project_settings
         self.image_name = record_output_project_settings.image_name
+        self.service_account_name = record_output_project_settings.service_account_name
         self.project_id_fieldname = 'project_id'
         self.readme_file_id_fieldname = 'readme_file_id'

@@ -49,7 +49,7 @@ class ServerConfig(object):
             get_or_raise_config_exception(data, 'save_output_settings')
         )
         # settings for recording output project details
-        self.record_output_project_settings = ImageSettings(
+        self.record_output_project_settings = RecordOutputProjectSettings(
             get_or_raise_config_exception(data, 'record_output_project_settings')
         )
         self.storage_class_name = data.get('storage_class_name', None)
@@ -63,9 +63,10 @@ class ClusterApiSettings(object):
         self.verify_ssl = data.get('verify_ssl', True)
 
 
-class ImageSettings(object):
+class RecordOutputProjectSettings(object):
     def __init__(self, data):
         self.image_name = get_or_raise_config_exception(data, 'image_name')
+        self.service_account_name = get_or_raise_config_exception(data, 'service_account_name')
 
 
 class ImageCommandSettings(object):

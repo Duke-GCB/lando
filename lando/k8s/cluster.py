@@ -262,10 +262,11 @@ class EmptyDirVolume(VolumeBase):
 
 
 class BatchJobSpec(object):
-    def __init__(self, name, container, labels={}):
+    def __init__(self, name, container, service_account_name=None, labels={}):
         self.name = name
         self.pod_restart_policy = RESTART_POLICY
         self.container = container
+        self.service_account_name = service_account_name
         self.labels = labels
 
     def create(self):
@@ -282,6 +283,7 @@ class BatchJobSpec(object):
             containers=self.create_containers(),
             volumes=self.create_volumes(),
             restart_policy=RESTART_POLICY,
+            service_account_name=self.service_account_name,
         )
 
     def create_containers(self):

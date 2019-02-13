@@ -327,7 +327,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, mock_config.save_output_settings.command,
                          'save output command is based on a config setting')
         self.assertEqual(job_container.args,
-                         ['/bespin/config/saveoutput.json', '/bespin/output-data/project_details.json'],
+                         ['/bespin/config/saveoutput.json', '/bespin/output-data/annotate_project_details.sh'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -378,6 +378,7 @@ class TestJobManager(TestCase):
     def test_create_record_output_project_job(self):
         mock_cluster_api = Mock()
         mock_config = Mock(storage_class_name='nfs')
+        mock_config.record_output_project_settings.service_account_name = 'annotation-writer-sa'
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.create_record_output_project_job()
@@ -386,17 +387,17 @@ class TestJobManager(TestCase):
         name, batch_spec = args
         self.assertEqual(name, 'record-output-project-51-jpb')  # job name
         self.assertEqual(batch_spec.name, 'record-output-project-51-jpb')  # job spec name
+        self.assertEqual(batch_spec.service_account_name, 'annotation-writer-sa')  # service account to use for the job
         self.assertEqual(batch_spec.labels['bespin-job-id'], '51')  # Bespin job id stored in a label
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'record_output_project')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'record-output-project-51-jpb')  # container name
         self.assertEqual(job_container.image_name, mock_config.record_output_project_settings.image_name,
                          'record output project image name is based on a config setting')
-        self.assertEqual(job_container.command, ['kubectl'],
-                         'record output project command is kubectl')
-        self.assertEqual(job_container.args,
-                         ['annotate', 'job', '${MY_POD_NAME}', '-f', '/bespin/output-data/project_details.json'],
-                         'record output project should create annotations based on project details file')
+        self.assertEqual(job_container.command, ['sh'],
+                         'record output project base command is sh')
+        self.assertEqual(job_container.args, ['/bespin/output-data/annotate_project_details.sh'],
+                         'runs annotate_project_details script')
         self.assertEqual(job_container.env_dict['MY_POD_NAME'].field_path, 'metadata.name',
                          'record output project receives pod name in MY_POD_NAME')
         self.assertEqual(len(job_container.volumes), 1)
