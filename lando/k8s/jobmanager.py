@@ -293,6 +293,7 @@ class JobManager(object):
     def _create_save_output_config_map(self, name, filename, share_dds_ids):
         config_data = {
             "destination": self.names.output_project_name,
+            "readme_file_path": Paths.REMOTE_README_FILE_PATH,
             "paths": [Paths.OUTPUT_RESULTS_DIR],
             "share": {
                 "dds_user_ids": share_dds_ids
@@ -406,6 +407,7 @@ class Paths(object):
     TMPOUT_DATA = '/bespin/tmpout'
     TMP = '/tmp'
     PROJECT_DETAILS_DIR = '/tmp'
+    REMOTE_README_FILE_PATH = 'results/docs/README.md'
 
 
 class StageDataConfig(object):
