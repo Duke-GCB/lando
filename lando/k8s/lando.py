@@ -229,7 +229,7 @@ class K8sJobActions(BaseJobActions):
 
     def _job_step_failed(self, message, payload):
         self._set_job_state(JobStates.ERRORED)
-        self._show_status("Storing job output failed")
+        self._show_status(message)
         self._log_error(message=payload.message)
 
 

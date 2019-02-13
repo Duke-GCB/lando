@@ -1,5 +1,4 @@
 from lando.k8s.lando import K8sJobSettings, K8sJobActions, K8sLando, JobStates, JobSteps
-import json
 from unittest import TestCase
 from unittest.mock import patch, Mock, call
 
@@ -288,7 +287,6 @@ class TestK8sJobActions(TestCase):
         self.mock_job_api.set_job_state.assert_called_with(JobStates.RUNNING)
         actions.run_workflow_job.assert_called_with()
 
-
     @patch('lando.k8s.lando.JobManager')
     def test_restart_job_continues_organizing_output_project(self, mock_job_manager):
         mock_manager = mock_job_manager.return_value
@@ -341,6 +339,31 @@ class TestK8sJobActions(TestCase):
         self.assertEqual(actions.bespin_job.state, JobStates.CANCELED)
         mock_manager.cleanup_all.assert_called_with()
 
+    def test_record_output_project_error(self):
+        actions = self.create_actions()
+        actions._show_status = Mock()
+        actions._log_error = Mock()
+        actions.record_output_project_error(Mock(message='Oops'))
+        self.mock_job_api.set_job_state.assert_called_with(JobStates.ERRORED)
+        actions._show_status.assert_called_with('Recording output project failed')
+        actions._log_error.assert_called_with(message='Oops')
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_organize_output_project(self, mock_job_manager):
+        actions = self.create_actions()
+        self.mock_job_api.get_workflow_methods_document.return_value = Mock(content='abc')
+        actions.organize_output_project()
+        mock_job_manager.return_value.create_organize_output_project_job.assert_called_with(
+            'abc'
+        )
+
+    @patch('lando.k8s.lando.JobManager')
+    def test_organize_output_project_with_no_methods_document(self, mock_job_manager):
+        actions = self.create_actions()
+        self.mock_job_api.get_workflow_methods_document.return_value = None
+        actions.organize_output_project()
+        mock_job_manager.return_value.create_organize_output_project_job.assert_called_with(None)
+
 
 class TestK8sLando(TestCase):
     @patch('lando.k8s.lando.ClusterApi')
@@ -352,3 +375,12 @@ class TestK8sLando(TestCase):
         lando = K8sLando(mock_config)
         job_actions = lando._make_actions(job_id=2)
         self.assertEqual(job_actions.__class__.__name__, 'K8sJobActions')
+
+    @patch('lando.k8s.lando.MessageRouter')
+    def test_listen_for_messages(self, mock_message_router):
+        mock_config = Mock()
+        lando = K8sLando(mock_config)
+        lando.listen_for_messages()
+        mock_message_router.make_k8s_lando_router.assert_called_with(
+            mock_config, lando, mock_config.work_queue_config.listen_queue
+        )
