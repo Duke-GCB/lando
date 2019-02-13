@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
 from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
-    OrganizeOutputConfig, SaveOutputConfig
+    OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig
 import json
 
 
@@ -588,3 +588,13 @@ class TestSaveOutputConfig(TestCase):
         self.assertEqual(config.command, mock_config.save_output_settings.command)
         self.assertEqual(config.requested_cpu, mock_config.save_output_settings.requested_cpu)
         self.assertEqual(config.requested_memory, mock_config.save_output_settings.requested_memory)
+
+
+class TestRecordOutputProjectConfig(TestCase):
+    def test_constructor(self):
+        mock_config = Mock()
+        config = RecordOutputProjectConfig(job=None, config=mock_config)
+        self.assertEqual(config.image_name, mock_config.record_output_project_settings.image_name)
+        self.assertEqual(config.service_account_name, mock_config.record_output_project_settings.service_account_name)
+        self.assertEqual(config.project_id_fieldname, 'project_id')
+        self.assertEqual(config.readme_file_id_fieldname, 'readme_file_id')
