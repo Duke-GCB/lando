@@ -504,6 +504,7 @@ class TestNames(TestCase):
         self.assertEqual(names.run_workflow, 'run-workflow-123-jpb')
         self.assertEqual(names.organize_output, 'organize-output-123-jpb')
         self.assertEqual(names.save_output, 'save-output-123-jpb')
+        self.assertEqual(names.record_output_project, 'record-output-project-123-jpb')
 
         self.assertEqual(names.user_data, 'user-data-123-jpb')
         self.assertEqual(names.data_store_secret, 'data-store-123-jpb')
@@ -513,6 +514,7 @@ class TestNames(TestCase):
         self.assertEqual(names.system_data, 'system-data-123-jpb')
         self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
         self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
+        self.assertEqual(names.annotate_project_details_path, '/bespin/output-data/annotate_project_details.sh')
 
     def test_strips_username_after_at_sign(self):
         mock_job = Mock(username='tom@tom.com', workflow=Mock(url='https://somewhere.com/someworkflow.cwl'))
