@@ -157,12 +157,24 @@ class TestJobWatcher(TestCase):
         self.assertEqual(payload.success_command, JobCommands.STORE_JOB_OUTPUT_COMPLETE)
 
     @patch('lando.k8s.watcher.ClusterApi')
+    def test_on_job_succeeded_record_output(self, mock_cluster_api):
+        watcher = JobWatcher(config=Mock())
+        watcher.lando_client = Mock()
+
+        watcher.on_job_succeeded('31', JobStepTypes.RECORD_OUTPUT_PROJECT)
+        watcher.lando_client.job_step_store_output_complete.assert_not_called()
+        payload = watcher.lando_client.job_step_complete.call_args[0][0]
+        self.assertEqual(payload.job_id, '31')
+        self.assertEqual(payload.success_command, JobCommands.RECORD_OUTPUT_PROJECT_COMPLETE)
+
+    @patch('lando.k8s.watcher.ClusterApi')
     def test_on_job_failed(self, mock_cluster_api):
         mock_cluster_api.return_value.read_pod_logs.return_value = "Error details"
         watcher = JobWatcher(config=Mock())
         watcher.lando_client = Mock()
 
         watcher.on_job_failed('myjob', '31', JobStepTypes.STAGE_DATA)
+        mock_cluster_api.return_value.read_pod_logs.assert_called_with('myjob')
         payload = watcher.lando_client.job_step_error.call_args[0][0]
         message = watcher.lando_client.job_step_error.call_args[0][1]
         self.assertEqual(payload.job_id, '31')
@@ -194,6 +206,20 @@ class TestJobWatcher(TestCase):
         message = watcher.lando_client.job_step_error.call_args[0][1]
         self.assertEqual(payload.job_id, '31')
         self.assertEqual(payload.error_command, JobCommands.STORE_JOB_OUTPUT_ERROR)
+        self.assertEqual(message, 'Error details')
+
+    @patch('lando.k8s.watcher.ClusterApi')
+    def test_on_job_failed_record_output(self, mock_cluster_api):
+        mock_cluster_api.return_value.read_pod_logs.return_value = "Error details"
+        watcher = JobWatcher(config=Mock())
+        watcher.lando_client = Mock()
+
+        watcher.on_job_failed('myjob', '31', JobStepTypes.RECORD_OUTPUT_PROJECT)
+
+        payload = watcher.lando_client.job_step_error.call_args[0][0]
+        message = watcher.lando_client.job_step_error.call_args[0][1]
+        self.assertEqual(payload.job_id, '31')
+        self.assertEqual(payload.error_command, JobCommands.RECORD_OUTPUT_PROJECT_ERROR)
         self.assertEqual(message, 'Error details')
 
     @patch('lando.k8s.watcher.ClusterApi')

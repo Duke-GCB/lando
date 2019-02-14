@@ -137,10 +137,9 @@ class TestClusterApi(TestCase):
     def test_read_pod_logs(self):
         # Added _preload_content argument to allow fetching actual text instead of parsed
         # based on https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
-        resp = self.cluster_api.read_pod_logs('mypod', container='mycontainer')
+        resp = self.cluster_api.read_pod_logs('mypod')
         self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
         self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
-                                                                      container='mycontainer',
                                                                       _preload_content=False)
 
     def test_list_pods(self):
@@ -363,3 +362,15 @@ class TestBatchJobSpec(TestCase):
         spec_dict = spec.create().to_dict()
         self.assertEqual(spec_dict['template']['metadata']['name'], 'mybatchspec')
         self.assertEqual(spec_dict['template']['spec']['containers'], [container.create().to_dict()])
+
+    def test_create_with_service_account_name(self):
+        container = Container(
+            name='mycontainer', image_name='someimage', command=['wc', '-l']
+        )
+        spec = BatchJobSpec(name='mybatch', container=container,
+                            labels={'service': 'bespin'},
+                            service_account_name='sa-name')
+        spec_dict = spec.create().to_dict()
+        self.assertEqual(spec_dict['template']['metadata']['name'], 'mybatchspec')
+        self.assertEqual(spec_dict['template']['spec']['containers'], [container.create().to_dict()])
+        self.assertEqual(spec_dict['template']['spec']['service_account_name'], 'sa-name')

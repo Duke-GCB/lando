@@ -1,10 +1,10 @@
 import logging
-import json
 import sys
 from lando.server.lando import Lando, JobStates, JobSteps, JobSettings, BaseJobActions
 from lando.k8s.cluster import ClusterApi
 from lando.k8s.jobmanager import JobManager
 from lando.k8s.config import create_server_config
+from lando_messaging.messaging import MessageRouter
 
 
 class K8sJobSettings(JobSettings):
@@ -97,7 +97,10 @@ class K8sJobActions(BaseJobActions):
         self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
         self._show_status("Creating organize output project job")
         methods_document = self.job_api.get_workflow_methods_document(self.bespin_job.workflow.methods_document)
-        job = self.manager.create_organize_output_project_job(methods_document.content)
+        methods_content = None
+        if methods_document:
+            methods_content = methods_document.content
+        job = self.manager.create_organize_output_project_job(methods_content)
         self._show_status("Launched organize output project job: {}".format(job.metadata.name))
 
     def organize_output_complete(self, payload):
@@ -127,23 +130,28 @@ class K8sJobActions(BaseJobActions):
             logging.info("Ignoring request to cleanup for job:{} wrong step/state".format(self.job_id))
             return
 
-        self.record_output_project_info()
-
         self.manager.cleanup_save_output_job()
-        self._show_status("Marking job finished")
-        self._set_job_step(JobSteps.NONE)
-        self._set_job_state(JobStates.FINISHED)
+        self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
+        self._show_status("Creating record output project job")
+        job = self.manager.create_record_output_project_job()
+        self._show_status("Launched record output project job: {}".format(job.metadata.name))
 
-    def record_output_project_info(self):
+    def record_output_project_complete(self, payload):
         """
         Records the output project id and readme file id that based on the store output pod logs.
         """
-        self._set_job_step(JobSteps.RECORD_OUTPUT_PROJECT)
-        details = self.manager.read_save_output_project_details()
-        project_id = details['project_id']
-        readme_file_id = details['readme_file_id']
+        if not self.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RECORD_OUTPUT_PROJECT):
+            # ignore request to perform incompatible step
+            logging.info("Ignoring request to cleanup for job:{} wrong step/state".format(self.job_id))
+            return
+        project_id, readme_file_id = self.manager.read_record_output_project_details()
         self._show_status("Saving project id {} and readme id {}.".format(project_id, readme_file_id))
         self.job_api.save_project_details(project_id, readme_file_id)
+        self.manager.cleanup_record_output_project_job()
+
+        self._show_status("Marking job finished")
+        self._set_job_step(JobSteps.NONE)
+        self._set_job_state(JobStates.FINISHED)
 
     def restart_job(self, payload):
         """
@@ -216,9 +224,12 @@ class K8sJobActions(BaseJobActions):
         """
         self._job_step_failed("Storing job output failed", payload)
 
+    def record_output_project_error(self, payload):
+        self._job_step_failed("Recording output project failed", payload)
+
     def _job_step_failed(self, message, payload):
         self._set_job_state(JobStates.ERRORED)
-        self._show_status("Storing job output failed")
+        self._show_status(message)
         self._log_error(message=payload.message)
 
 
@@ -229,6 +240,10 @@ def create_job_actions(lando, job_id):
 class K8sLando(Lando):
     def __init__(self, config):
         super(K8sLando, self).__init__(config, create_job_actions)
+
+    def _make_router(self):
+        work_queue_config = self.config.work_queue_config
+        return MessageRouter.make_k8s_lando_router(self.config, self, work_queue_config.listen_queue)
 
 
 def main():

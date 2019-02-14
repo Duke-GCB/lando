@@ -38,6 +38,10 @@ MINIMAL_CONFIG = {
         'image_name': 'lando-util:3',
         'command': 'upload.py',
     },
+    'record_output_project_settings': {
+        'image_name': 'lachlanevenson/k8s-kubectl',
+        'service_account_name': 'annotation-writer-sa',
+    },
 }
 
 FULL_CONFIG = {
@@ -89,6 +93,10 @@ FULL_CONFIG = {
         'requested_cpu': 5,
         'requested_memory': '5G',
     },
+    'record_output_project_settings': {
+        'image_name': 'lachlanevenson/k8s-kubectl',
+        'service_account_name': 'annotation-writer-sa',
+    },
     'storage_class_name': 'gluster'
 }
 
@@ -139,6 +147,9 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.save_output_settings.command, 'upload.py')
         self.assertEqual(config.save_output_settings.requested_cpu, DEFAULT_REQUESTED_CPU)
         self.assertEqual(config.save_output_settings.requested_memory, DEFAULT_REQUESTED_MEMORY)
+
+        self.assertEqual(config.record_output_project_settings.image_name, 'lachlanevenson/k8s-kubectl')
+        self.assertEqual(config.record_output_project_settings.service_account_name, 'annotation-writer-sa')
 
         self.assertEqual(config.storage_class_name, None)
 
