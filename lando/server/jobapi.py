@@ -301,7 +301,7 @@ class Job(object):
         self.name = data['name']
         self.state = data['state']
         self.step = data['step']
-        self.vm_flavor_name = data['vm_flavor']['name']
+        self.vm_flavor_name = data['job_flavor']['name']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_volume_name = data['vm_volume_name']
         self.stage_group = data['stage_group']
@@ -311,7 +311,19 @@ class Job(object):
         # Volume mounts is JSON encoded in a text field
         self.volume_mounts = json.loads(data['vm_volume_mounts'])
         self.cleanup_vm = data.get('cleanup_vm', True)
-        self.vm_settings = VMSettings(data.get('vm_settings'))
+        job_settings = data.get('job_settings')
+
+        vm_command = job_settings.get('vm_command')
+        if vm_command:
+            self.vm_settings = VMSettings(vm_command)
+        else:
+            self.vm_settings = None
+
+        k8s_step_commands = job_settings.get('k8s_step_commands')
+        if k8s_step_commands:
+            self.k8s_command_set = K8sCommandSet(k8s_step_commands)
+        else:
+            self.k8s_command_set = None
 
 
 class RunJobData(Job):
@@ -494,3 +506,20 @@ class VMSettings(object):
         # These are in the data dictionary directly
         self.image_name = data['image_name']
         self.cwl_commands = CWLCommand(data)
+
+
+class K8sCommandSet(object):
+    def __init__(self, data):
+        self.stage_data = K8sStepCommand(data['stage_data'])
+        self.run_workflow = K8sStepCommand(data['run_workflow'])
+        self.organize_output = K8sStepCommand(data['organize_output'])
+        self.save_output = K8sStepCommand(data['save_output'])
+        self.record_output_project = K8sStepCommand(data['record_output_project'])
+
+
+class K8sStepCommand(object):
+    def __init__(self, data):
+        self.image_name = data['image_name']
+        self.cpus = data['cpus']
+        self.memory = data['memory']
+        self.base_command = data.get('base_command')

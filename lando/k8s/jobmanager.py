@@ -324,6 +324,8 @@ class JobManager(object):
             args=[self.names.annotate_project_details_path],
             working_dir=Paths.OUTPUT_RESULTS_DIR,
             env_dict={"MY_POD_NAME": FieldRefEnvVar(field_path="metadata.name")},
+            requested_cpu=config.requested_cpu,
+            requested_memory=config.requested_memory,
             volumes=volumes)
         labels = self.make_job_labels(JobStepTypes.RECORD_OUTPUT_PROJECT)
         job_spec = BatchJobSpec(self.names.record_output_project,
@@ -412,28 +414,28 @@ class Paths(object):
 
 class StageDataConfig(object):
     def __init__(self, job, config):
-        # job parameter is not used but is here to allow future customization based on job
         self.filename = "stagedata.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
-        stage_data_settings = config.stage_data_settings
-        self.image_name = stage_data_settings.image_name
-        self.command = stage_data_settings.command
-        self.requested_cpu = stage_data_settings.requested_cpu
-        self.requested_memory = stage_data_settings.requested_memory
+        job_stage_data_settings = job.k8s_command_set.stage_data
+        self.image_name = job_stage_data_settings.image_name
+        self.command = job_stage_data_settings.base_command
+        self.requested_cpu = job_stage_data_settings.cpus
+        self.requested_memory = job_stage_data_settings.memory
 
 
 class RunWorkflowConfig(object):
     def __init__(self, job, config):
-        self.image_name = job.vm_settings.image_name
-        self.command = job.vm_settings.cwl_commands.base_command
+        job_run_workflow_settings = job.k8s_command_set.run_workflow
+        self.image_name = job_run_workflow_settings.image_name
+        self.command = job_run_workflow_settings.base_command
+        self.requested_cpu = job_run_workflow_settings.cpus
+        self.requested_memory = job_run_workflow_settings.memory
 
         run_workflow_settings = config.run_workflow_settings
-        self.requested_cpu = run_workflow_settings.requested_cpu
-        self.requested_memory = run_workflow_settings.requested_memory
         self.system_data_volume = run_workflow_settings.system_data_volume
 
 
@@ -441,36 +443,37 @@ class OrganizeOutputConfig(object):
     def __init__(self, job, config):
         self.filename = "organizeoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
-        # job parameter is not used but is here to allow future customization based on job
-        organize_output_settings = config.organize_output_settings
-        self.image_name = organize_output_settings.image_name
-        self.command = organize_output_settings.command
-        self.requested_cpu = organize_output_settings.requested_cpu
-        self.requested_memory = organize_output_settings.requested_memory
+
+        job_organize_output_settings = job.k8s_command_set.organize_output
+        self.image_name = job_organize_output_settings.image_name
+        self.command = job_organize_output_settings.base_command
+        self.requested_cpu = job_organize_output_settings.cpus
+        self.requested_memory = job_organize_output_settings.memory
 
 
 class SaveOutputConfig(object):
     def __init__(self, job, config):
-        # job parameter is not used but is here to allow future customization based on job
         self.filename = "saveoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
-        save_output_settings = config.save_output_settings
-        self.image_name = save_output_settings.image_name
-        self.command = save_output_settings.command
-        self.requested_cpu = save_output_settings.requested_cpu
-        self.requested_memory = save_output_settings.requested_memory
+        job_save_output_settings = job.k8s_command_set.save_output
+        self.image_name = job_save_output_settings.image_name
+        self.command = job_save_output_settings.base_command
+        self.requested_cpu = job_save_output_settings.cpus
+        self.requested_memory = job_save_output_settings.memory
 
 
 class RecordOutputProjectConfig(object):
     def __init__(self, job, config):
-        # job parameter is not used but is here to allow future customization based on job
+        job_record_output_project_settings = job.k8s_command_set.record_output_project
 
         record_output_project_settings = config.record_output_project_settings
-        self.image_name = record_output_project_settings.image_name
+        self.image_name = job_record_output_project_settings.image_name
+        self.requested_cpu = job_record_output_project_settings.cpus
+        self.requested_memory = job_record_output_project_settings.memory
         self.service_account_name = record_output_project_settings.service_account_name
         self.project_id_fieldname = 'project_id'
         self.readme_file_id_fieldname = 'readme_file_id'

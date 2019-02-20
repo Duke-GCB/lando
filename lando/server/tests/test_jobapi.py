@@ -19,10 +19,9 @@ class TestJobApi(TestCase):
             'step': '',
             'name': 'myjob',
             'created': '2017-03-21T13:29:09.123603Z',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
-            'vm_settings':'mock_vm_settings',
             'vm_instance_name': '',
             'vm_volume_name': '',
             'vm_volume_mounts': '{}',
@@ -33,6 +32,9 @@ class TestJobApi(TestCase):
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
                 "methods_document": 7,
+            },
+            'job_settings': {
+                'vm_command': 'mock_vm_settings'
             },
             'output_project': {
                 'id': 5,
@@ -173,7 +175,7 @@ class TestJobApi(TestCase):
             },
             'state': 'N',
             'step': '',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
             'vm_instance_name': '',
@@ -188,6 +190,10 @@ class TestJobApi(TestCase):
                 'name': 'SomeWorkflow',
                 'version': 1,
                 "methods_document": 7,
+            },
+            'job_settings': {
+                'vm_command': {},
+                'k8s_step_commands': {},
             },
             'output_project': {
                 'id': 5,
@@ -235,7 +241,7 @@ class TestJobApi(TestCase):
                 'step': '',
                 'name': 'SomeJob',
                 'created': '2017-03-21T13:29:09.123603Z',
-                'vm_flavor': {
+                'job_flavor': {
                     'name': 'm1.tiny',
                 },
                 'vm_instance_name': '',
@@ -249,6 +255,7 @@ class TestJobApi(TestCase):
                     'version': 1,
                     "methods_document": 7,
                 },
+                'job_settings': {},
                 'output_project': {
                     'id': 5,
                     'dds_user_credentials': 123
@@ -381,7 +388,7 @@ class TestJob(TestCase):
             'step': '',
             'name': 'myjob',
             'created': '2017-03-21T13:29:09.123603Z',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
             'vm_instance_name': '',
@@ -394,6 +401,12 @@ class TestJob(TestCase):
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
                 "methods_document": 7,
+            },
+            'job_settings': {
+                'vm_command': {
+
+                },
+                'k8s_step_commands': None
             },
             'output_project': {
                 'id': 5,

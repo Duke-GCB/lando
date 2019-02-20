@@ -12,8 +12,36 @@ class TestJobManager(TestCase):
         }
         self.mock_job = Mock(username='jpb', workflow=Mock(url='someurl', job_order=mock_job_order), volume_size=3)
         self.mock_job.id = '51'
-        self.mock_job.vm_settings.cwl_commands.base_command = ['cwltool']
-        self.mock_job.vm_settings.image_name = 'calrissian:latest'
+        self.mock_job.vm_settings = None
+        self.mock_job.k8s_command_set.stage_data = Mock(
+            image_name='image1',
+            cpus=1,
+            memory='1Gi',
+            base_command=["python", "-m", "lando_util.download"],
+        )
+        self.mock_job.k8s_command_set.run_workflow = Mock(
+            image_name='image2',
+            cpus=2,
+            memory='2Gi',
+            base_command=["cwltool"],
+        )
+        self.mock_job.k8s_command_set.organize_output = Mock(
+            image_name='image3',
+            cpus=3,
+            memory='3Gi',
+            base_command=["python", "-m", "lando_util.organize_project"],
+        )
+        self.mock_job.k8s_command_set.save_output = Mock(
+            image_name='image4',
+            cpus=4,
+            memory='4Gi',
+            base_command=["python", "-m", "lando_util.upload"],
+        )
+        self.mock_job.k8s_command_set.record_output_project = Mock(
+            image_name='image5',
+            cpus=5,
+            memory='5Gi'
+        )
         self.expected_metadata_labels = {'bespin-job': 'true', 'bespin-job-id': '51'}
 
     def test_make_job_labels(self):
@@ -79,17 +107,17 @@ class TestJobManager(TestCase):
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'stage_data')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'stage-data-51-jpb')  # container name
-        self.assertEqual(job_container.image_name, mock_config.stage_data_settings.image_name,
-                         'stage data image name is based on a config setting')
-        self.assertEqual(job_container.command, mock_config.stage_data_settings.command,
-                         'stage data command is based on a config setting')
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_command_set.stage_data.image_name,
+                         'stage data image name is based on a job setting')
+        self.assertEqual(job_container.command, self.mock_job.k8s_command_set.stage_data.base_command,
+                         'stage data command is based on a job setting')
         self.assertEqual(job_container.args, ['/bespin/config/stagedata.json'],
                          'stage data command should receive config file as an argument')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
-        self.assertEqual(job_container.requested_cpu, mock_config.stage_data_settings.requested_cpu,
+        self.assertEqual(job_container.requested_cpu, self.mock_job.k8s_command_set.stage_data.cpus,
                          'stage data requested cpu is based on a config setting')
-        self.assertEqual(job_container.requested_memory, mock_config.stage_data_settings.requested_memory,
+        self.assertEqual(job_container.requested_memory, self.mock_job.k8s_command_set.stage_data.memory,
                          'stage data requested memory is based on a config setting')
         self.assertEqual(len(job_container.volumes), 3)
 
@@ -154,7 +182,7 @@ class TestJobManager(TestCase):
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'run_workflow')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'run-workflow-51-jpb')  # container name
-        self.assertEqual(job_container.image_name, self.mock_job.vm_settings.image_name,
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_command_set.run_workflow.image_name,
                          'run workflow image name is based on job settings')
 
         self.assertEqual(job_container.command, ['bash', '-c', 'cwltool --tmp-outdir-prefix /bespin/tmpout/ '
@@ -167,10 +195,10 @@ class TestJobManager(TestCase):
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
                          'We should store the pod name in a CALRISSIAN_POD_NAME environment variable')
-        self.assertEqual(job_container.requested_cpu, mock_config.run_workflow_settings.requested_cpu,
-                         'run workflow requested cpu is based on a config setting')
-        self.assertEqual(job_container.requested_memory, mock_config.run_workflow_settings.requested_memory,
-                         'run workflow requested memory is based on a config setting')
+        self.assertEqual(job_container.requested_cpu, self.mock_job.k8s_command_set.run_workflow.cpus,
+                         'run workflow requested cpu is based on a job setting')
+        self.assertEqual(job_container.requested_memory, self.mock_job.k8s_command_set.run_workflow.memory,
+                         'run workflow requested memory is based on a job setting')
 
         self.assertEqual(len(job_container.volumes), 5)
 
@@ -237,14 +265,14 @@ class TestJobManager(TestCase):
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'organize_output')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'organize-output-51-jpb')  # container name
-        self.assertEqual(job_container.image_name, mock_config.organize_output_settings.image_name,
-                         'organize output image name is based on config settings')
-        self.assertEqual(job_container.command, mock_config.organize_output_settings.command,
-                         'organize output command is based on config settings')
-        self.assertEqual(job_container.requested_cpu, mock_config.organize_output_settings.requested_cpu,
-                         'organize output requested cpu is based on a config setting')
-        self.assertEqual(job_container.requested_memory, mock_config.organize_output_settings.requested_memory,
-                         'organize output requested memory is based on a config setting')
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_command_set.organize_output.image_name,
+                         'organize output image name is based on job settings')
+        self.assertEqual(job_container.command, self.mock_job.k8s_command_set.organize_output.base_command,
+                         'organize output command is based on job settings')
+        self.assertEqual(job_container.requested_cpu, self.mock_job.k8s_command_set.organize_output.cpus,
+                         'organize output requested cpu is based on a job setting')
+        self.assertEqual(job_container.requested_memory, self.mock_job.k8s_command_set.organize_output.memory,
+                         'organize output requested memory is based on a job setting')
 
         mock_cluster_api.create_config_map.assert_called_with(
             name='organize-output-51-jpb',
@@ -323,19 +351,19 @@ class TestJobManager(TestCase):
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'save_output')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'save-output-51-jpb')  # container name
-        self.assertEqual(job_container.image_name, mock_config.save_output_settings.image_name,
-                         'save output image name is based on a config setting')
-        self.assertEqual(job_container.command, mock_config.save_output_settings.command,
-                         'save output command is based on a config setting')
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_command_set.save_output.image_name,
+                         'save output image name is based on a job setting')
+        self.assertEqual(job_container.command, self.mock_job.k8s_command_set.save_output.base_command,
+                         'save output command is based on a job setting')
         self.assertEqual(job_container.args,
                          ['/bespin/config/saveoutput.json', '/bespin/output-data/annotate_project_details.sh'],
                          'save output command should receive config file and output filenames as arguments')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
-        self.assertEqual(job_container.requested_cpu, mock_config.save_output_settings.requested_cpu,
-                         'stage data requested cpu is based on a config setting')
-        self.assertEqual(job_container.requested_memory, mock_config.save_output_settings.requested_memory,
-                         'stage data requested memory is based on a config setting')
+        self.assertEqual(job_container.requested_cpu, self.mock_job.k8s_command_set.save_output.cpus,
+                         'stage data requested cpu is based on a job setting')
+        self.assertEqual(job_container.requested_memory, self.mock_job.k8s_command_set.save_output.memory,
+                         'stage data requested memory is based on a job setting')
         self.assertEqual(len(job_container.volumes), 4)
 
         job_data_volume = job_container.volumes[0]
@@ -393,7 +421,7 @@ class TestJobManager(TestCase):
         self.assertEqual(batch_spec.labels['bespin-job-step'], 'record_output_project')  # store the job step in a label
         job_container = batch_spec.container
         self.assertEqual(job_container.name, 'record-output-project-51-jpb')  # container name
-        self.assertEqual(job_container.image_name, mock_config.record_output_project_settings.image_name,
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_command_set.record_output_project.image_name,
                          'record output project image name is based on a config setting')
         self.assertEqual(job_container.command, ['sh'],
                          'record output project base command is sh')
@@ -542,61 +570,86 @@ class TestNames(TestCase):
 
 class TestStageDataConfig(TestCase):
     def test_constructor(self):
+        mock_job = Mock()
+        mock_job.k8s_command_set.stage_data.image_name = 'someimage'
+        mock_job.k8s_command_set.stage_data.cpus = 6
+        mock_job.k8s_command_set.stage_data.memory = '6Gi'
+        mock_job.k8s_command_set.stage_data.base_command = ['upload']
         mock_config = Mock()
-        config = StageDataConfig(job=None, config=mock_config)
+        config = StageDataConfig(job=mock_job, config=mock_config)
         self.assertEqual(config.path, '/bespin/config/stagedata.json')
         self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
         self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
-        self.assertEqual(config.image_name, mock_config.stage_data_settings.image_name)
-        self.assertEqual(config.command, mock_config.stage_data_settings.command)
-        self.assertEqual(config.requested_cpu, mock_config.stage_data_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_config.stage_data_settings.requested_memory)
+        self.assertEqual(config.image_name, 'someimage')
+        self.assertEqual(config.command, ['upload'])
+        self.assertEqual(config.requested_cpu, 6)
+        self.assertEqual(config.requested_memory, '6Gi')
 
 
 class TestRunWorkflowConfig(TestCase):
     def test_constructor(self):
-        mock_job = Mock(vm_settings=Mock(image_name='someimage', cwl_commands=Mock(base_command=['cwltool'])))
+        mock_job = Mock()
+        mock_job.k8s_command_set.run_workflow.image_name = 'someimage'
+        mock_job.k8s_command_set.run_workflow.cpus = 16
+        mock_job.k8s_command_set.run_workflow.memory = '4Gi'
+        mock_job.k8s_command_set.run_workflow.base_command = ['cwltool']
         mock_config = Mock()
         config = RunWorkflowConfig(job=mock_job, config=mock_config)
         self.assertEqual(config.image_name, 'someimage')
         self.assertEqual(config.command, ['cwltool'])
-        self.assertEqual(config.requested_cpu, mock_config.run_workflow_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_config.run_workflow_settings.requested_memory)
+        self.assertEqual(config.requested_cpu, 16)
+        self.assertEqual(config.requested_memory, '4Gi')
         self.assertEqual(config.system_data_volume, mock_config.run_workflow_settings.system_data_volume)
 
 
 class TestOrganizeOutputConfig(TestCase):
     def test_constructor(self):
+        mock_job = Mock()
+        mock_job.k8s_command_set.organize_output.image_name = 'someimage'
+        mock_job.k8s_command_set.organize_output.base_command = ['organizeit']
+        mock_job.k8s_command_set.organize_output.cpus = 8
+        mock_job.k8s_command_set.organize_output.memory = '1Gi'
         mock_config = Mock()
-        config = OrganizeOutputConfig(job=None, config=mock_config)
+        config = OrganizeOutputConfig(job=mock_job, config=mock_config)
         self.assertEqual(config.filename, "organizeoutput.json")
         self.assertEqual(config.path, "/bespin/config/organizeoutput.json")
-        self.assertEqual(config.image_name, mock_config.organize_output_settings.image_name)
-        self.assertEqual(config.command, mock_config.organize_output_settings.command)
-        self.assertEqual(config.requested_cpu, mock_config.organize_output_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_config.organize_output_settings.requested_memory)
+        self.assertEqual(config.image_name, 'someimage')
+        self.assertEqual(config.command, ['organizeit'])
+        self.assertEqual(config.requested_cpu, 8)
+        self.assertEqual(config.requested_memory, '1Gi')
 
 
 class TestSaveOutputConfig(TestCase):
     def test_constructor(self):
+        mock_job = Mock()
+        mock_job.k8s_command_set.save_output.image_name = 'someimage'
+        mock_job.k8s_command_set.save_output.base_command = ['upload']
+        mock_job.k8s_command_set.save_output.cpus = 4
+        mock_job.k8s_command_set.save_output.memory = '2Gi'
         mock_config = Mock()
-        config = SaveOutputConfig(job=None, config=mock_config)
+        config = SaveOutputConfig(job=mock_job, config=mock_config)
         self.assertEqual(config.path, '/bespin/config/saveoutput.json')
         self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
         self.assertEqual(config.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'})
-        self.assertEqual(config.image_name, mock_config.save_output_settings.image_name)
-        self.assertEqual(config.command, mock_config.save_output_settings.command)
-        self.assertEqual(config.requested_cpu, mock_config.save_output_settings.requested_cpu)
-        self.assertEqual(config.requested_memory, mock_config.save_output_settings.requested_memory)
+        self.assertEqual(config.image_name, 'someimage')
+        self.assertEqual(config.command, ['upload'])
+        self.assertEqual(config.requested_cpu, 4)
+        self.assertEqual(config.requested_memory, '2Gi')
 
 
 class TestRecordOutputProjectConfig(TestCase):
     def test_constructor(self):
+        mock_job = Mock()
+        mock_job.k8s_command_set.record_output_project.image_name = 'someimage'
+        mock_job.k8s_command_set.record_output_project.cpus = 1
+        mock_job.k8s_command_set.record_output_project.memory = '1MB'
         mock_config = Mock()
-        config = RecordOutputProjectConfig(job=None, config=mock_config)
-        self.assertEqual(config.image_name, mock_config.record_output_project_settings.image_name)
+        config = RecordOutputProjectConfig(job=mock_job, config=mock_config)
+        self.assertEqual(config.image_name, 'someimage')
+        self.assertEqual(config.requested_cpu, 1)
+        self.assertEqual(config.requested_memory, '1MB')
         self.assertEqual(config.service_account_name, mock_config.record_output_project_settings.service_account_name)
         self.assertEqual(config.project_id_fieldname, 'project_id')
         self.assertEqual(config.readme_file_id_fieldname, 'readme_file_id')
