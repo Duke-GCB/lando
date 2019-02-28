@@ -420,7 +420,7 @@ class StageDataConfig(object):
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
-        job_stage_data_settings = job.k8s_command_set.stage_data
+        job_stage_data_settings = job.k8s_settings.stage_data
         self.image_name = job_stage_data_settings.image_name
         self.command = job_stage_data_settings.base_command
         self.requested_cpu = job_stage_data_settings.cpus
@@ -429,7 +429,7 @@ class StageDataConfig(object):
 
 class RunWorkflowConfig(object):
     def __init__(self, job, config):
-        job_run_workflow_settings = job.k8s_command_set.run_workflow
+        job_run_workflow_settings = job.k8s_settings.run_workflow
         self.image_name = job_run_workflow_settings.image_name
         self.command = job_run_workflow_settings.base_command
         self.requested_cpu = job_run_workflow_settings.cpus
@@ -444,7 +444,7 @@ class OrganizeOutputConfig(object):
         self.filename = "organizeoutput.json"
         self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
 
-        job_organize_output_settings = job.k8s_command_set.organize_output
+        job_organize_output_settings = job.k8s_settings.organize_output
         self.image_name = job_organize_output_settings.image_name
         self.command = job_organize_output_settings.base_command
         self.requested_cpu = job_organize_output_settings.cpus
@@ -459,7 +459,7 @@ class SaveOutputConfig(object):
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
 
-        job_save_output_settings = job.k8s_command_set.save_output
+        job_save_output_settings = job.k8s_settings.save_output
         self.image_name = job_save_output_settings.image_name
         self.command = job_save_output_settings.base_command
         self.requested_cpu = job_save_output_settings.cpus
@@ -468,7 +468,7 @@ class SaveOutputConfig(object):
 
 class RecordOutputProjectConfig(object):
     def __init__(self, job, config):
-        job_record_output_project_settings = job.k8s_command_set.record_output_project
+        job_record_output_project_settings = job.k8s_settings.record_output_project
 
         record_output_project_settings = config.record_output_project_settings
         self.image_name = job_record_output_project_settings.image_name
