@@ -50,7 +50,7 @@ Use this file to populate the DukeDS secret for your agent.
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.conf
 ```
 
-Build the CWL workflow running image (calrissian)
+Setup required for the CWL workflow running image (calrissian)
 ```
 oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
