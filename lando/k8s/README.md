@@ -50,9 +50,8 @@ Use this file to populate the DukeDS secret for your agent.
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.conf
 ```
 
-Build the CWL workflow running image (calrissian)
+Setup required for the CWL workflow running image (calrissian)
 ```
-oc create -f https://raw.githubusercontent.com/Duke-GCB/calrissian/master/openshift/BuildConfig.yaml
 oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
 ```
@@ -106,8 +105,8 @@ You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-role
 
 `bespin-api` will need to have JobRuntimeK8s/JobRuntimeStepK8s with the appropriate image name and base commands setup
 ```
-- image name: `calrissian:latest`
-- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+- image name: `dukegcb:calrissian:latest`
+- base command: `["calrissian", "--max-ram", "16384", "--max-cores", "8"]`
 ```
 
 
