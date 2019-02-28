@@ -198,7 +198,7 @@ class JobActions(BaseJobActions):
         cloud_config_script.add_manage_etc_hosts()
         cloud_service = self._get_cloud_service(job)
         volume, volume_id = cloud_service.create_volume(job.volume_size, vm_volume_name)
-        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.vm_flavor_name, cloud_config_script.content,
+        instance, ip_address = cloud_service.launch_instance(vm_instance_name, job.job_flavor_name, cloud_config_script.content,
                                                              [volume_id])
         self._show_status("Launched vm with ip {}".format(ip_address))
         self.job_api.set_vm_instance_name(vm_instance_name)
