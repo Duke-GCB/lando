@@ -4,9 +4,6 @@ import os
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
 from lando.server.config import WorkQueue, BespinApiSettings
 
-DEFAULT_REQUESTED_CPU = 1
-DEFAULT_REQUESTED_MEMORY = '1G'
-
 
 def create_server_config(filename):
     with open(filename, 'r') as infile:
@@ -32,21 +29,9 @@ class ServerConfig(object):
         self.data_store_settings = DataStoreSettings(
             get_or_raise_config_exception(data, 'data_store_settings')
         )
-        # settings for staging data in
-        self.stage_data_settings = ImageCommandSettings(
-            get_or_raise_config_exception(data, 'stage_data_settings')
-        )
         # settings for running a workflow
         self.run_workflow_settings = RunWorkflowSettings(
             get_or_raise_config_exception(data, 'run_workflow_settings')
-        )
-        # settings for organizing the results of running the workflow
-        self.organize_output_settings = ImageCommandSettings(
-            get_or_raise_config_exception(data, 'organize_output_settings')
-        )
-        # settings for uploading organized results
-        self.save_output_settings = ImageCommandSettings(
-            get_or_raise_config_exception(data, 'save_output_settings')
         )
         # settings for recording output project details
         self.record_output_project_settings = RecordOutputProjectSettings(
@@ -65,22 +50,11 @@ class ClusterApiSettings(object):
 
 class RecordOutputProjectSettings(object):
     def __init__(self, data):
-        self.image_name = get_or_raise_config_exception(data, 'image_name')
         self.service_account_name = get_or_raise_config_exception(data, 'service_account_name')
-
-
-class ImageCommandSettings(object):
-    def __init__(self, data):
-        self.image_name = get_or_raise_config_exception(data, 'image_name')
-        self.command = get_or_raise_config_exception(data, 'command')
-        self.requested_cpu = data.get('requested_cpu', DEFAULT_REQUESTED_CPU)
-        self.requested_memory = data.get('requested_memory', DEFAULT_REQUESTED_MEMORY)
 
 
 class RunWorkflowSettings(object):
     def __init__(self, data):
-        self.requested_cpu = data.get('requested_cpu', DEFAULT_REQUESTED_CPU)
-        self.requested_memory = data.get('requested_memory', DEFAULT_REQUESTED_MEMORY)
         self.system_data_volume = None
         if 'system_data_volume' in data:
             self.system_data_volume = SystemDataVolume(

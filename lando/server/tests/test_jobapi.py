@@ -1,10 +1,12 @@
 
 from unittest import TestCase
+import copy
 from lando.server.jobapi import JobApi, BespinApi, Job, CWLCommand, VMSettings
 from unittest.mock import MagicMock, patch, call
 
 
 @patch('lando.server.jobapi.VMSettings')
+@patch('lando.server.jobapi.K8sSettings')
 @patch('lando.server.jobapi.requests')
 class TestJobApi(TestCase):
 
@@ -19,10 +21,9 @@ class TestJobApi(TestCase):
             'step': '',
             'name': 'myjob',
             'created': '2017-03-21T13:29:09.123603Z',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
-            'vm_settings':'mock_vm_settings',
             'vm_instance_name': '',
             'vm_volume_name': '',
             'vm_volume_mounts': '{}',
@@ -33,6 +34,10 @@ class TestJobApi(TestCase):
                 'url': 'file:///mnt/fastqc.cwl',
                 'object_name': '#main',
                 "methods_document": 7,
+            },
+            'job_settings': {
+                'job_runtime_openstack': 'mock_job_settings',
+                'job_runtime_k8s': None,
             },
             'output_project': {
                 'id': 5,
@@ -53,7 +58,7 @@ class TestJobApi(TestCase):
         job_api.api.headers = empty_headers
         return job_api
 
-    def test_get_job_api(self, mock_requests, mock_vm_settings):
+    def test_get_job_api(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         """
         Test requesting job status, etc
         """
@@ -70,18 +75,18 @@ class TestJobApi(TestCase):
         self.assertEqual(23, job.user_id)
         self.assertEqual('joe@joe.com', job.username)
         self.assertEqual('N', job.state)
-        self.assertEqual('m1.tiny', job.vm_flavor_name)
+        self.assertEqual('m1.tiny', job.job_flavor_name)
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('', job.vm_volume_name)
         self.assertEqual(True, job.cleanup_vm)
         args, kwargs = mock_vm_settings.call_args
         # Should call VMSettings() with contents of data['vm_settings']
-        self.assertEqual(args[0], 'mock_vm_settings')
+        self.assertEqual(args[0], 'mock_job_settings')
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.object_name)
 
-    def test_set_job_state(self, mock_requests, mock_vm_settings):
+    def test_set_job_state(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(2)
         mock_response = MagicMock()
         mock_response.json.return_value = {}
@@ -91,7 +96,7 @@ class TestJobApi(TestCase):
         self.assertEqual(args[0], 'APIURL/admin/jobs/2/')
         self.assertEqual(kwargs.get('json'), {'state': 'E'})
 
-    def test_set_job_step(self, mock_requests, mock_vm_settings):
+    def test_set_job_step(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(2)
         mock_response = MagicMock()
         mock_response.json.return_value = {}
@@ -101,7 +106,7 @@ class TestJobApi(TestCase):
         self.assertEqual(args[0], 'APIURL/admin/jobs/2/')
         self.assertEqual(kwargs.get('json'), {'step': 'N'})
 
-    def test_set_vm_instance_name(self, mock_requests, mock_vm_settings):
+    def test_set_vm_instance_name(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(3)
         mock_response = MagicMock()
         mock_response.json.return_value = mock_response
@@ -111,7 +116,7 @@ class TestJobApi(TestCase):
         self.assertEqual(args[0], 'APIURL/admin/jobs/3/')
         self.assertEqual(kwargs.get('json'), {'vm_instance_name': 'worker_123'})
 
-    def test_set_vm_volume_name(self, mock_requests, mock_vm_settings):
+    def test_set_vm_volume_name(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(3)
         mock_response = MagicMock()
         mock_response.json.return_value = mock_response
@@ -121,7 +126,7 @@ class TestJobApi(TestCase):
         self.assertEqual(args[0], 'APIURL/admin/jobs/3/')
         self.assertEqual(kwargs.get('json'), {'vm_volume_name': 'volume_765'})
 
-    def test_get_input_files(self, mock_requests, mock_vm_settings):
+    def test_get_input_files(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         self.job_response_payload['stage_group'] = '4'
         stage_group_response_payload = {
                 'dds_files': [
@@ -161,7 +166,7 @@ class TestJobApi(TestCase):
         self.assertEqual('https://stuff.com/file123.model', url_file.url)
         self.assertEqual('file123.model', url_file.destination_path)
 
-    def test_get_credentials(self, mock_requests, mock_vm_settings):
+    def test_get_credentials(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         """
         The only stored credentials are the bespin system credentials.
         """
@@ -173,7 +178,7 @@ class TestJobApi(TestCase):
             },
             'state': 'N',
             'step': '',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
             'vm_instance_name': '',
@@ -188,6 +193,10 @@ class TestJobApi(TestCase):
                 'name': 'SomeWorkflow',
                 'version': 1,
                 "methods_document": 7,
+            },
+            'job_settings': {
+                'job_runtime_openstack': {},
+                'job_runtime_k8s': {},
             },
             'output_project': {
                 'id': 5,
@@ -223,7 +232,7 @@ class TestJobApi(TestCase):
         self.assertEqual('2191230', user_cred.endpoint_agent_key)
         self.assertEqual('localhost/api/v1/', user_cred.endpoint_api_root)
 
-    def test_get_jobs_for_vm_instance_name(self, mock_requests, mock_vm_settings):
+    def test_get_jobs_for_vm_instance_name(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         jobs_response = [
             {
                 'id': 1,
@@ -235,7 +244,7 @@ class TestJobApi(TestCase):
                 'step': '',
                 'name': 'SomeJob',
                 'created': '2017-03-21T13:29:09.123603Z',
-                'vm_flavor': {
+                'job_flavor': {
                     'name': 'm1.tiny',
                 },
                 'vm_instance_name': '',
@@ -248,6 +257,10 @@ class TestJobApi(TestCase):
                     'name': 'myworkflow',
                     'version': 1,
                     "methods_document": 7,
+                },
+                'job_settings': {
+                    'job_runtime_openstack': None,
+                    'job_runtime_k8s': None
                 },
                 'output_project': {
                     'id': 5,
@@ -267,7 +280,7 @@ class TestJobApi(TestCase):
         jobs = JobApi.get_jobs_for_vm_instance_name(mock_config, 'joe')
         self.assertEqual(1, len(jobs))
 
-    def test_post_error(self, mock_requests, mock_vm_settings):
+    def test_post_error(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         mock_requests.get.return_value = mock_response
@@ -279,14 +292,14 @@ class TestJobApi(TestCase):
         self.assertEqual(kwargs['json']['job_step'], 'V')
         self.assertEqual(kwargs['json']['content'], 'Out of memory')
 
-    def test_job_constructor_volume_size(self, mock_requests, mock_vm_settings):
+    def test_job_constructor_volume_size(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         payload = dict(self.job_response_payload)
         payload['volume_size'] = 1000
         job = Job(payload)
         self.assertEqual(job.volume_size, 1000,
                          "A job payload with volume_size should result in that volume size.")
 
-    def test_get_store_output_job_data(self, mock_requests, mock_vm_settings):
+    def test_get_store_output_job_data(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         """
         Test requesting job status, etc
         """
@@ -322,7 +335,7 @@ class TestJobApi(TestCase):
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
 
-    def test_get_run_job_data(self, mock_requests, mock_vm_settings):
+    def test_get_run_job_data(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         mock_response1 = MagicMock()
         mock_response1.json.return_value = self.job_response_payload
         mock_response2 = MagicMock()
@@ -339,7 +352,7 @@ class TestJobApi(TestCase):
         #args, kwargs = mock_requests.get.call_args
         #self.assertEqual(args[0], 'APIURL/admin/workflow-methods-documents/123')
 
-    def test_get_workflow_methods_document(self, mock_requests, mock_vm_settings):
+    def test_get_workflow_methods_document(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         mock_response = MagicMock()
         mock_response.json.return_value = {'content': '#Markdown'}
         mock_requests.get.return_value = mock_response
@@ -349,7 +362,7 @@ class TestJobApi(TestCase):
         args, kwargs = mock_requests.get.call_args
         self.assertEqual(args[0], 'APIURL/admin/workflow-methods-documents/123')
 
-    def test_save_project_details(self, mock_requests, mock_vm_settings):
+    def test_save_project_details(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         mock_response = MagicMock()
         mock_response.json.return_value = self.job_response_payload
         mock_requests.get.return_value = mock_response
@@ -371,7 +384,7 @@ class TestJobApi(TestCase):
 
 class TestJob(TestCase):
     def setUp(self):
-        self.job_data = {
+        job_data = {
             'id': 1,
             'user': {
                 'id': 23,
@@ -381,7 +394,7 @@ class TestJob(TestCase):
             'step': '',
             'name': 'myjob',
             'created': '2017-03-21T13:29:09.123603Z',
-            'vm_flavor': {
+            'job_flavor': {
                 'name': 'm1.tiny',
             },
             'vm_instance_name': '',
@@ -395,6 +408,10 @@ class TestJob(TestCase):
                 'object_name': '#main',
                 "methods_document": 7,
             },
+            'job_settings': {
+                'job_runtime_openstack': None,
+                'job_runtime_k8s': None
+            },
             'output_project': {
                 'id': 5,
                 'dds_user_credentials': 123
@@ -403,25 +420,116 @@ class TestJob(TestCase):
             'share_group': 42,
             'volume_size': 100,
         }
+        self.vm_job_data = copy.deepcopy(job_data)
+        self.vm_job_data['job_settings']['name'] = 'vm'
+        self.vm_job_data['job_settings']['job_runtime_openstack'] = {
+            "image_name": "myimage",
+            "cwl_base_command": [
+                "cwltool"
+            ],
+            "cwl_post_process_command": [
+                "cleanup.sh"
+            ],
+            "cwl_pre_process_command": [
+                "prep.sh"
+            ]
+        }
+        self.k8s_job_data = copy.deepcopy(job_data)
+        self.k8s_job_data['job_settings']['name'] = 'k8s'
+        self.k8s_job_data['job_settings']['job_runtime_k8s'] = {
+            "id": 1,
+            "steps": [
+                {
+                    "id": 1,
+                    "flavor": {
+                        "id": 1,
+                        "name": "small",
+                        "cpus": 1,
+                        "memory": "1Gi"
+                    },
+                    "step_type": "stage_data",
+                    "image_name": "lando-util:latest",
+                    "base_command": [
+                        "download"
+                    ]
+                },
+                {
+                    "id": 2,
+                    "flavor": {
+                        "id": 2,
+                        "name": "large",
+                        "cpus": 32,
+                        "memory": "64Gi"
+                    },
+                    "step_type": "run_workflow",
+                    "image_name": "dukegcb/calrissian:0.2.1",
+                    "base_command": [
+                        "calrissian"
+                    ]
+                },
+                {
+                    "id": 3,
+                    "flavor": {
+                        "id": 1,
+                        "name": "small",
+                        "cpus": 1,
+                        "memory": "1Gi"
+                    },
+                    "step_type": "organize_output",
+                    "image_name": "lando-util:latest",
+                    "base_command": [
+                        "sort"
+                    ]
+                },
+                {
+                    "id": 4,
+                    "flavor": {
+                        "id": 1,
+                        "name": "small",
+                        "cpus": 1,
+                        "memory": "1Gi"
+                    },
+                    "step_type": "save_output",
+                    "image_name": "lando-util:latest",
+                    "base_command": [
+                        "upload"
+                    ]
+                },
+                {
+                    "id": 5,
+                    "flavor": {
+                        "id": 1,
+                        "name": "small",
+                        "cpus": 1,
+                        "memory": "1Gi"
+                    },
+                    "step_type": "record_output_project",
+                    "image_name": "lando-util:latest",
+                    "base_command": [
+                        "saveoutput"
+                    ]
+                }
+            ]
+        }
 
     @patch('lando.server.jobapi.VMSettings')
     def test_cleanup_vm_default(self, mock_vm_settings):
         mock_data = MagicMock()
-        job = Job(self.job_data)
+        job = Job(self.vm_job_data)
         self.assertEqual(job.cleanup_vm, True)
 
     @patch('lando.server.jobapi.VMSettings')
     def test_cleanup_vm_true(self, mock_vm_settings):
-        self.job_data['cleanup_vm'] = True
+        self.vm_job_data['cleanup_vm'] = True
         mock_data = MagicMock()
-        job = Job(self.job_data)
+        job = Job(self.vm_job_data)
         self.assertEqual(job.cleanup_vm, True)
 
     @patch('lando.server.jobapi.VMSettings')
     def test_cleanup_vm_false(self, mock_vm_settings):
-        self.job_data['cleanup_vm'] = False
+        self.vm_job_data['cleanup_vm'] = False
         mock_data = MagicMock()
-        job = Job(self.job_data)
+        job = Job(self.vm_job_data)
         self.assertEqual(job.cleanup_vm, False)
 
 

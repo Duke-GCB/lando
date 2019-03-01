@@ -118,7 +118,7 @@ class Report(object):
         job.user_id = '1'
         job.state = self.job_state
         job.step = self.job_step
-        job.vm_flavor_name = ''
+        job.job_flavor_name = ''
         job.vm_instance_name = self.vm_instance_name
         job.vm_volume_name = self.vm_volume_name
         job.vm_project_name = 'bespin_user1'
@@ -612,7 +612,7 @@ class TestJobActions(TestCase):
 
     def test_launch_vm(self):
         mock_vm_settings = Mock(cwl_commands=None)
-        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, vm_flavor_name='flavor1',
+        mock_job = Mock(id='1', state='', step='', cleanup_vm=False, job_flavor_name='flavor1',
                         volume_mounts={'/dev/vdb1':'/work'}, vm_settings=mock_vm_settings)
         mock_job_api = MagicMock()
         mock_job_api.get_job.return_value = mock_job
@@ -635,7 +635,7 @@ class TestJobActions(TestCase):
 
         mock_cloud_service.launch_instance.assert_called_with(
             'vm1', # Should call launch_instance with Instance name from launch_vm
-            'flavor1', # Should call launch_instance with flavor from job.vm_flavor_name
+            'flavor1', # Should call launch_instance with flavor from job.job_flavor_name
             CLOUD_CONFIG, # Should generate a cloud config with manage_etc_hosts, fs_setup, and write_files
             ['vol-id-123'] # Should call launch_instance with list of vol ids from create_volume
         )

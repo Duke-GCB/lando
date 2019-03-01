@@ -50,9 +50,8 @@ Use this file to populate the DukeDS secret for your agent.
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.conf
 ```
 
-Build the CWL workflow running image (calrissian)
+Setup required for the CWL workflow running image (calrissian)
 ```
-oc create -f https://raw.githubusercontent.com/Duke-GCB/calrissian/master/openshift/BuildConfig.yaml
 oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
 ```
@@ -86,39 +85,10 @@ bespin_api:
   token: TODO
   url: TODO
 
-stage_data_settings:
-  image_name: lando-util:latest
-  command:
-    - python
-    - -m
-    - lando_util.download
-  requested_cpu: 1
-  requested_memory: 1G
-
 run_workflow_settings:
-  requested_cpu: 1
-  requested_memory: 2G
   system_data_volume:
      volume_claim_name: system-data
      mount_path: "/bespin/system/"
-
-organize_output_settings:
-  image_name: lando-util:latest
-  command:
-    - python
-    - -m
-    - lando_util.organize_project
-  requested_cpu: 1
-  requested_memory: 256M
-
-save_output_settings:
-  image_name: lando-util:latest
-  command:
-    - python
-    - -m
-    - lando_util.upload
-  requested_cpu: 1
-  requested_memory: 1G
 
 data_store_settings:
   secret_name: ddsclient-agent
@@ -133,10 +103,10 @@ log_level: INFO
 You will need to setup [bespin-api](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_web/tasks),
 [postgres](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_database/tasks) and [rabbitmq](https://github.com/Duke-GCB/gcb-ansible-roles/tree/master/bespin_rabbit/tasks) first to interact with k8s lando.
 
-`bespin-api` will need a vm settings with the appropriate image name and cwl base command
+`bespin-api` will need to have JobRuntimeK8s/JobRuntimeStepK8s with the appropriate image name and base commands setup
 ```
-- image name: `calrissian:latest`
-- cwl base command: `["python", "-m", "calrissian.main", "--max-ram", "16384", "--max-cores", "8"]`
+- image name: `dukegcb:calrissian:latest`
+- base command: `["calrissian", "--max-ram", "16384", "--max-cores", "8"]`
 ```
 
 

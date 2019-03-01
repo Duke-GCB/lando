@@ -17,12 +17,12 @@ class CloudClient(object):
         """
         self.cloud = shade.openstack_cloud(**credentials)
 
-    def launch_instance(self, vm_settings, server_name, vm_flavor_name, script_contents, volumes):
+    def launch_instance(self, vm_settings, server_name, job_flavor_name, script_contents, volumes):
         """
         Start VM with the specified settings, name, and script to run on startup.
         :param vm_settings: config.VMSettings: settings for VM we want to create
         :param server_name: str: unique name for this VM
-        :param vm_flavor_name: str: name of flavor(RAM/CPUs) to use for the VM
+        :param job_flavor_name: str: name of flavor(RAM/CPUs) to use for the VM
         :param script_contents: str: contents of a cloud-init script (bash or #cloud-config)
         :param volumes: [str]: list of volume ids to attach to the VM
         :return: openstack instance created
@@ -30,7 +30,7 @@ class CloudClient(object):
         instance = self.cloud.create_server(
             name=server_name,
             image=vm_settings.image_name,
-            flavor=vm_flavor_name,    # The flavor 'Root Disk' value has no effect due to using a volume for storage
+            flavor=job_flavor_name,    # The flavor 'Root Disk' value has no effect due to using a volume for storage
             key_name=vm_settings.ssh_key_name,
             network=vm_settings.network_name,
             auto_ip=vm_settings.allocate_floating_ips,

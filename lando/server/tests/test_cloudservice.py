@@ -7,7 +7,7 @@ from unittest import mock
 class TestCloudService(TestCase):
     @mock.patch('lando.server.cloudservice.CloudClient')
     def test_makes_cloud_client(self, mock_cloud_client):
-        mock_credentials = mock.Mock() # a function that returns credentials
+        mock_credentials = mock.Mock()  # a function that returns credentials
         config = mock.MagicMock(cloud_settings=mock.MagicMock(credentials=mock_credentials))
         vm_settings = mock.MagicMock(vm_project_name='test-project')
         service = CloudService(config, vm_settings)

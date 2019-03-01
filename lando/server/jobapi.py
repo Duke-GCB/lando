@@ -5,6 +5,7 @@ Allows reading and updating job information when talking to Bespin REST api.
 import requests
 import json
 
+
 class BespinApi(object):
     """
     Low level api that interfaces with the bespin REST api.
@@ -14,7 +15,6 @@ class BespinApi(object):
         :param config: ServerConfig: contains settings for connecting to REST api
         """
         self.settings = config.bespin_api_settings
-
 
     def headers(self):
         """
@@ -301,7 +301,7 @@ class Job(object):
         self.name = data['name']
         self.state = data['state']
         self.step = data['step']
-        self.vm_flavor_name = data['vm_flavor']['name']
+        self.job_flavor_name = data['job_flavor']['name']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_volume_name = data['vm_volume_name']
         self.stage_group = data['stage_group']
@@ -311,7 +311,15 @@ class Job(object):
         # Volume mounts is JSON encoded in a text field
         self.volume_mounts = json.loads(data['vm_volume_mounts'])
         self.cleanup_vm = data.get('cleanup_vm', True)
-        self.vm_settings = VMSettings(data.get('vm_settings'))
+
+        job_settings = data['job_settings']
+        self.vm_settings = None
+        if job_settings['job_runtime_openstack']:
+            self.vm_settings = VMSettings(job_settings['job_runtime_openstack'])
+
+        self.k8s_settings = None
+        if job_settings['job_runtime_k8s']:
+            self.k8s_settings = K8sSettings(job_settings['job_runtime_k8s'])
 
 
 class RunJobData(Job):
@@ -481,7 +489,7 @@ class CWLCommand(object):
 
 class VMSettings(object):
     """
-    Contains openstack details for launching VMs
+    Contains OpenStack details for launching VMs
     """
     def __init__(self, data):
         # These come from the nested cloud_settings
@@ -494,3 +502,27 @@ class VMSettings(object):
         # These are in the data dictionary directly
         self.image_name = data['image_name']
         self.cwl_commands = CWLCommand(data)
+
+
+class K8sSettings(object):
+    """
+    Contains k8s details for launching jobs
+    """
+    def __init__(self, data):
+        steps = {}
+        for step in data['steps']:
+            name = step['step_type']
+            steps[name] = K8sStepCommand(step)
+        self.stage_data = steps['stage_data']
+        self.run_workflow = steps['run_workflow']
+        self.organize_output = steps['organize_output']
+        self.save_output = steps['save_output']
+        self.record_output_project = steps['record_output_project']
+
+
+class K8sStepCommand(object):
+    def __init__(self, data):
+        self.image_name = data['image_name']
+        self.base_command = data['base_command']
+        self.cpus = data['flavor']['cpus']
+        self.memory = data['flavor']['memory']
