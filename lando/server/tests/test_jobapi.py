@@ -547,17 +547,17 @@ class CWLCommandTests(TestCase):
 
     def setUp(self):
         self.only_base_command_data = {
-            "cwl_base_command": "[\"base\", \"command\"]",
+            "cwl_base_command": ["base", "command"],
         }
         self.pre_and_post_data = {
-            "cwl_base_command": "[\"base\", \"command\"]",
-            "cwl_post_process_command": "[\"post\",\"process\",\"command\"]",
-            "cwl_pre_process_command": "[\"pre\",\"process\",\"command\"]"
+            "cwl_base_command": ["base", "command"],
+            "cwl_post_process_command": ["post", "process", "command"],
+            "cwl_pre_process_command": ["pre", "process", "command"]
         }
 
     def test_loads_base_command(self):
         command = CWLCommand(self.only_base_command_data)
-        self.assertEqual(command.base_command, ['base','command'])
+        self.assertEqual(command.base_command, ['base', 'command'])
 
     def test_requires_base_command(self):
         with self.assertRaises(Exception):
@@ -570,9 +570,9 @@ class CWLCommandTests(TestCase):
 
     def test_loads_pre_and_post(self):
         command = CWLCommand(self.pre_and_post_data)
-        self.assertEqual(command.base_command, ['base','command'])
-        self.assertEqual(command.pre_process_command, ['pre','process','command'])
-        self.assertEqual(command.post_process_command, ['post','process','command'])
+        self.assertEqual(command.base_command, ['base', 'command'])
+        self.assertEqual(command.pre_process_command, ['pre', 'process', 'command'])
+        self.assertEqual(command.post_process_command, ['post', 'process', 'command'])
 
 
 class VMSettingsTests(TestCase):
