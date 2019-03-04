@@ -23,6 +23,8 @@ class TestJobApi(TestCase):
             'created': '2017-03-21T13:29:09.123603Z',
             'job_flavor': {
                 'name': 'm1.tiny',
+                'cpus': 1,
+                'memory': '200MB',
             },
             'vm_instance_name': '',
             'vm_volume_name': '',
@@ -180,6 +182,8 @@ class TestJobApi(TestCase):
             'step': '',
             'job_flavor': {
                 'name': 'm1.tiny',
+                'cpus': 8,
+                'memory': '1G',
             },
             'vm_instance_name': '',
             'vm_volume_name': '',
@@ -246,6 +250,8 @@ class TestJobApi(TestCase):
                 'created': '2017-03-21T13:29:09.123603Z',
                 'job_flavor': {
                     'name': 'm1.tiny',
+                    'cpus': 2,
+                    'memory': '1G',
                 },
                 'vm_instance_name': '',
                 'vm_volume_name': '',
@@ -396,6 +402,8 @@ class TestJob(TestCase):
             'created': '2017-03-21T13:29:09.123603Z',
             'job_flavor': {
                 'name': 'm1.tiny',
+                'cpus': 1,
+                'memory': '200MB',
             },
             'vm_instance_name': '',
             'vm_volume_name': '',
@@ -432,7 +440,7 @@ class TestJob(TestCase):
             ],
             "cwl_pre_process_command": [
                 "prep.sh"
-            ]
+            ],
         }
         self.k8s_job_data = copy.deepcopy(job_data)
         self.k8s_job_data['job_settings']['name'] = 'k8s'

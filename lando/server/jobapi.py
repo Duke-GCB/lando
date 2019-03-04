@@ -302,6 +302,8 @@ class Job(object):
         self.state = data['state']
         self.step = data['step']
         self.job_flavor_name = data['job_flavor']['name']
+        self.job_flavor_cpus = data['job_flavor']['cpus']
+        self.job_flavor_memory = data['job_flavor']['memory']
         self.vm_instance_name = data['vm_instance_name']
         self.vm_volume_name = data['vm_volume_name']
         self.stage_group = data['stage_group']
