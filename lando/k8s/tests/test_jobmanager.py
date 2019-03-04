@@ -10,7 +10,13 @@ class TestJobManager(TestCase):
         mock_job_order = {
             'threads': 2
         }
-        self.mock_job = Mock(username='jpb', workflow=Mock(url='someurl', job_order=mock_job_order), volume_size=3)
+        self.mock_job = Mock(
+            username='jpb',
+            workflow=Mock(url='someurl', job_order=mock_job_order),
+            volume_size=3,
+            job_flavor_cpus=2,
+            job_flavor_memory='1G',
+        )
         self.mock_job.id = '51'
         self.mock_job.vm_settings = None
         self.mock_job.k8s_settings.stage_data = Mock(
@@ -184,14 +190,14 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.name, 'run-workflow-51-jpb')  # container name
         self.assertEqual(job_container.image_name, self.mock_job.k8s_settings.run_workflow.image_name,
                          'run workflow image name is based on job settings')
-
-        self.assertEqual(job_container.command, ['bash', '-c', 'cwltool --tmp-outdir-prefix /bespin/tmpout/ '
-                                                               '--outdir /bespin/output-data/results/ '
-                                                               '/bespin/job-data/workflow/someurl '
-                                                               '/bespin/job-data/job-order.json '
-                                                               '>/bespin/output-data/bespin-workflow-output.json '
-                                                               '2>/bespin/output-data/bespin-workflow-output.log'
-                                                ],
+        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/tmpout/ ' \
+                                '--outdir /bespin/output-data/results/ ' \
+                                '--max-ram 1G --max-cores 2 ' \
+                                '/bespin/job-data/workflow/someurl ' \
+                                '/bespin/job-data/job-order.json ' \
+                                '>/bespin/output-data/bespin-workflow-output.json ' \
+                                '2>/bespin/output-data/bespin-workflow-output.log'
+        self.assertEqual(job_container.command, ['bash', '-c', expected_bash_command],
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
                          'We should store the pod name in a CALRISSIAN_POD_NAME environment variable')

@@ -169,7 +169,10 @@ class JobManager(object):
                 read_only=True))
         command_parts = run_workflow_config.command
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
-                              "--outdir", Paths.OUTPUT_RESULTS_DIR + "/"])
+                              "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
+                              "--max-ram", self.job.job_flavor_memory,
+                              "--max-cores", str(self.job.job_flavor_cpus)
+                              ])
         command_parts.extend([
             self.names.workflow_path,
             self.names.job_order_path,
