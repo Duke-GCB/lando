@@ -78,6 +78,8 @@ class TestJobApi(TestCase):
         self.assertEqual('joe@joe.com', job.username)
         self.assertEqual('N', job.state)
         self.assertEqual('m1.tiny', job.job_flavor_name)
+        self.assertEqual(1, job.job_flavor_cpus)
+        self.assertEqual('200MB', job.job_flavor_memory)
         self.assertEqual('', job.vm_instance_name)
         self.assertEqual('', job.vm_volume_name)
         self.assertEqual(True, job.cleanup_vm)

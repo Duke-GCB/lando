@@ -1,5 +1,5 @@
 from unittest import TestCase
-from unittest.mock import Mock, call, create_autospec
+from unittest.mock import Mock, call
 from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
     OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig
 import json
