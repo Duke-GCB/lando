@@ -481,9 +481,9 @@ class CWLCommand(object):
         Loads JSON-encoded CWL commands from dictionary
         :param data:
         """
-        self.base_command = json.loads(data.get('cwl_base_command'))
-        self.pre_process_command = json.loads(data.get('cwl_pre_process_command','[]'))
-        self.post_process_command = json.loads(data.get('cwl_post_process_command','[]'))
+        self.base_command = data['cwl_base_command']
+        self.pre_process_command = data.get('cwl_pre_process_command', [])
+        self.post_process_command = data.get('cwl_post_process_command', [])
 
     def __str__(self):
         return self.base_command
