@@ -16,8 +16,6 @@ class TestJobManager(TestCase):
             volume_size=3,
             job_flavor_cpus=2,
             job_flavor_memory='1G',
-            created='',
-            last_updated='',
         )
         self.mock_job.name = "myjob"
         self.mock_job.workflow.name = "myworkflow"
