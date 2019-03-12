@@ -355,7 +355,6 @@ class TestJobManager(TestCase):
                 }
             })
         }
-
         mock_cluster_api.create_config_map.assert_called_with(name='save-output-51-jpb',
                                                               data=config_map_payload,
                                                               labels=self.expected_metadata_labels)
