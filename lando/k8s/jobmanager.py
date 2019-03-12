@@ -406,11 +406,11 @@ class Names(object):
         self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
+        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
         self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
-        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.OUTPUT_DATA)
 
 
 class Paths(object):

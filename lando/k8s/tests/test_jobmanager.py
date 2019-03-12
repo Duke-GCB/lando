@@ -120,7 +120,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.command, self.mock_job.k8s_settings.stage_data.base_command,
                          'stage data command is based on a job setting')
         self.assertEqual(job_container.args, ['/bespin/config/stagedata.json',
-                                              '/bespin/output-data/workflow-input-files-metadata.json'],
+                                              '/bespin/job-data/workflow-input-files-metadata.json'],
                          'stage data command should receive config file as an argument')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -350,7 +350,7 @@ class TestJobManager(TestCase):
                     "description": "Bespin Job 51 - Workflow myworkflow v1",
                     "started_on": "",
                     "ended_on": "",
-                    "input_file_versions_json_path": "/bespin/output-data/workflow-input-files-metadata.json",
+                    "input_file_versions_json_path": "/bespin/job-data/workflow-input-files-metadata.json",
                     "workflow_output_json_path": "/bespin/output-data/bespin-workflow-output.json"
                 }
             })
