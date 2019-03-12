@@ -3,6 +3,7 @@ from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume,
 import json
 import os
 import re
+import dateutil
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -171,7 +172,8 @@ class JobManager(object):
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
                               "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
                               "--max-ram", self.job.job_flavor_memory,
-                              "--max-cores", str(self.job.job_flavor_cpus)
+                              "--max-cores", str(self.job.job_flavor_cpus),
+                              "--usage-report", str(self.names.usage_report_path),
                               ])
         command_parts.extend([
             self.names.workflow_path,
@@ -403,7 +405,9 @@ class Names(object):
 
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
-        self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
+        job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
+        self.output_project_name = "Bespin {} v{} {} {}".format(
+            job.workflow.name, job.workflow.version, job.name, job_created)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
@@ -411,6 +415,7 @@ class Names(object):
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
         self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
+        self.usage_report_path = '{}/job-{}-resource-usage.json'.format(Paths.OUTPUT_DATA, suffix)
 
 
 class Paths(object):
