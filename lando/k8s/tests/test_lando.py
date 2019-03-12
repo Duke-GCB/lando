@@ -21,8 +21,10 @@ class TestK8sJobSettings(TestCase):
 class TestK8sJobActions(TestCase):
     def setUp(self):
         self.mock_settings = Mock(job_id='49')
-        self.mock_job = Mock(state=JobStates.AUTHORIZED, step=JobSteps.NONE,
-                             workflow=Mock(url='someurl.cwl'))
+        self.mock_job = Mock(state=JobStates.AUTHORIZED, step=JobSteps.NONE, created='2019-03-11T12:30',
+                             workflow=Mock(url='someurl.cwl', version=2))
+        self.mock_job.name = 'myjob'
+        self.mock_job.workflow.name = 'myworkflow'
         self.mock_job.id = '49'
         self.mock_job.username = 'joe@joe.com'
         self.mock_job_api = self.mock_settings.get_job_api.return_value

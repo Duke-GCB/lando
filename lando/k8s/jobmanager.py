@@ -3,6 +3,7 @@ from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume,
 import json
 import os
 import re
+import dateutil
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -393,7 +394,9 @@ class Names(object):
 
         self.user_data = 'user-data-{}'.format(suffix)
         self.data_store_secret = 'data-store-{}'.format(suffix)
-        self.output_project_name = 'Bespin-job-{}-results'.format(job_id)
+        job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
+        self.output_project_name = "Bespin {} v{} {} {}".format(
+            job.workflow.name, job.workflow.version, job.name, job_created)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
