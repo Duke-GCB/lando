@@ -193,6 +193,7 @@ class TestJobManager(TestCase):
         expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/tmpout/ ' \
                                 '--outdir /bespin/output-data/results/ ' \
                                 '--max-ram 1G --max-cores 2 ' \
+                                '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
                                 '/bespin/job-data/workflow/someurl ' \
                                 '/bespin/job-data/job-order.json ' \
                                 '>/bespin/output-data/bespin-workflow-output.json ' \
