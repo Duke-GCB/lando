@@ -171,7 +171,8 @@ class JobManager(object):
         command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
                               "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
                               "--max-ram", self.job.job_flavor_memory,
-                              "--max-cores", str(self.job.job_flavor_cpus)
+                              "--max-cores", str(self.job.job_flavor_cpus),
+                              "--usage-report", str(self.names.usage_report_path),
                               ])
         command_parts.extend([
             self.names.workflow_path,
@@ -400,6 +401,7 @@ class Names(object):
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
         self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
+        self.usage_report_path = '{}/job-{}-resource-usage.json'.format(Paths.OUTPUT_DATA, suffix)
 
 
 class Paths(object):
