@@ -18,8 +18,8 @@ class TestJobManager(TestCase):
             job_flavor_cpus=2,
             job_flavor_memory='1G',
         )
-        self.mock_job.name = 'myjob'
-        self.mock_job.workflow.name = 'myworkflow'
+        self.mock_job.name = "myjob"
+        self.mock_job.workflow.name = "myworkflow"
         self.mock_job.id = '51'
         self.mock_job.vm_settings = None
         self.mock_job.k8s_settings.stage_data = Mock(
@@ -120,7 +120,8 @@ class TestJobManager(TestCase):
                          'stage data image name is based on a job setting')
         self.assertEqual(job_container.command, self.mock_job.k8s_settings.stage_data.base_command,
                          'stage data command is based on a job setting')
-        self.assertEqual(job_container.args, ['/bespin/config/stagedata.json'],
+        self.assertEqual(job_container.args, ['/bespin/config/stagedata.json',
+                                              '/bespin/job-data/workflow-input-files-metadata.json'],
                          'stage data command should receive config file as an argument')
         self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
                          'DukeDS environment variable should point to the config mapped config file')
@@ -345,7 +346,15 @@ class TestJobManager(TestCase):
                 "destination": "Bespin myworkflow v1 myjob 2019-03-11",
                 "readme_file_path": "results/docs/README.md",
                 "paths": ["/bespin/output-data/results"],
-                "share": {"dds_user_ids": ["123", "456"]}
+                "share": {"dds_user_ids": ["123", "456"]},
+                "activity": {
+                    "name": "myjob - Bespin Job 51",
+                    "description": "Bespin Job 51 - Workflow myworkflow v1",
+                    "started_on": "",
+                    "ended_on": "",
+                    "input_file_versions_json_path": "/bespin/job-data/workflow-input-files-metadata.json",
+                    "workflow_output_json_path": "/bespin/output-data/bespin-workflow-output.json"
+                }
             })
         }
         mock_cluster_api.create_config_map.assert_called_with(name='save-output-51-jpb',

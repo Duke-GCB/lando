@@ -103,7 +103,7 @@ class JobManager(object):
             name=self.names.stage_data,
             image_name=stage_data_config.image_name,
             command=stage_data_config.command,
-            args=[stage_data_config.path],
+            args=[stage_data_config.path, self.names.workflow_input_files_metadata_path],
             env_dict=stage_data_config.env_dict,
             requested_cpu=stage_data_config.requested_cpu,
             requested_memory=stage_data_config.requested_memory,
@@ -260,7 +260,9 @@ class JobManager(object):
         save_output_config = SaveOutputConfig(self.job, self.config)
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename,
-                                            share_dds_ids=share_dds_ids)
+                                            share_dds_ids=share_dds_ids,
+                                            activity_name=save_output_config.activity_name,
+                                            activity_description=save_output_config.activity_description)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
@@ -295,13 +297,21 @@ class JobManager(object):
                                 labels=labels)
         return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
 
-    def _create_save_output_config_map(self, name, filename, share_dds_ids):
+    def _create_save_output_config_map(self, name, filename, share_dds_ids, activity_name, activity_description):
         config_data = {
             "destination": self.names.output_project_name,
             "readme_file_path": Paths.REMOTE_README_FILE_PATH,
             "paths": [Paths.OUTPUT_RESULTS_DIR],
             "share": {
                 "dds_user_ids": share_dds_ids
+            },
+            "activity": {
+                "name": activity_name,
+                "description": activity_description,
+                "started_on": "",
+                "ended_on": "",
+                "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
+                "workflow_output_json_path": self.names.run_workflow_stdout_path
             }
         }
         payload = {
@@ -400,6 +410,7 @@ class Names(object):
             job.workflow.name, job.workflow.version, job.name, job_created)
         self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
+        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
         self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
         self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
@@ -472,6 +483,10 @@ class SaveOutputConfig(object):
         self.command = job_save_output_settings.base_command
         self.requested_cpu = job_save_output_settings.cpus
         self.requested_memory = job_save_output_settings.memory
+
+        self.activity_name = "{} - Bespin Job {}".format(job.name, job.id)
+        self.activity_description = "Bespin Job {} - Workflow {} v{}".format(
+            job.id, job.workflow.name, job.workflow.version)
 
 
 class RecordOutputProjectConfig(object):
