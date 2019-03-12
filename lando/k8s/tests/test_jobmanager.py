@@ -12,11 +12,14 @@ class TestJobManager(TestCase):
         }
         self.mock_job = Mock(
             username='jpb',
-            workflow=Mock(url='someurl', job_order=mock_job_order),
+            created='2019-03-11T12:30',
+            workflow=Mock(url='someurl', job_order=mock_job_order, version=1),
             volume_size=3,
             job_flavor_cpus=2,
             job_flavor_memory='1G',
         )
+        self.mock_job.name = 'myjob'
+        self.mock_job.workflow.name = 'myworkflow'
         self.mock_job.id = '51'
         self.mock_job.vm_settings = None
         self.mock_job.k8s_settings.stage_data = Mock(
@@ -339,7 +342,7 @@ class TestJobManager(TestCase):
         # it should have created a config map of what needs to be staged
         config_map_payload = {
             'saveoutput.json': json.dumps({
-                "destination": "Bespin-job-51-results",
+                "destination": "Bespin myworkflow v1 myjob 2019-03-11",
                 "readme_file_path": "results/docs/README.md",
                 "paths": ["/bespin/output-data/results"],
                 "share": {"dds_user_ids": ["123", "456"]}
@@ -527,7 +530,10 @@ class TestJobManager(TestCase):
 
 class TestNames(TestCase):
     def test_constructor(self):
-        mock_job = Mock(username='jpb', workflow=Mock(url='https://somewhere.com/someworkflow.cwl'))
+        mock_job = Mock(username='jpb', created='2019-03-11T12:30',
+                        workflow=Mock(url='https://somewhere.com/someworkflow.cwl', version=1))
+        mock_job.name = 'myjob'
+        mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
         names = Names(mock_job)
         self.assertEqual(names.job_data, 'job-data-123-jpb')
@@ -543,7 +549,7 @@ class TestNames(TestCase):
 
         self.assertEqual(names.user_data, 'user-data-123-jpb')
         self.assertEqual(names.data_store_secret, 'data-store-123-jpb')
-        self.assertEqual(names.output_project_name, 'Bespin-job-123-results')
+        self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
         self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
@@ -552,7 +558,10 @@ class TestNames(TestCase):
         self.assertEqual(names.annotate_project_details_path, '/bespin/output-data/annotate_project_details.sh')
 
     def test_strips_username_after_at_sign(self):
-        mock_job = Mock(username='tom@tom.com', workflow=Mock(url='https://somewhere.com/someworkflow.cwl'))
+        mock_job = Mock(username='tom@tom.com', created='2019-03-11T12:30',
+                        workflow=Mock(url='https://somewhere.com/someworkflow.cwl', version=1))
+        mock_job.name = 'myjob'
+        mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
         names = Names(mock_job)
         self.assertEqual(names.job_data, 'job-data-123-tom')
@@ -567,7 +576,7 @@ class TestNames(TestCase):
 
         self.assertEqual(names.user_data, 'user-data-123-tom')
         self.assertEqual(names.data_store_secret, 'data-store-123-tom')
-        self.assertEqual(names.output_project_name, 'Bespin-job-123-results')
+        self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
         self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-tom')
