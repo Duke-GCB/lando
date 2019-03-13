@@ -246,6 +246,9 @@ class JobManager(object):
             "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
             "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
             "methods_template": methods_document_content,
+            "additional_log_files": [
+                self.names.usage_report_path
+            ]
         }
         payload = {
             filename: json.dumps(config_data)
