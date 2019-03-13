@@ -198,11 +198,11 @@ class TestJobManager(TestCase):
                                 '--outdir /bespin/output-data/results/ ' \
                                 '--max-ram 1G --max-cores 2 ' \
                                 '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
+                                '--stdout /bespin/output-data/bespin-workflow-output.json ' \
+                                '--stderr /bespin/output-data/bespin-workflow-output.log ' \
                                 '/bespin/job-data/workflow/someurl ' \
-                                '/bespin/job-data/job-order.json ' \
-                                '>/bespin/output-data/bespin-workflow-output.json ' \
-                                '2>/bespin/output-data/bespin-workflow-output.log'
-        self.assertEqual(job_container.command, ['bash', '-c', expected_bash_command],
+                                '/bespin/job-data/job-order.json'.split(' ')
+        self.assertEqual(job_container.command, expected_bash_command,
                          'run workflow command combines job settings and staged files')
         self.assertEqual(job_container.env_dict['CALRISSIAN_POD_NAME'].field_path, 'metadata.name',
                          'We should store the pod name in a CALRISSIAN_POD_NAME environment variable')

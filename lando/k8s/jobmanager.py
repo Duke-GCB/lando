@@ -168,23 +168,21 @@ class JobManager(object):
                 mount_path=system_data_volume.mount_path,
                 volume_claim_name=system_data_volume.volume_claim_name,
                 read_only=True))
-        command_parts = run_workflow_config.command
-        command_parts.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
-                              "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
-                              "--max-ram", self.job.job_flavor_memory,
-                              "--max-cores", str(self.job.job_flavor_cpus),
-                              "--usage-report", str(self.names.usage_report_path),
-                              ])
-        command_parts.extend([
-            self.names.workflow_path,
-            self.names.job_order_path,
-            ">{}".format(self.names.run_workflow_stdout_path),
-            "2>{}".format(self.names.run_workflow_stderr_path),
-        ])
+        command = run_workflow_config.command
+        command.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
+                        "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
+                        "--max-ram", self.job.job_flavor_memory,
+                        "--max-cores", str(self.job.job_flavor_cpus),
+                        "--usage-report", self.names.usage_report_path,
+                        "--stdout", self.names.run_workflow_stdout_path,
+                        "--stderr", self.names.run_workflow_stderr_path,
+                        self.names.workflow_path,
+                        self.names.job_order_path,
+                        ])
         container = Container(
             name=self.names.run_workflow,
             image_name=run_workflow_config.image_name,
-            command=["bash", "-c", ' '.join(command_parts)],
+            command=command,
             env_dict={
                 "CALRISSIAN_POD_NAME": FieldRefEnvVar(field_path="metadata.name")
             },
