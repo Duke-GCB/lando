@@ -296,7 +296,8 @@ class TestJobManager(TestCase):
                         "job_order_path": "/bespin/job-data/job-order.json",
                         "bespin_workflow_stdout_path": "/bespin/output-data/bespin-workflow-output.json",
                         "bespin_workflow_stderr_path": "/bespin/output-data/bespin-workflow-output.log",
-                        "methods_template": "markdown"
+                        "methods_template": "markdown",
+                        "additional_log_files": ["/bespin/output-data/job-51-jpb-resource-usage.json"]
                     })
                 },
             labels={'bespin-job': 'true', 'bespin-job-id': '51'}
