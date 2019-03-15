@@ -7,7 +7,6 @@ import dateutil
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
-TMP_VOLUME_SIZE_IN_G = 1
 BESPIN_JOB_LABEL_VALUE = "true"
 
 
@@ -70,7 +69,7 @@ class JobManager(object):
     def create_tmp_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
             self.names.tmp,
-            storage_size_in_g=TMP_VOLUME_SIZE_IN_G,
+            storage_size_in_g=self.config.tmp_volume_size_in_g,
             storage_class_name=self.storage_class_name,
             labels=self.default_metadata_labels,
         )
