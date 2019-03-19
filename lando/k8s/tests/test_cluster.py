@@ -308,7 +308,7 @@ class TestFieldRefEnvVar(TestCase):
 
 class TestVolumeBase(TestCase):
     def test_create_volume_mount(self):
-        volume = VolumeBase(name='myvolume', mount_path='/data')
+        volume = VolumeBase(name='myvolume', mount_path='/data', sub_path=None)
         volume_dict = volume.create_volume_mount().to_dict()
         self.assertEqual(volume_dict, {
             'mount_path': '/data',
@@ -318,8 +318,19 @@ class TestVolumeBase(TestCase):
             'sub_path': None
         })
 
+    def test_create_volume_mount_with_sub_path(self):
+        volume = VolumeBase(name='myvolume', mount_path='/data', sub_path='somedir')
+        volume_dict = volume.create_volume_mount().to_dict()
+        self.assertEqual(volume_dict, {
+            'mount_path': '/data',
+            'mount_propagation': None,
+            'name': 'myvolume',
+            'read_only': None,
+            'sub_path': 'somedir'
+        })
+
     def test_create_volume_is_required(self):
-        volume = VolumeBase(name='myvolume', mount_path='/data')
+        volume = VolumeBase(name='myvolume', mount_path='/data', sub_path=None)
         with self.assertRaises(NotImplementedError):
             volume.create_volume()
 

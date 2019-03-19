@@ -189,22 +189,24 @@ class VolumeBase(object):
     """
     Base class that represents a volume that will be mounted.
     """
-    def __init__(self, name, mount_path):
+    def __init__(self, name, mount_path, sub_path):
         self.name = name
         self.mount_path = mount_path
+        self.sub_path = sub_path
 
     def create_volume_mount(self):
         return client.V1VolumeMount(
             name=self.name,
-            mount_path=self.mount_path)
+            mount_path=self.mount_path,
+            sub_path=self.sub_path)
 
     def create_volume(self):
         raise NotImplementedError("Subclasses of VolumeBase should implement create_volume.")
 
 
 class SecretVolume(VolumeBase):
-    def __init__(self, name, mount_path, secret_name):
-        super(SecretVolume, self).__init__(name, mount_path)
+    def __init__(self, name, mount_path, secret_name, sub_path=None):
+        super(SecretVolume, self).__init__(name, mount_path, sub_path)
         self.secret_name = secret_name
 
     def create_volume(self):
@@ -217,8 +219,8 @@ class SecretVolume(VolumeBase):
 
 
 class PersistentClaimVolume(VolumeBase):
-    def __init__(self, name, mount_path, volume_claim_name, read_only=False):
-        super(PersistentClaimVolume, self).__init__(name, mount_path)
+    def __init__(self, name, mount_path, volume_claim_name, read_only=False, sub_path=None):
+        super(PersistentClaimVolume, self).__init__(name, mount_path, sub_path)
         self.volume_claim_name = volume_claim_name
         self.read_only = read_only
 
@@ -234,8 +236,8 @@ class PersistentClaimVolume(VolumeBase):
 
 
 class ConfigMapVolume(VolumeBase):
-    def __init__(self, name, mount_path, config_map_name, source_key, source_path):
-        super(ConfigMapVolume, self).__init__(name, mount_path)
+    def __init__(self, name, mount_path, config_map_name, source_key, source_path, sub_path=None):
+        super(ConfigMapVolume, self).__init__(name, mount_path, sub_path)
         self.config_map_name = config_map_name
         self.source_key = source_key
         self.source_path = source_path
@@ -252,8 +254,8 @@ class ConfigMapVolume(VolumeBase):
 
 
 class EmptyDirVolume(VolumeBase):
-    def __init__(self, name, mount_path):
-        super(EmptyDirVolume, self).__init__(name, mount_path)
+    def __init__(self, name, mount_path, sub_path=None):
+        super(EmptyDirVolume, self).__init__(name, mount_path, sub_path)
 
     def create_volume(self):
         return client.V1Volume(

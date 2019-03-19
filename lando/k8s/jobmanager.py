@@ -50,17 +50,9 @@ class JobManager(object):
             labels=self.default_metadata_labels,
         )
 
-    def create_output_data_persistent_volume(self):
+    def create_tmpout_and_output_data_persistent_volume(self):
         self.cluster_api.create_persistent_volume_claim(
-            self.names.output_data,
-            storage_size_in_g=self.job.volume_size,
-            storage_class_name=self.storage_class_name,
-            labels=self.default_metadata_labels,
-        )
-
-    def create_tmpout_persistent_volume(self):
-        self.cluster_api.create_persistent_volume_claim(
-            self.names.tmpout,
+            self.names.tmpout_and_output_data,
             storage_size_in_g=self.job.volume_size,
             storage_class_name=self.storage_class_name,
             labels=self.default_metadata_labels,
@@ -77,6 +69,36 @@ class JobManager(object):
     def create_stage_data_persistent_volumes(self, stage_data_size_in_g):
         self.create_job_data_persistent_volume(stage_data_size_in_g)
 
+    def container_job_data_volume(self, read_only=False):
+        return PersistentClaimVolume(
+            self.names.job_data,
+            mount_path=Paths.JOB_DATA,
+            volume_claim_name=self.names.job_data,
+            read_only=read_only)
+
+    def container_tmp_volume(self):
+        return PersistentClaimVolume(
+            self.names.tmp,
+            mount_path=Paths.TMP,
+            volume_claim_name=self.names.tmp,
+            read_only=False)
+
+    def container_output_data_volume(self, read_only=False):
+        return PersistentClaimVolume(
+            self.names.output_data,
+            mount_path=Paths.OUTPUT_DATA,
+            volume_claim_name=self.names.tmpout_and_output_data,
+            read_only=read_only,
+            sub_path=Paths.OUTPUT_DATA_SUB_PATH)
+
+    def container_tmpout_volume(self, read_only=False):
+        return PersistentClaimVolume(
+            self.names.tmpout,
+            mount_path=Paths.TMPOUT_DATA,
+            volume_claim_name=self.names.tmpout_and_output_data,
+            read_only=read_only,
+            sub_path=Paths.TMPOUT_SUB_PATH)
+
     def create_stage_data_job(self, input_files):
         stage_data_config = StageDataConfig(self.job, self.config)
         self._create_stage_data_config_map(name=self.names.stage_data,
@@ -85,10 +107,7 @@ class JobManager(object):
                                            job_order=self.job.workflow.job_order,
                                            input_files=input_files)
         volumes = [
-            PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
-                                  volume_claim_name=self.names.job_data,
-                                  read_only=False),
+            self.container_job_data_volume(read_only=False),
             ConfigMapVolume(self.names.stage_data,
                             mount_path=Paths.CONFIG_DIR,
                             config_map_name=self.names.stage_data,
@@ -136,30 +155,17 @@ class JobManager(object):
         self.cluster_api.delete_config_map(self.names.stage_data)
 
     def create_run_workflow_persistent_volumes(self):
-        self.create_tmpout_persistent_volume()
-        self.create_output_data_persistent_volume()
+        self.create_tmpout_and_output_data_persistent_volume()
         self.create_tmp_persistent_volume()
 
     def create_run_workflow_job(self):
         run_workflow_config = RunWorkflowConfig(self.job, self.config)
         system_data_volume = run_workflow_config.system_data_volume
         volumes = [
-            PersistentClaimVolume(self.names.tmp,
-                                  mount_path=Paths.TMP,
-                                  volume_claim_name=self.names.tmp,
-                                  read_only=False),
-            PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
-                                  volume_claim_name=self.names.job_data,
-                                  read_only=True),
-            PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
-                                  volume_claim_name=self.names.output_data,
-                                  read_only=False),
-            PersistentClaimVolume(self.names.tmpout,
-                                  mount_path=Paths.TMPOUT_DATA,
-                                  volume_claim_name=self.names.tmpout,
-                                  read_only=False),
+            self.container_job_data_volume(read_only=True),
+            self.container_tmp_volume(),
+            self.container_output_data_volume(read_only=False),
+            self.container_tmpout_volume(read_only=False),
         ]
         if system_data_volume:
             volumes.append(PersistentClaimVolume(
@@ -197,7 +203,6 @@ class JobManager(object):
 
     def cleanup_run_workflow_job(self):
         self.cluster_api.delete_job(self.names.run_workflow)
-        self.cluster_api.delete_persistent_volume_claim(self.names.tmpout)
         self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
     def create_organize_output_project_job(self, methods_document_content):
@@ -206,14 +211,8 @@ class JobManager(object):
                                                 filename=organize_output_config.filename,
                                                 methods_document_content=methods_document_content)
         volumes = [
-            PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
-                                  volume_claim_name=self.names.job_data,
-                                  read_only=True),
-            PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
-                                  volume_claim_name=self.names.output_data,
-                                  read_only=False),
+            self.container_job_data_volume(read_only=True),
+            self.container_output_data_volume(read_only=False),
             ConfigMapVolume(self.names.organize_output,
                             mount_path=Paths.CONFIG_DIR,
                             config_map_name=self.names.organize_output,
@@ -264,14 +263,8 @@ class JobManager(object):
                                             activity_name=save_output_config.activity_name,
                                             activity_description=save_output_config.activity_description)
         volumes = [
-            PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
-                                  volume_claim_name=self.names.job_data,
-                                  read_only=True),
-            PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
-                                  volume_claim_name=self.names.output_data,
-                                  read_only=False),  # writable so we can write project_details file
+            self.container_job_data_volume(read_only=True),
+            self.container_output_data_volume(read_only=False),
             ConfigMapVolume(self.names.stage_data,
                             mount_path=Paths.CONFIG_DIR,
                             config_map_name=self.names.save_output,
@@ -327,10 +320,7 @@ class JobManager(object):
     def create_record_output_project_job(self):
         config = RecordOutputProjectConfig(self.job, self.config)
         volumes = [
-            PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
-                                  volume_claim_name=self.names.output_data,
-                                  read_only=True),
+            self.container_output_data_volume(read_only=True)
         ]
         container = Container(
             name=self.names.record_output_project,
@@ -366,7 +356,7 @@ class JobManager(object):
 
     def cleanup_record_output_project_job(self):
         self.cluster_api.delete_job(self.names.record_output_project)
-        self.cluster_api.delete_persistent_volume_claim(self.names.output_data)
+        self.cluster_api.delete_persistent_volume_claim(self.names.tmpout_and_output_data)
 
     def cleanup_all(self):
         self.cleanup_jobs_and_config_maps()
@@ -392,8 +382,9 @@ class Names(object):
         suffix = '{}-{}'.format(job.id, stripped_username)
         # Volumes
         self.job_data = 'job-data-{}'.format(suffix)
-        self.output_data = 'output-data-{}'.format(suffix)
-        self.tmpout = 'tmpout-{}'.format(suffix)
+        self.tmpout_and_output_data = 'tmpout-and-output-data-{}'.format(suffix) #
+        self.output_data = 'output-data-{}'.format(suffix)  # is subpath of tmpout_and_output_data
+        self.tmpout = 'tmpout-{}'.format(suffix)  # is subpath of tmpout_and_output_data
         self.tmp = 'tmp-{}'.format(suffix)
 
         # Job Names
@@ -429,6 +420,8 @@ class Paths(object):
     TMP = '/tmp'
     PROJECT_DETAILS_DIR = '/tmp'
     REMOTE_README_FILE_PATH = 'results/docs/README.md'
+    TMPOUT_SUB_PATH = 'tmpout'
+    OUTPUT_DATA_SUB_PATH = 'output-data'
 
 
 class StageDataConfig(object):
