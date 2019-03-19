@@ -1,4 +1,5 @@
 from lando.k8s.lando import K8sJobSettings, K8sJobActions, K8sLando, JobStates, JobSteps
+from lando.server.jobapi import InputFiles
 from unittest import TestCase
 from unittest.mock import patch, Mock, call
 
@@ -20,7 +21,8 @@ class TestK8sJobSettings(TestCase):
 
 class TestK8sJobActions(TestCase):
     def setUp(self):
-        self.mock_settings = Mock(job_id='49')
+        self.mock_config = Mock(base_stage_data_volume_size_in_g=1)
+        self.mock_settings = Mock(job_id='49', config=self.mock_config)
         self.mock_job = Mock(state=JobStates.AUTHORIZED, step=JobSteps.NONE, created='2019-03-11T12:30',
                              workflow=Mock(url='someurl.cwl', version=2))
         self.mock_job.name = 'myjob'
@@ -51,9 +53,23 @@ class TestK8sJobActions(TestCase):
         self.assertFalse(actions.job_is_at_state_and_step(JobStates.RUNNING, JobSteps.RUNNING))
         self.assertFalse(actions.job_is_at_state_and_step(JobStates.ERRORED, JobSteps.STAGING))
 
-    @patch('lando.k8s.lando.JobManager')
+    @patch('lando.k8s.lando.JobManager', autospec=True)
     def test_start_job(self, mock_job_manager):
-        mock_input_file = Mock()
+        mock_input_file = InputFiles(
+            {
+                'dds_files': [{
+                    'file_id': '123',
+                    'destination_path': '/somepath/123.dat',
+                    'size': 3 * 1024 * 1024,
+                    'dds_user_credentials': {}
+                }],
+                'url_files': [{
+                    'url': 'someurl',
+                    'destination_path': '/somepath/456.dat',
+                    'size': 1 * 1024 * 1024,
+                }]
+            }
+        )
         self.mock_job_api.get_input_files.return_value = mock_input_file
         mock_manager = mock_job_manager.return_value
         k8s_job = Mock()
@@ -71,7 +87,7 @@ class TestK8sJobActions(TestCase):
             call(JobSteps.CREATE_VM),
             call(JobSteps.STAGING),
         ])
-        mock_manager.create_stage_data_persistent_volumes.assert_called_with()
+        mock_manager.create_stage_data_persistent_volumes.assert_called_with(5.0)
         mock_manager.create_stage_data_job.assert_called_with(mock_input_file)
         actions._show_status.assert_has_calls([
             call('Creating stage data persistent volumes'),

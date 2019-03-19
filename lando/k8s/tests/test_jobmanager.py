@@ -64,11 +64,11 @@ class TestJobManager(TestCase):
 
     def test_create_stage_data_persistent_volumes(self):
         manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
-        manager.create_stage_data_persistent_volumes()
+        manager.create_stage_data_persistent_volumes(stage_data_size_in_g=10)
         manager.cluster_api.create_persistent_volume_claim.assert_has_calls([
             call('job-data-51-jpb',
                  storage_class_name=manager.storage_class_name,
-                 storage_size_in_g=3,
+                 storage_size_in_g=10,
                  labels=self.expected_metadata_labels)
         ])
 
