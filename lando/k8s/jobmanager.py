@@ -42,10 +42,10 @@ class JobManager(object):
         labels[JobLabels.STEP_TYPE] = job_step_type
         return labels
 
-    def create_job_data_persistent_volume(self):
+    def create_job_data_persistent_volume(self, stage_data_size_in_g):
         self.cluster_api.create_persistent_volume_claim(
             self.names.job_data,
-            storage_size_in_g=self.job.volume_size,
+            storage_size_in_g=stage_data_size_in_g,
             storage_class_name=self.storage_class_name,
             labels=self.default_metadata_labels,
         )
@@ -74,8 +74,8 @@ class JobManager(object):
             labels=self.default_metadata_labels,
         )
 
-    def create_stage_data_persistent_volumes(self):
-        self.create_job_data_persistent_volume()
+    def create_stage_data_persistent_volumes(self, stage_data_size_in_g):
+        self.create_job_data_persistent_volume(stage_data_size_in_g)
 
     def create_stage_data_job(self, input_files):
         stage_data_config = StageDataConfig(self.job, self.config)

@@ -39,6 +39,7 @@ class ServerConfig(object):
         )
         self.storage_class_name = data.get('storage_class_name', None)
         self.tmp_volume_size_in_g = data.get('tmp_volume_size_in_g', 10)
+        self.base_stage_data_volume_size_in_g = data.get('base_stage_data_volume_size_in_g', 1)
 
 
 class ClusterApiSettings(object):
