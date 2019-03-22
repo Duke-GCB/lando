@@ -167,14 +167,8 @@ class TestJobManager(TestCase):
 
         manager.create_run_workflow_persistent_volumes()
 
-        mock_cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
-                 labels=self.expected_metadata_labels),
-            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
-                 labels=self.expected_metadata_labels),
-            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=10,
-                 labels=self.expected_metadata_labels),
-        ])
+        mock_cluster_api.create_persistent_volume_claim.assert_called_with(
+            'output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3, labels=self.expected_metadata_labels)
 
     def test_create_run_workflow_job(self):
         mock_cluster_api = Mock()
@@ -244,9 +238,7 @@ class TestJobManager(TestCase):
         manager.cleanup_run_workflow_job()
 
         mock_cluster_api.delete_job.assert_called_with('run-workflow-51-jpb')
-        mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb'), call('tmp-51-jpb')
-        ], 'delete tmp volumes once running workflow completes')
+        mock_cluster_api.delete_persistent_volume_claim.assert_not_called()
 
     def test_create_organize_output_project_job(self):
         mock_cluster_api = Mock()

@@ -58,22 +58,6 @@ class JobManager(object):
             labels=self.default_metadata_labels,
         )
 
-    def create_tmpout_persistent_volume(self):
-        self.cluster_api.create_persistent_volume_claim(
-            self.names.tmpout,
-            storage_size_in_g=self.job.volume_size,
-            storage_class_name=self.storage_class_name,
-            labels=self.default_metadata_labels,
-        )
-
-    def create_tmp_persistent_volume(self):
-        self.cluster_api.create_persistent_volume_claim(
-            self.names.tmp,
-            storage_size_in_g=self.config.tmp_volume_size_in_g,
-            storage_class_name=self.storage_class_name,
-            labels=self.default_metadata_labels,
-        )
-
     def create_stage_data_persistent_volumes(self, stage_data_size_in_g):
         self.create_job_data_persistent_volume(stage_data_size_in_g)
 
@@ -136,9 +120,7 @@ class JobManager(object):
         self.cluster_api.delete_config_map(self.names.stage_data)
 
     def create_run_workflow_persistent_volumes(self):
-        self.create_tmpout_persistent_volume()
         self.create_output_data_persistent_volume()
-        self.create_tmp_persistent_volume()
 
     def create_run_workflow_job(self):
         run_workflow_config = RunWorkflowConfig(self.job, self.config)
@@ -189,8 +171,6 @@ class JobManager(object):
 
     def cleanup_run_workflow_job(self):
         self.cluster_api.delete_job(self.names.run_workflow)
-        self.cluster_api.delete_persistent_volume_claim(self.names.tmpout)
-        self.cluster_api.delete_persistent_volume_claim(self.names.tmp)
 
     def create_organize_output_project_job(self, methods_document_content):
         organize_output_config = OrganizeOutputConfig(self.job, self.config)
