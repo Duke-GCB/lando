@@ -144,10 +144,6 @@ class JobManager(object):
         run_workflow_config = RunWorkflowConfig(self.job, self.config)
         system_data_volume = run_workflow_config.system_data_volume
         volumes = [
-            PersistentClaimVolume(self.names.tmp,
-                                  mount_path=Paths.TMP,
-                                  volume_claim_name=self.names.tmp,
-                                  read_only=False),
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=Paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
@@ -155,10 +151,6 @@ class JobManager(object):
             PersistentClaimVolume(self.names.output_data,
                                   mount_path=Paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
-                                  read_only=False),
-            PersistentClaimVolume(self.names.tmpout,
-                                  mount_path=Paths.TMPOUT_DATA,
-                                  volume_claim_name=self.names.tmpout,
                                   read_only=False),
         ]
         if system_data_volume:
@@ -425,9 +417,7 @@ class Paths(object):
     STAGE_DATA_CONFIG_FILE = '/bespin/config/stagedata.json'
     OUTPUT_DATA = '/bespin/output-data'
     OUTPUT_RESULTS_DIR = '/bespin/output-data/results'
-    TMPOUT_DATA = '/bespin/tmpout'
-    TMP = '/tmp'
-    PROJECT_DETAILS_DIR = '/tmp'
+    TMPOUT_DATA = '/bespin/output-data/tmpout'
     REMOTE_README_FILE_PATH = 'results/docs/README.md'
 
 

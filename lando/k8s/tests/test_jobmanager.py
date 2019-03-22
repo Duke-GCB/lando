@@ -194,7 +194,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.name, 'run-workflow-51-jpb')  # container name
         self.assertEqual(job_container.image_name, self.mock_job.k8s_settings.run_workflow.image_name,
                          'run workflow image name is based on job settings')
-        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/tmpout/ ' \
+        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/output-data/tmpout/ ' \
                                 '--outdir /bespin/output-data/results/ ' \
                                 '--max-ram 1G --max-cores 2 ' \
                                 '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
@@ -211,33 +211,21 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.requested_memory, self.mock_job.k8s_settings.run_workflow.memory,
                          'run workflow requested memory is based on a job setting')
 
-        self.assertEqual(len(job_container.volumes), 5)
+        self.assertEqual(len(job_container.volumes), 3)
 
-        tmp_volume = job_container.volumes[0]
-        self.assertEqual(tmp_volume.name, 'tmp-51-jpb')
-        self.assertEqual(tmp_volume.mount_path, '/tmp')
-        self.assertEqual(tmp_volume.volume_claim_name, 'tmp-51-jpb')
-        self.assertEqual(tmp_volume.read_only, False)
-
-        job_data_volume = job_container.volumes[1]
+        job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.mount_path, '/bespin/job-data')
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.read_only, True, 'job data should be a read only volume')
 
-        output_data_volume = job_container.volumes[2]
+        output_data_volume = job_container.volumes[1]
         self.assertEqual(output_data_volume.name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.mount_path, '/bespin/output-data')
         self.assertEqual(output_data_volume.volume_claim_name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.read_only, False)
 
-        tmpout_volume = job_container.volumes[3]
-        self.assertEqual(tmpout_volume.name, 'tmpout-51-jpb')
-        self.assertEqual(tmpout_volume.mount_path, '/bespin/tmpout')
-        self.assertEqual(tmpout_volume.volume_claim_name, 'tmpout-51-jpb')
-        self.assertEqual(tmpout_volume.read_only, False)
-
-        system_data_volume = job_container.volumes[4]
+        system_data_volume = job_container.volumes[2]
         self.assertEqual(system_data_volume.name, 'system-data-51-jpb')
         self.assertEqual(system_data_volume.mount_path,
                          mock_config.run_workflow_settings.system_data_volume.mount_path,
