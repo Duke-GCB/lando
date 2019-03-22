@@ -63,6 +63,7 @@ FULL_CONFIG = {
         'service_account_name': 'annotation-writer-sa',
     },
     'storage_class_name': 'gluster',
+    'base_stage_data_volume_size_in_g': 3
 }
 
 
@@ -96,6 +97,7 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.record_output_project_settings.service_account_name, 'annotation-writer-sa')
 
         self.assertEqual(config.storage_class_name, None)
+        self.assertEqual(config.base_stage_data_volume_size_in_g, 1)
 
     def test_optional_config(self):
         config = ServerConfig(FULL_CONFIG)
@@ -103,3 +105,4 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.run_workflow_settings.system_data_volume.mount_path, '/system/data')
         self.assertEqual(config.run_workflow_settings.system_data_volume.volume_claim_name, 'system-data')
         self.assertEqual(config.cluster_api_settings.verify_ssl, False)
+        self.assertEqual(config.base_stage_data_volume_size_in_g, 3)
