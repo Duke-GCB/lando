@@ -61,7 +61,7 @@ class K8sJobActions(BaseJobActions):
             total_bytes += dds_file.size
         for url_file in input_files.url_files:
             total_bytes += url_file.size
-        return math.ceil(float(total_bytes) / (1024.0 * 1024.0))
+        return math.ceil(float(total_bytes) / (1024.0 * 1024.0 * 1024.0))
 
     def perform_staging_step(self, input_files):
         self._set_job_step(JobSteps.STAGING)

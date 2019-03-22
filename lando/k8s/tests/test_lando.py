@@ -60,13 +60,13 @@ class TestK8sJobActions(TestCase):
                 'dds_files': [{
                     'file_id': '123',
                     'destination_path': '/somepath/123.dat',
-                    'size': 3 * 1024 * 1024,
+                    'size': 3 * 1024 * 1024 * 1024,  # 3 GiB
                     'dds_user_credentials': {}
                 }],
                 'url_files': [{
                     'url': 'someurl',
                     'destination_path': '/somepath/456.dat',
-                    'size': 1 * 1024 * 1024,
+                    'size': 1 * 1024 * 1024 * 1024,  # 1 GiB
                 }]
             }
         )
