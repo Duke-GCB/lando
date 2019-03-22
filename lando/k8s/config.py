@@ -38,7 +38,6 @@ class ServerConfig(object):
             get_or_raise_config_exception(data, 'record_output_project_settings')
         )
         self.storage_class_name = data.get('storage_class_name', None)
-        self.tmp_volume_size_in_g = data.get('tmp_volume_size_in_g', 10)
         self.base_stage_data_volume_size_in_g = data.get('base_stage_data_volume_size_in_g', 1)
 
 

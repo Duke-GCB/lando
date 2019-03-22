@@ -162,7 +162,7 @@ class TestJobManager(TestCase):
 
     def test_create_run_workflow_persistent_volumes(self):
         mock_cluster_api = Mock()
-        mock_config = Mock(storage_class_name='nfs', tmp_volume_size_in_g=10)
+        mock_config = Mock(storage_class_name='nfs')
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.create_run_workflow_persistent_volumes()
