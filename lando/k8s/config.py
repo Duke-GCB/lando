@@ -38,7 +38,8 @@ class ServerConfig(object):
             get_or_raise_config_exception(data, 'record_output_project_settings')
         )
         self.storage_class_name = data.get('storage_class_name', None)
-        self.tmp_volume_size_in_g = data.get('tmp_volume_size_in_g', 10)
+        # Controls the amount of storage reserved for storing the workflow, job order, downloaded file metadata, etc.
+        self.base_stage_data_volume_size_in_g = data.get('base_stage_data_volume_size_in_g', 1)
 
 
 class ClusterApiSettings(object):

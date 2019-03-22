@@ -64,11 +64,11 @@ class TestJobManager(TestCase):
 
     def test_create_stage_data_persistent_volumes(self):
         manager = JobManager(cluster_api=Mock(), config=Mock(), job=self.mock_job)
-        manager.create_stage_data_persistent_volumes()
+        manager.create_stage_data_persistent_volumes(stage_data_size_in_g=10)
         manager.cluster_api.create_persistent_volume_claim.assert_has_calls([
             call('job-data-51-jpb',
                  storage_class_name=manager.storage_class_name,
-                 storage_size_in_g=3,
+                 storage_size_in_g=10,
                  labels=self.expected_metadata_labels)
         ])
 
@@ -162,19 +162,13 @@ class TestJobManager(TestCase):
 
     def test_create_run_workflow_persistent_volumes(self):
         mock_cluster_api = Mock()
-        mock_config = Mock(storage_class_name='nfs', tmp_volume_size_in_g=10)
+        mock_config = Mock(storage_class_name='nfs')
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
 
         manager.create_run_workflow_persistent_volumes()
 
-        mock_cluster_api.create_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
-                 labels=self.expected_metadata_labels),
-            call('output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3,
-                 labels=self.expected_metadata_labels),
-            call('tmp-51-jpb', storage_class_name='nfs', storage_size_in_g=10,
-                 labels=self.expected_metadata_labels),
-        ])
+        mock_cluster_api.create_persistent_volume_claim.assert_called_with(
+            'output-data-51-jpb', storage_class_name='nfs', storage_size_in_g=3, labels=self.expected_metadata_labels)
 
     def test_create_run_workflow_job(self):
         mock_cluster_api = Mock()
@@ -194,7 +188,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.name, 'run-workflow-51-jpb')  # container name
         self.assertEqual(job_container.image_name, self.mock_job.k8s_settings.run_workflow.image_name,
                          'run workflow image name is based on job settings')
-        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/tmpout/ ' \
+        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/output-data/tmpout/ ' \
                                 '--outdir /bespin/output-data/results/ ' \
                                 '--max-ram 1G --max-cores 2 ' \
                                 '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
@@ -211,33 +205,21 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.requested_memory, self.mock_job.k8s_settings.run_workflow.memory,
                          'run workflow requested memory is based on a job setting')
 
-        self.assertEqual(len(job_container.volumes), 5)
+        self.assertEqual(len(job_container.volumes), 3)
 
-        tmp_volume = job_container.volumes[0]
-        self.assertEqual(tmp_volume.name, 'tmp-51-jpb')
-        self.assertEqual(tmp_volume.mount_path, '/tmp')
-        self.assertEqual(tmp_volume.volume_claim_name, 'tmp-51-jpb')
-        self.assertEqual(tmp_volume.read_only, False)
-
-        job_data_volume = job_container.volumes[1]
+        job_data_volume = job_container.volumes[0]
         self.assertEqual(job_data_volume.name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.mount_path, '/bespin/job-data')
         self.assertEqual(job_data_volume.volume_claim_name, 'job-data-51-jpb')
         self.assertEqual(job_data_volume.read_only, True, 'job data should be a read only volume')
 
-        output_data_volume = job_container.volumes[2]
+        output_data_volume = job_container.volumes[1]
         self.assertEqual(output_data_volume.name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.mount_path, '/bespin/output-data')
         self.assertEqual(output_data_volume.volume_claim_name, 'output-data-51-jpb')
         self.assertEqual(output_data_volume.read_only, False)
 
-        tmpout_volume = job_container.volumes[3]
-        self.assertEqual(tmpout_volume.name, 'tmpout-51-jpb')
-        self.assertEqual(tmpout_volume.mount_path, '/bespin/tmpout')
-        self.assertEqual(tmpout_volume.volume_claim_name, 'tmpout-51-jpb')
-        self.assertEqual(tmpout_volume.read_only, False)
-
-        system_data_volume = job_container.volumes[4]
+        system_data_volume = job_container.volumes[2]
         self.assertEqual(system_data_volume.name, 'system-data-51-jpb')
         self.assertEqual(system_data_volume.mount_path,
                          mock_config.run_workflow_settings.system_data_volume.mount_path,
@@ -256,9 +238,7 @@ class TestJobManager(TestCase):
         manager.cleanup_run_workflow_job()
 
         mock_cluster_api.delete_job.assert_called_with('run-workflow-51-jpb')
-        mock_cluster_api.delete_persistent_volume_claim.assert_has_calls([
-            call('tmpout-51-jpb'), call('tmp-51-jpb')
-        ], 'delete tmp volumes once running workflow completes')
+        mock_cluster_api.delete_persistent_volume_claim.assert_not_called()
 
     def test_create_organize_output_project_job(self):
         mock_cluster_api = Mock()

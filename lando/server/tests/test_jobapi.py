@@ -138,12 +138,14 @@ class TestJobApi(TestCase):
                         'file_id': 123,
                         'destination_path': 'seq1.fasta',
                         'dds_user_credentials': 823,
+                        'size': 1234,
                     }
                 ],
                 'url_files': [
                     {
                         'url': "https://stuff.com/file123.model",
                         'destination_path': "file123.model",
+                        'size': 5678,
                     }
                 ],
         }
@@ -165,10 +167,12 @@ class TestJobApi(TestCase):
         self.assertEqual(123, dds_file.file_id)
         self.assertEqual('seq1.fasta', dds_file.destination_path)
         self.assertEqual(823, dds_file.user_id)
+        self.assertEqual(1234, dds_file.size)
         self.assertEqual(1, len(files.url_files))
         url_file = files.url_files[0]
         self.assertEqual('https://stuff.com/file123.model', url_file.url)
         self.assertEqual('file123.model', url_file.destination_path)
+        self.assertEqual(5678, url_file.size)
 
     def test_get_credentials(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         """

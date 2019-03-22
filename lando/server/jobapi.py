@@ -397,6 +397,7 @@ class DukeDSFile(object):
         self.file_id = data['file_id']
         self.destination_path = data['destination_path']
         self.user_id = data['dds_user_credentials']
+        self.size = data['size']
 
 
 class URLFile(object):
@@ -409,6 +410,7 @@ class URLFile(object):
         """
         self.url = data['url']
         self.destination_path = data['destination_path']
+        self.size = data['size']
 
 
 class Credentials(object):

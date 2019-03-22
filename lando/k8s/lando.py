@@ -1,5 +1,6 @@
 import logging
 import sys
+import math
 from lando.server.lando import Lando, JobStates, JobSteps, JobSettings, BaseJobActions
 from lando.k8s.cluster import ClusterApi
 from lando.k8s.jobmanager import JobManager
@@ -44,15 +45,27 @@ class K8sJobActions(BaseJobActions):
         self._set_job_state(JobStates.RUNNING)
         self._set_job_step(JobSteps.CREATE_VM)
 
+        input_files = self.job_api.get_input_files()
+        input_files_size_in_g = self._calculate_input_data_size_in_g(input_files)
+        # The stage data volume contains the workflow, job order, file metadata, and the user's input files.
+        stage_data_volume_size_in_g = self.config.base_stage_data_volume_size_in_g + input_files_size_in_g
         self._show_status("Creating stage data persistent volumes")
-        self.manager.create_stage_data_persistent_volumes()
+        self.manager.create_stage_data_persistent_volumes(stage_data_volume_size_in_g)
 
-        self.perform_staging_step()
+        self.perform_staging_step(input_files)
 
-    def perform_staging_step(self):
+    @staticmethod
+    def _calculate_input_data_size_in_g(input_files):
+        total_bytes = 0
+        for dds_file in input_files.dds_files:
+            total_bytes += dds_file.size
+        for url_file in input_files.url_files:
+            total_bytes += url_file.size
+        return math.ceil(float(total_bytes) / (1024.0 * 1024.0))
+
+    def perform_staging_step(self, input_files):
         self._set_job_step(JobSteps.STAGING)
         self._show_status("Creating Stage data job")
-        input_files = self.job_api.get_input_files()
         job = self.manager.create_stage_data_job(input_files)
         self._show_status("Launched stage data job: {}".format(job.metadata.name))
 
