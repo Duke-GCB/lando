@@ -497,15 +497,15 @@ class TestJobManager(TestCase):
         ])
 
     def test_cleanup_all(self):
-        mock_job = Mock()
-        mock_job.metadata.name = 'job_1'
+        self.mock_job.id = 1
+        self.mock_job.metadata.name = 'job_1'
         mock_config_map = Mock()
         mock_config_map.metadata.name = 'config_map_1'
         mock_pvc = Mock()
         mock_pvc.metadata.name = 'pvc_1'
 
         mock_cluster_api = Mock()
-        mock_cluster_api.list_jobs.return_value = [mock_job]
+        mock_cluster_api.list_jobs.return_value = [self.mock_job]
         mock_cluster_api.list_config_maps.return_value = [mock_config_map]
         mock_cluster_api.list_persistent_volume_claims.return_value = [mock_pvc]
         mock_config = Mock(storage_class_name='nfs')
@@ -516,6 +516,13 @@ class TestJobManager(TestCase):
         mock_cluster_api.delete_job.assert_called_with('job_1')
         mock_cluster_api.delete_config_map.assert_called_with('config_map_1')
         mock_cluster_api.delete_persistent_volume_claim.assert_called_with('pvc_1')
+
+        mock_cluster_api.list_persistent_volume_claims.assert_called_with(
+            label_selector='bespin-job=true,bespin-job-id=1')
+        mock_cluster_api.list_jobs.assert_called_with(
+            label_selector='bespin-job=true,bespin-job-id=1')
+        mock_cluster_api.list_config_maps.assert_called_with(
+            label_selector='bespin-job=true,bespin-job-id=1')
 
 
 class TestNames(TestCase):
