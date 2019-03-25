@@ -449,6 +449,8 @@ class TestJobManager(TestCase):
 
         self.assertEqual(project_id, '123')
         self.assertEqual(readme_file_id, '456')
+        mock_cluster_api.list_pods.assert_called_with(
+            label_selector='bespin-job=true,bespin-job-id=51,bespin-job-step=record_output_project')
 
     def test_read_record_output_project_details_pod_not_found(self):
         mock_cluster_api = Mock()
