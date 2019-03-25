@@ -35,7 +35,8 @@ class JobManager(object):
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
             JobLabels.JOB_ID: str(self.job.id),
         }
-        self.label_selector = '{}={}'.format(JobLabels.BESPIN_JOB, BESPIN_JOB_LABEL_VALUE)
+        label_ary = ['{}={}'.format(k,v) for k,v in self.default_metadata_labels.items()]
+        self.label_selector = ','.join(label_ary)
 
     def make_job_labels(self, job_step_type):
         labels = dict(self.default_metadata_labels)
