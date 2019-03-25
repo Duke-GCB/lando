@@ -9,7 +9,7 @@ jobs:
           key: deps-{{ .Branch }}-{{ checksum "setup.py" }}-{{ checksum "devRequirements.txt" }}
       - run:
           command: |
-            virtualenv venv
+            python3 -m venv venv
             source venv/bin/activate
             pip install -r devRequirements.txt
             python setup.py install
@@ -26,3 +26,49 @@ jobs:
       - store_artifacts:
           path: test-results
           destination: tr1
+  deploy:
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-setup-cache-{{ checksum "setup.py" }}
+      - run:
+          name: install python dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            python setup.py install
+            pip install twine
+            pip install wheel
+      - save_cache:
+          key: v1-setup-cache-{{ checksum "setup.py" }}
+          paths:
+            - "venv"
+      - run:
+          name: verify git tag vs. version
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            python setup.py verify
+      - run:
+          name: create packages
+          command: |
+            . venv/bin/activate
+            python setup.py bdist_wheel --universal
+workflows:
+  version: 2
+  build_and_deploy:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - deploy:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
