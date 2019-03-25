@@ -3,7 +3,6 @@ from setuptools import setup, find_packages
 
 LANDO_REQUIREMENTS = [
       "shade==1.29.0",
-      "cwlref-runner==1.0",
       "DukeDSClient==1.0.3",
       "humanfriendly==2.4",
       "Jinja2==2.9.5",
