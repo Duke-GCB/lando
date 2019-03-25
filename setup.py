@@ -1,4 +1,11 @@
+import os
+import sys
 from setuptools import setup, find_packages
+# version checking derived from https://github.com/levlaz/circleci.py/blob/master/setup.py
+from setuptools.command.install import install
+
+VERSION = '0.9.14'
+TAG_ENV_VAR = 'CIRCLE_TAG'
 
 
 LANDO_REQUIREMENTS = [
@@ -16,8 +23,23 @@ LANDO_REQUIREMENTS = [
       "requests==2.20.1",
 ]
 
+
+class VerifyVersionCommand(install):
+    """Custom command to verify that the git tag matches our version"""
+    description = 'verify that the git tag matches our version'
+
+    def run(self):
+        tag = os.getenv(TAG_ENV_VAR)
+
+        if tag != VERSION:
+            info = "Git tag: {0} does not match the version of this app: {1}".format(
+                tag, VERSION
+            )
+            sys.exit(info)
+
+
 setup(name='lando',
-      version='0.9.14',
+      version=VERSION,
       description='Cloud based bioinformatics workflow runner',
       url='https://github.com/Duke-GCB/lando',
       author='Dan Leehr, John Bradley',
@@ -32,6 +54,9 @@ setup(name='lando',
                   'lando_worker = lando.worker.__main__:main',
                   'lando_client = lando.client.__main__:main',
             ]
-      }
-      )
+      },
+      cmdclass={
+          'verify': VerifyVersionCommand,
+      },
+)
 
