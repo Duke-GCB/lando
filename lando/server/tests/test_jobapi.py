@@ -34,7 +34,8 @@ class TestJobApi(TestCase):
                 'name': 'SomeWorkflow',
                 'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
-                'object_name': '#main',
+                'workflow_path': '#main',
+                'workflow_type': 'packed',
                 "methods_document": 7,
             },
             'job_settings': {
@@ -88,7 +89,8 @@ class TestJobApi(TestCase):
         self.assertEqual(args[0], 'mock_job_settings')
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
-        self.assertEqual('#main', job.workflow.object_name)
+        self.assertEqual('#main', job.workflow.workflow_path)
+        self.assertEqual('packed', job.workflow.workflow_type)
 
     def test_set_job_state(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(2)
@@ -199,7 +201,8 @@ class TestJobApi(TestCase):
             'job_order': '{ "value": 1 }',
             'workflow_version': {
                 'url': 'file:///mnt/fastqc.cwl',
-                'object_name': '#main',
+                'workflow_path': '#main',
+                'type': 'packed',
                 'name': 'SomeWorkflow',
                 'version': 1,
                 "methods_document": 7,
@@ -265,7 +268,8 @@ class TestJobApi(TestCase):
                 'job_order': '{ "value": 1 }',
                 'workflow_version': {
                     'url': 'file:///mnt/fastqc.cwl',
-                    'object_name': '#main',
+                    'workflow_path': '#main',
+                    'type': 'packed',
                     'name': 'myworkflow',
                     'version': 1,
                     "methods_document": 7,
@@ -343,7 +347,8 @@ class TestJobApi(TestCase):
 
         self.assertEqual('{ "value": 1 }', store_output_data.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', store_output_data.workflow.url)
-        self.assertEqual('#main', store_output_data.workflow.object_name)
+        self.assertEqual('#main', store_output_data.workflow.workflow_path)
+        self.assertEqual('packed', store_output_data.workflow.workflow_type)
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
 
@@ -419,7 +424,8 @@ class TestJob(TestCase):
                 'name': 'SomeWorkflow',
                 'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
-                'object_name': '#main',
+                'workflow_path': '#main',
+                'type': 'packed',
                 "methods_document": 7,
             },
             'job_settings': {

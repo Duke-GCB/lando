@@ -355,7 +355,8 @@ class Workflow(object):
         self.url = workflow_version['url']
         self.name = workflow_version['name']
         self.version = workflow_version['version']
-        self.object_name = workflow_version['object_name']
+        self.workflow_path = workflow_version['workflow_path']
+        self.workflow_type = workflow_version['workflow_type']
         self.methods_document = workflow_version['methods_document']
 
 
