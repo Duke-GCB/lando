@@ -80,6 +80,56 @@ def read_file(file_path):
         return ''
 
 
+class CwlWorkflowDownloader(object):
+    TYPE_PACKED = 'packed'
+    TYPE_ZIPPED = 'zipped'
+
+    def __init__(self, working_directory, workflow_type, workflow_url, workflow_path):
+        """
+        :param working_directory: Directory to download artifacts
+        :param workflow_type: packed or zipped
+        :param workflow_url: URL to download
+        :param workflow_path: path to file in the zip or object name
+        """
+        self.working_directory = working_directory
+        self.workflow_type = workflow_type
+        self.workflow_url = workflow_url
+        self.workflow_path = workflow_path
+        self.workflow_basename = os.path.basename(self.workflow_url)
+        self.workflow_to_run = None # set by handle_*_download
+        self.workflow_to_report = None
+        self.local_workflow_file = os.path.join(self.working_directory, self.workflow_basename)
+        urllib.request.urlretrieve(self.workflow_url, self.local_workflow_file)
+        if self.workflow_type == self.TYPE_PACKED:
+            self._handle_packed_download()
+        elif self.workflow_type == self.TYPE_ZIPPED:
+            self._handle_zipped_download()
+        else:
+            raise RuntimeError('Unsupported workflow type {}'.format(self.workflow_type))
+
+    def _handle_packed_download(self):
+        # After downloading packed workflow, just append the workflow path to the local file name
+        self.workflow_to_run = self.local_workflow_file + self.workflow_path
+        self.workflow_to_report = self.workflow_basename + self.workflow_path
+
+    def _unzip_to_directory(self, directory):
+        with zipfile.ZipFile(self.local_workflow_file) as z:
+            z.extractall(directory)
+
+    def _handle_zipped_download(self):
+        # After downloading zipped workflow, unzip it and use the workflow path in the local dir
+        self._unzip_to_directory(self.working_directory)
+        self.workflow_to_run = os.path.join(self.working_directory, self.workflow_path)
+        self.workflow_to_report = self.workflow_path
+
+    def copy_to_directory(self, directory):
+        if self.workflow_type == self.TYPE_PACKED:
+            shutil.copy(self.local_workflow_file, os.path.join(directory, self.workflow_basename))
+        elif self.workflow_type == self.TYPE_ZIPPED:
+            # rather than reading the zip entries and copying those files, just unzip it again
+            self._unzip_to_directory(directory)
+
+
 class CwlDirectory(object):
     """
     Creates a directory structure used to run the cwl workflow.
@@ -92,52 +142,21 @@ class CwlDirectory(object):
         results/          # output_directory member
            ...output files from workflow
     """
-    def __init__(self, job_id, working_directory, workflow_type, workflow_url, workflow_path, job_order):
+    def __init__(self, job_id, working_directory, workflow_downloader, job_order):
         """
         :param job_id: int: job id we are running a workflow for
         :param working_directory: str: path to directory cwl will be run in (data files may be relative to this path)
-        :param cwl_file_url: str: url to packed cwl file to run
-        :param job_order: str: job order string data (JSON or YAML format)
+        :param workflow_downloader: CwlWorkflowDownloader:
+        :param job_order: str: json string of input parameters for our workflow
         """
         self.job_id = job_id
         self.working_directory = working_directory
-        self.workflow_type = workflow_type
-        self.workflow_url = workflow_url
-        self.workflow_path = workflow_path
+        self.workflow_downloader = workflow_downloader
         self.job_order = job_order
-        self.result_directory = None
-        self.job_order_file_path = None
-        self.local_workflow_path = None
-        self.workflow_basename = None
-        self.prepare()
-
-    def prepare(self):
         self.result_directory = os.path.join(self.working_directory, CWL_WORKING_DIRECTORY)
         create_dir_if_necessary(self.result_directory)
         job_order_filename = self._get_job_order_filename(self.job_id)
         self.job_order_file_path = save_data_to_directory(self.working_directory, job_order_filename, self.job_order)
-        self.workflow_basename = os.path.basename(self.workflow_url)
-        local_workflow_file = os.path.join(self.working_directory, self.workflow_basename)
-        urllib.request.urlretrieve(self.workflow_url, local_workflow_file)
-
-        if self.workflow_type == 'zipped':
-            self.prepare_workflow_zipped(local_workflow_file)
-        elif self.workflow_type == 'packed':
-            self.prepare_workflow_packed(local_workflow_file)
-        else:
-            raise RuntimeError('Unsupported workflow type {}'.format(self.workflow_type))
-
-    def prepare_workflow_zipped(self, zip_file_name):
-        # unzip it
-        with zipfile.ZipFile(zip_file_name) as z:
-            z.extractall(self.working_directory)
-
-        self.local_workflow_path = os.path.join(self.working_directory, self.workflow_path)
-
-    def prepare_workflow_packed(self, packed_file_name):
-
-        # Add the fragment
-        self.local_workflow_path = packed_file_name + self.workflow_path
 
     @staticmethod
     def _get_job_order_filename(job_id):
@@ -170,23 +189,23 @@ class CwlWorkflow(object):
         self.cwl_post_process_command = cwl_post_process_command
         self.workflow_methods_markdown = workflow_methods_markdown
         self.max_stderr_output_lines = JOB_STDERR_OUTPUT_MAX_LINES
+
     def run(self, workflow_type, workflow_url, workflow_path, job_order):
         """
-        Downloads the workflow from , runs it.
+        Downloads the workflow from workflow_url, runs it.
         If cwl-runner doesn't exit with 0 raise JobStepFailed
-        :param cwl_file_url: str: url to workflow we will run (should be packed)
-        :param workflow_object_name: name of the object in our workflow to execute (typically '#main')
+        :param workflow_type: str: type of workflow (e.g. 'packed', 'zipped')
+        :param workflow_url: str: url to workflow file we will run
+        :param workflow_path: str: path in archive file or object name
         :param job_order: str: json string of input parameters for our workflow
         """
-
-        # CWLDicrectory should prepare this stuff
-        cwl_directory = CwlDirectory(self.job_id, self.working_directory, cwl_file_url, job_order)
-        workflow_file = cwl_directory.workflow_path
-        if workflow_object_name:
-            workflow_file += workflow_object_name
+        workflow_downloader = CwlWorkflowDownloader(self.working_directory, workflow_type,
+                                                    workflow_url, workflow_path)
+        cwl_directory = CwlDirectory(self.job_id, self.working_directory,
+                                     workflow_downloader, job_order)
         process = CwlWorkflowProcess(self.cwl_base_command,
                                      os.path.join(cwl_directory.result_directory, RESULTS_DIRECTORY),
-                                     workflow_file,
+                                     workflow_downloader.workflow_to_run,
                                      cwl_directory.job_order_file_path)
         process.run()
         if process.return_code != 0:
@@ -300,8 +319,7 @@ class ResultsDirectory(object):
         create_dir_if_necessary(self.result_directory)
         self.docs_directory = os.path.join(self.result_directory, DOCUMENTATION_DIRECTORY)
         create_dir_if_necessary(self.docs_directory)
-        self.workflow_path = cwl_directory.workflow_path
-        self.workflow_basename = cwl_directory.workflow_basename
+        self.workflow_downloader = cwl_directory.workflow_downloader
         self.job_order_file_path = cwl_directory.job_order_file_path
         self.job_order_filename = os.path.basename(cwl_directory.job_order_file_path)
         self.workflow_methods_markdown_content = workflow_methods_markdown_content
@@ -335,7 +353,7 @@ class ResultsDirectory(object):
         """
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
         create_dir_if_necessary(workflow_directory)
-        shutil.copy(self.workflow_path, os.path.join(workflow_directory, self.workflow_basename))
+        self.workflow_downloader.copy_to_directory(workflow_directory)
         shutil.copy(self.job_order_file_path, os.path.join(workflow_directory, self.job_order_filename))
 
     def _create_report(self, cwl_process):
@@ -346,6 +364,7 @@ class ResultsDirectory(object):
         """
         logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
+        # TODO: update this to handle unpacked workflows
         workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, self.workflow_basename))
         workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, self.job_order_filename))
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
@@ -373,7 +392,7 @@ class ResultsDirectory(object):
 
     def _create_running_instructions(self):
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
-        scripts_readme = ScriptsReadme(self.workflow_basename, self.job_order_filename)
+        scripts_readme = ScriptsReadme(self.workflow_downloader.workflow_to_report, self.job_order_filename)
         save_data_to_directory(workflow_directory, README_MARKDOWN_FILENAME, scripts_readme.render_markdown())
         save_data_to_directory(workflow_directory, README_HTML_FILENAME, scripts_readme.render_html())
 
