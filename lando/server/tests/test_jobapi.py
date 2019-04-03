@@ -35,7 +35,7 @@ class TestJobApi(TestCase):
                 'version': 1,
                 'url': 'file:///mnt/fastqc.cwl',
                 'workflow_path': '#main',
-                'workflow_type': 'packed',
+                'type': 'packed',
                 "methods_document": 7,
             },
             'job_settings': {
