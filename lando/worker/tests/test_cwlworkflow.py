@@ -200,13 +200,13 @@ class TestCwlDirectory(TestCase):
     def test_constructor(self, mock_urllib, mock_create_dir_if_necessary, mock_save_data_to_directory):
         mock_save_data_to_directory.return_value = 'somepath'
         working_directory = '/tmp/fakedir/'
-        cwl_file_url = 'file://tmp/notreal.cwl'
         job_order = '{}'
         mock_downloader = create_autospec(CwlWorkflowDownloader)
         cwl_directory = CwlDirectory(3, working_directory, mock_downloader, job_order)
         self.assertEqual(working_directory, cwl_directory.working_directory)
         self.assertEqual('/tmp/fakedir/working', cwl_directory.result_directory)
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
+        mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/working')
 
 
 class CwlDownloaderTestCase(TestCase):
