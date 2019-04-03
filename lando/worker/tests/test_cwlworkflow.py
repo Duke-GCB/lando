@@ -7,7 +7,8 @@ from lando.testutil import text_to_file, file_to_text
 from lando.worker.cwlworkflow import CwlWorkflow, RESULTS_DIRECTORY
 from lando.worker.cwlworkflow import CwlDirectory, CwlWorkflowProcess, ResultsDirectory, JOB_STDERR_OUTPUT_MAX_LINES
 from lando.worker.cwlworkflow import read_file
-from unittest.mock import patch, MagicMock, call
+from lando.worker.cwlworkflow import CwlWorkflowDownloader
+from unittest.mock import patch, MagicMock, call, create_autospec
 from lando.exceptions import JobStepFailed
 
 SAMPLE_WORKFLOW = """
@@ -43,6 +44,7 @@ SAMPLE_WORKFLOW = """
 
 
 class TestCwlWorkflow(TestCase):
+
     def make_input_files(self, input_file_directory):
         one_path = os.path.join(input_file_directory, 'one.txt')
         text_to_file("one\n", one_path)
@@ -79,7 +81,8 @@ outputfile: results.txt
                                cwl_base_command,
                                cwl_post_process_command,
                                '# Workflow Methods Markdown')
-        workflow.run(cwl_file_url, workflow_object_name, job_order)
+        workflow_type = 'packed'
+        workflow.run(workflow_type, cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
 
@@ -122,16 +125,18 @@ outputfile: results.txt
                                cwl_post_process_command,
                                "# markdown")
         with self.assertRaises(JobStepFailed):
-            workflow.run(cwl_file_url, workflow_object_name, job_order)
+            workflow.run('packed', cwl_file_url, workflow_object_name, job_order)
         shutil.rmtree(workflow_directory)
         shutil.rmtree(input_file_directory)
         shutil.rmtree(working_directory)
 
+
+    @patch("lando.worker.cwlworkflow.CwlWorkflowDownloader")
     @patch("lando.worker.cwlworkflow.CwlDirectory")
     @patch("lando.worker.cwlworkflow.CwlWorkflowProcess")
     @patch("lando.worker.cwlworkflow.ResultsDirectory")
     @patch("lando.worker.cwlworkflow.read_file")
-    def test_workflow_bad_exit_status(self, mock_read_file, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory):
+    def test_workflow_bad_exit_status(self, mock_read_file, mock_results_directory, mock_cwl_workflow_process, mock_cwl_directory, mock_downloader):
         mock_cwl_directory.return_value.result_directory = '/tmp'
         process_instance = mock_cwl_workflow_process.return_value
         process_instance.return_code = 127
@@ -149,7 +154,7 @@ outputfile: results.txt
         self.assertEqual(workflow.max_stderr_output_lines, JOB_STDERR_OUTPUT_MAX_LINES)
         workflow.max_stderr_output_lines = 3
         with self.assertRaises(JobStepFailed) as raised_error:
-            workflow.run(cwl_file_url, workflow_object_name, job_order)
+            workflow.run('packed', cwl_file_url, workflow_object_name, job_order)
         self.assertEqual(expected_error_message, raised_error.exception.value)
         self.assertTrue(mock_read_file.has_call(process_instance.stderr_path))
 
@@ -168,6 +173,7 @@ outputfile: results.txt
         cwl_base_command = None
         cwl_post_process_command = ['rm', 'bad-data.dat']
         working_directory = '/fake_working_dir'
+        workflow_type = 'packed'
         cwl_file_url = "fakeurl"
         workflow_object_name = ""
         job_order = {}
@@ -179,7 +185,7 @@ outputfile: results.txt
                                cwl_base_command,
                                cwl_post_process_command,
                                '# Workflow Methods Markdown')
-        workflow.run(cwl_file_url, workflow_object_name, job_order)
+        workflow.run(workflow_type, cwl_file_url, workflow_object_name, job_order)
         mock_subprocess.call.assert_called_with(['rm', 'bad-data.dat'])
         mock_os.chdir.assert_has_calls([
             call("/tmp/output/results"),
@@ -196,13 +202,10 @@ class TestCwlDirectory(TestCase):
         working_directory = '/tmp/fakedir/'
         cwl_file_url = 'file://tmp/notreal.cwl'
         job_order = '{}'
-
-        cwl_directory = CwlDirectory(3, working_directory, cwl_file_url, job_order)
-
+        mock_downloader = create_autospec(CwlWorkflowDownloader)
+        cwl_directory = CwlDirectory(3, working_directory, mock_downloader, job_order)
         self.assertEqual(working_directory, cwl_directory.working_directory)
         self.assertEqual('/tmp/fakedir/working', cwl_directory.result_directory)
-        mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/working')
-        self.assertEqual('/tmp/fakedir/notreal.cwl', cwl_directory.workflow_path)
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
 
 
