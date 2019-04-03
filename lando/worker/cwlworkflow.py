@@ -98,22 +98,22 @@ class CwlWorkflowDownloader(object):
         self.workflow_basename = os.path.basename(self.workflow_url)
         self.workflow_to_run = None # set by handle_*_download
         self.workflow_to_report = None
-        self.local_workflow_file = os.path.join(self.working_directory, self.workflow_basename)
-        urllib.request.urlretrieve(self.workflow_url, self.local_workflow_file)
+        self.download_path = os.path.join(self.working_directory, self.workflow_basename)
+        urllib.request.urlretrieve(self.workflow_url, self.download_path)
         if self.workflow_type == self.TYPE_PACKED:
             self._handle_packed_download()
         elif self.workflow_type == self.TYPE_ZIPPED:
             self._handle_zipped_download()
         else:
-            raise RuntimeError('Unsupported workflow type {}'.format(self.workflow_type))
+            raise RuntimeError('Unsupported workflow type: {}'.format(self.workflow_type))
 
     def _handle_packed_download(self):
         # After downloading packed workflow, just append the workflow path to the local file name
-        self.workflow_to_run = self.local_workflow_file + self.workflow_path
+        self.workflow_to_run = self.download_path + self.workflow_path
         self.workflow_to_report = self.workflow_basename + self.workflow_path
 
     def _unzip_to_directory(self, directory):
-        with zipfile.ZipFile(self.local_workflow_file) as z:
+        with zipfile.ZipFile(self.download_path) as z:
             z.extractall(directory)
 
     def _handle_zipped_download(self):
@@ -124,7 +124,7 @@ class CwlWorkflowDownloader(object):
 
     def copy_to_directory(self, directory):
         if self.workflow_type == self.TYPE_PACKED:
-            shutil.copy(self.local_workflow_file, os.path.join(directory, self.workflow_basename))
+            shutil.copy(self.download_path, os.path.join(directory, self.workflow_basename))
         elif self.workflow_type == self.TYPE_ZIPPED:
             # rather than reading the zip entries and copying those files, just unzip it again
             self._unzip_to_directory(directory)

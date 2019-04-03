@@ -209,6 +209,84 @@ class TestCwlDirectory(TestCase):
         self.assertEqual('somepath', cwl_directory.job_order_file_path)
 
 
+class CwlDownloaderTestCase(TestCase):
+
+    def setUp(self):
+        self.zip_url = 'https://server.com/workflow.zip'
+        self.zip_path = 'version-1.0/workflow.cwl'
+        self.packed_url = 'https://server.com/packed.cwl'
+        self.packed_path = '#main'
+        self.working_directory = '/work'
+
+    @patch('lando.worker.cwlworkflow.urllib')
+    @patch('lando.worker.cwlworkflow.zipfile.ZipFile')
+    def test_downloads_zipped(self, mock_zipfile, mock_urllib):
+        downloader = CwlWorkflowDownloader(self.working_directory,
+                                           'zipped',
+                                           self.zip_url,
+                                           self.zip_path)
+        self.assertEqual(downloader.workflow_basename, 'workflow.zip')
+        self.assertEqual(downloader.workflow_to_run, '/work/version-1.0/workflow.cwl')
+        self.assertEqual(downloader.workflow_to_report, 'version-1.0/workflow.cwl')
+        self.assertEqual(downloader.download_path, '/work/workflow.zip')
+        self.assertEqual(mock_urllib.request.urlretrieve.call_args, call(self.zip_url, downloader.download_path))
+        self.assertEqual(mock_zipfile.call_args, call(downloader.download_path))
+        self.assertEqual(mock_zipfile.return_value.__enter__.return_value.extractall.call_args, call(self.working_directory))
+
+    @patch('lando.worker.cwlworkflow.urllib.request.urlretrieve')
+    @patch('lando.worker.cwlworkflow.zipfile.ZipFile')
+    def test_downloads_packed(self, mock_zipfile, mock_urlretrieve):
+        downloader = CwlWorkflowDownloader(self.working_directory,
+                                           'packed',
+                                           self.packed_url,
+                                           self.packed_path)
+        self.assertEqual(downloader.workflow_basename, 'packed.cwl')
+        self.assertEqual(downloader.workflow_to_run, '/work/packed.cwl#main')
+        self.assertEqual(downloader.workflow_to_report, 'packed.cwl#main')
+        self.assertEqual(downloader.download_path, '/work/packed.cwl')
+        self.assertEqual(mock_urlretrieve.call_args, call(self.packed_url, downloader.download_path))
+        self.assertFalse(mock_zipfile.called)
+
+    @patch('lando.worker.cwlworkflow.urllib.request.urlretrieve')
+    @patch('lando.worker.cwlworkflow.zipfile.ZipFile')
+    def test_downloads_then_raises_on_other_type(self, mock_zipfile, mock_urlretrieve):
+        other_url = 'http://site.com/file.ext'
+        expected_download_path = '/work/file.ext'
+        with self.assertRaises(RuntimeError) as context:
+            CwlWorkflowDownloader(self.working_directory, 'other', other_url, '#')
+        self.assertIn('Unsupported workflow type: other', str(context.exception))
+        self.assertEqual(mock_urlretrieve.call_args, call(other_url, expected_download_path))
+        self.assertFalse(mock_zipfile.called)
+
+    @patch('lando.worker.cwlworkflow.shutil.copy')
+    @patch('lando.worker.cwlworkflow.urllib.request.urlretrieve')
+    @patch('lando.worker.cwlworkflow.zipfile.ZipFile')
+    def test_copy_packed(self, mock_zipfile, mock_urlretrieve, mock_copy):
+        downloader = CwlWorkflowDownloader(self.working_directory,
+                                           'packed',
+                                           self.packed_url,
+                                           self.packed_path)
+        directory = '/target'
+        downloader.copy_to_directory(directory)
+        self.assertEqual(mock_copy.call_args, call(downloader.download_path, '/target/packed.cwl'))
+        self.assertFalse(mock_zipfile.called)
+
+    @patch('lando.worker.cwlworkflow.shutil.copy')
+    @patch('lando.worker.cwlworkflow.urllib.request.urlretrieve')
+    @patch('lando.worker.cwlworkflow.zipfile.ZipFile')
+    def test_copy_zipped(self, mock_zipfile, mock_urlretrieve, mock_copy):
+        downloader = CwlWorkflowDownloader(self.working_directory,
+                                           'zipped',
+                                           self.zip_url,
+                                           self.zip_path)
+        mock_zipfile.reset() # Reset so that we can detect the second unzip
+        directory = '/target'
+        downloader.copy_to_directory(directory)
+        self.assertFalse(mock_copy.called)
+        self.assertEqual(mock_zipfile.call_args, call(downloader.download_path))
+        self.assertEqual(mock_zipfile.return_value.__enter__.return_value.extractall.call_args, call(directory))
+
+
 class TestCwlWorkflowProcess(TestCase):
     @patch("lando.worker.cwlworkflow.os.mkdir")
     @patch("lando.worker.cwlworkflow.open")
