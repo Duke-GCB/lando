@@ -16,7 +16,7 @@ from lando.worker.cwlreport import create_workflow_info, CwlReport
 from lando.worker.scriptsreadme import ScriptsReadme
 
 
-RUN_CWL_COMMAND = "cwl-runner"
+RUN_CWL_COMMAND = "cwltool"
 RUN_CWL_OUTDIR_ARG = "--outdir"
 
 RESULTS_DIRECTORY = 'results'
