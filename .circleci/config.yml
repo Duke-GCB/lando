@@ -20,7 +20,7 @@ jobs:
       - run:
           command: |
             source venv/bin/activate
-            python setup.py test
+            python setup.py nosetests
       - store_test_results:
           path: test-results
       - store_artifacts:
