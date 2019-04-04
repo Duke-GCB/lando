@@ -364,7 +364,7 @@ class ResultsDirectory(object):
         """
         logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
-        workflow_info = create_workflow_info(workflow_path=self.workflow_downloader.workflow_to_run)
+        workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, self.workflow_downloader.workflow_to_report))
         workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, self.job_order_filename))
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
         job_data = {

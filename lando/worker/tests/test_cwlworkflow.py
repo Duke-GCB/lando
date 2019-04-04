@@ -331,10 +331,15 @@ class TestResultsDirectory(TestCase):
     def test_add_files(self, mock_scripts_readme, mock_cwl_report, mock_create_workflow_info, mock_shutil,
                        mock_save_data_to_directory, mock_create_dir_if_necessary):
         job_id = 1
-        cwl_directory = MagicMock(result_directory='/tmp/fakedir',
-                                  workflow_path='/tmp/nosuchpath.cwl',
-                                  workflow_basename='nosuch.cwl',
-                                  job_order_file_path='/tmp/alsonotreal.json')
+        workflow_downloader = create_autospec(CwlWorkflowDownloader,
+                                              workflow_to_run='/tmp/nosuchpath.cwl',
+                                              workflow_to_report='nosuch.cwl',
+                                              workflow_basename='nosuch.cwl')
+        cwl_directory = create_autospec(CwlDirectory,
+                                        result_directory='/tmp/fakedir',
+                                        job_order_file_path='/tmp/alsonotreal.json',
+                                        workflow_downloader=workflow_downloader)
+
         # Create directory
         results_directory = ResultsDirectory(job_id, cwl_directory, '# Methods Markdown')
 
@@ -369,8 +374,10 @@ class TestResultsDirectory(TestCase):
         mock_shutil.copy.assert_has_calls([
             call('/path/to/stdout', documentation_directory + 'logs/cwltool-output.json'),
             call('/path/to/stderr', documentation_directory + 'logs/cwltool-output.log'),
-            call('/tmp/nosuchpath.cwl', documentation_directory + 'scripts/nosuch.cwl'),
             call('/tmp/alsonotreal.json', documentation_directory + 'scripts/alsonotreal.json')
+        ])
+        workflow_downloader.copy_to_directory.assert_has_calls([
+            call(documentation_directory + 'scripts')
         ])
         mock_create_workflow_info.assert_has_calls([
             call(workflow_path=(documentation_directory + 'scripts/nosuch.cwl')),
@@ -389,10 +396,14 @@ class TestResultsDirectory(TestCase):
     def test_add_files_null_methods_document(self, mock_scripts_readme, mock_cwl_report, mock_create_workflow_info,
                                              mock_shutil, mock_save_data_to_directory, mock_create_dir_if_necessary):
         job_id = 1
-        cwl_directory = MagicMock(result_directory='/tmp/fakedir',
-                                  workflow_path='/tmp/nosuchpath.cwl',
-                                  workflow_basename='nosuch.cwl',
-                                  job_order_file_path='/tmp/alsonotreal.json')
+        workflow_downloader = create_autospec(CwlWorkflowDownloader,
+                                              workflow_to_run='/tmp/nosuchpath.cwl',
+                                              workflow_to_report='nosuch.cwl',
+                                              workflow_basename='nosuch.cwl')
+        cwl_directory = create_autospec(CwlDirectory,
+                                        result_directory='/tmp/fakedir',
+                                        job_order_file_path='/tmp/alsonotreal.json',
+                                        workflow_downloader=workflow_downloader)
         # Create directory
         results_directory = ResultsDirectory(job_id, cwl_directory, None)
 
