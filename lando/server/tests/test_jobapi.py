@@ -90,7 +90,7 @@ class TestJobApi(TestCase):
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
         self.assertEqual('#main', job.workflow.workflow_path)
-        self.assertEqual('packed', job.workflow.workflow_type)
+        self.assertEqual('packed', job.workflow.type)
 
     def test_set_job_state(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(2)
@@ -348,7 +348,7 @@ class TestJobApi(TestCase):
         self.assertEqual('{ "value": 1 }', store_output_data.workflow.job_order)
         self.assertEqual('file:///mnt/fastqc.cwl', store_output_data.workflow.url)
         self.assertEqual('#main', store_output_data.workflow.workflow_path)
-        self.assertEqual('packed', store_output_data.workflow.workflow_type)
+        self.assertEqual('packed', store_output_data.workflow.type)
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
 
