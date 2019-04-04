@@ -17,7 +17,7 @@ from lando.worker.cwlreport import create_workflow_info, CwlReport
 from lando.worker.scriptsreadme import ScriptsReadme
 
 
-RUN_CWL_COMMAND = "cwl-runner"
+RUN_CWL_COMMAND = "cwltool"
 RUN_CWL_OUTDIR_ARG = "--outdir"
 
 RESULTS_DIRECTORY = 'results'
@@ -272,7 +272,7 @@ class CwlWorkflowProcess(object):
         try:
             self.return_code = subprocess.call(self.command, stdout=stdout_file, stderr=stderr_file)
         except OSError as e:
-            logging.error('Error running subprocess', e)
+            logging.error('Error running subprocess %s', e)
             error_message = "Command failed: {}".format(' '.join(self.command))
             raise JobStepFailed(error_message, e)
         finally:
