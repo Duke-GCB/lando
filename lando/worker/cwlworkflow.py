@@ -230,7 +230,7 @@ class CwlWorkflowProcess(object):
         try:
             self.return_code = subprocess.call(self.command, stdout=stdout_file, stderr=stderr_file)
         except OSError as e:
-            logging.error('Error running subprocess', e)
+            logging.error('Error running subprocess %s', e)
             error_message = "Command failed: {}".format(' '.join(self.command))
             raise JobStepFailed(error_message, e)
         finally:
