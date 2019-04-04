@@ -99,7 +99,7 @@ class WorkflowActivity(object):
         :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded files
         """
         self.job_details = job_details
-        workflow_filename = os.path.basename(job_details.workflow.url)
+        workflow_filename = os.path.basename(job_details.workflow.workflow_url)
         self.workflow_files = WorkflowFiles(working_directory, job_details.id, workflow_filename)
         self.duke_ds_project_info = DukeDSProjectInfo(project)
 

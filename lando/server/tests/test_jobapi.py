@@ -88,9 +88,9 @@ class TestJobApi(TestCase):
         # Should call VMSettings() with contents of data['vm_settings']
         self.assertEqual(args[0], 'mock_job_settings')
         self.assertEqual('{ "value": 1 }', job.workflow.job_order)
-        self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.url)
+        self.assertEqual('file:///mnt/fastqc.cwl', job.workflow.workflow_url)
         self.assertEqual('#main', job.workflow.workflow_path)
-        self.assertEqual('packed', job.workflow.type)
+        self.assertEqual('packed', job.workflow.workflow_type)
 
     def test_set_job_state(self, mock_requests, mock_k8s_settings, mock_vm_settings):
         job_api = self.setup_job_api(2)
@@ -346,9 +346,9 @@ class TestJobApi(TestCase):
         self.assertEqual('', store_output_data.vm_instance_name)
 
         self.assertEqual('{ "value": 1 }', store_output_data.workflow.job_order)
-        self.assertEqual('file:///mnt/fastqc.cwl', store_output_data.workflow.url)
+        self.assertEqual('file:///mnt/fastqc.cwl', store_output_data.workflow.workflow_url)
         self.assertEqual('#main', store_output_data.workflow.workflow_path)
-        self.assertEqual('packed', store_output_data.workflow.type)
+        self.assertEqual('packed', store_output_data.workflow.workflow_type)
 
         self.assertEqual(['123'], store_output_data.share_dds_ids)
 

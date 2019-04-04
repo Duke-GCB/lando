@@ -64,7 +64,7 @@ class TestWorkflowActivity(TestCase):
 
     @patch('lando.worker.provenance.WorkflowFiles')
     def test_getters(self, mock_workflow_files):
-        workflow = Mock(version='1', url='http://something/example.cwl')
+        workflow = Mock(version='1', workflow_url='http://something/example.cwl')
         workflow.name = 'RnaSeq'
         job_details = Mock(id='444', workflow=workflow)
         job_details.name = 'Myjob'
@@ -83,7 +83,7 @@ class TestWorkflowActivity(TestCase):
 
     def test_used_file_ids_returns_job_input_and_cwl(self):
         workflow_activity = WorkflowActivity(
-            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
+            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', workflow_url='http://something/example.cwl')),
             working_directory='/tmp/',
             project=self.mock_project)
         file_ids = workflow_activity.get_used_file_ids()
@@ -93,7 +93,7 @@ class TestWorkflowActivity(TestCase):
     def test_generated_file_ids_returns_output_files(self, mock_workflow_files):
         mock_workflow_files.return_value.get_output_filenames.return_value = ['/tmp/results/data.txt']
         workflow_activity = WorkflowActivity(
-            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', url='http://something/example.cwl')),
+            job_details=Mock(id='444', workflow=Mock(name='RnaSeq', version='1', workflow_url='http://something/example.cwl')),
             working_directory='/tmp/',
             project=self.mock_project)
         file_ids = workflow_activity.get_generated_file_ids()
