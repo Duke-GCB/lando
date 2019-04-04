@@ -353,10 +353,10 @@ class Workflow(object):
         self.job_order = data['job_order']
         workflow_version = data['workflow_version']
         self.url = workflow_version['url']
+        self.type = workflow_version['type']
         self.name = workflow_version['name']
         self.version = workflow_version['version']
         self.workflow_path = workflow_version['workflow_path']
-        self.workflow_type = workflow_version['type']
         self.methods_document = workflow_version['methods_document']
 
 
