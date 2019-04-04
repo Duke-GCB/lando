@@ -2,8 +2,8 @@
 
 
 from unittest import TestCase
-from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info
-from unittest.mock import patch, MagicMock, mock_open, call
+from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info, upconvert_to_list
+from unittest.mock import patch, MagicMock, Mock
 
 SAMPLE_CWL_MAIN_DATA = {
     'cwlVersion': 'v1.0',
@@ -222,6 +222,25 @@ class TestCwlReportUtilities(TestCase):
         workflow = create_workflow_info('/tmp/fakepath.cwl')
         self.assertEqual(2, len(workflow.input_params))
         self.assertEqual(4, len(workflow.output_data))
+
+
+class UpconvertToListTestCase(TestCase):
+
+    def test_upconverts_dict(self):
+        inputs = {'input1': 'File'}
+        converted = upconvert_to_list(inputs)
+        self.assertEqual(converted, [{'id': 'input1', 'type': 'File'}])
+
+    def test_returns_list_unmodified(self):
+        inputs = [Mock(), Mock()]
+        converted = upconvert_to_list(inputs)
+        self.assertEqual(converted, inputs)
+
+    def test_raises_on_other(self):
+        inputs = {Mock}
+        with self.assertRaises(ValueError) as context:
+            upconvert_to_list(inputs)
+        self.assertIn('Only list or dict are supported', str(context.exception))
 
 
 class TestWorkflowInfo(TestCase):
