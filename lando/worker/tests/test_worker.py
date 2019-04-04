@@ -116,7 +116,8 @@ class FakeWorkflow(object):
         self.url = "file:///tmp/test.cwl"
         self.job_order = "{'id':1}"
         self.output_directory = None
-        self.object_name = "#main"
+        self.workflow_path = "#main"
+        self.type = 'packed'
 
 
 class TestLandoWorker(TestCase):
