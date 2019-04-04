@@ -113,11 +113,11 @@ class FakeFileData(object):
 
 class FakeWorkflow(object):
     def __init__(self):
-        self.url = "file:///tmp/test.cwl"
+        self.workflow_url = "file:///tmp/test.cwl"
         self.job_order = "{'id':1}"
         self.output_directory = None
         self.workflow_path = "#main"
-        self.type = 'packed'
+        self.workflow_type = 'packed'
 
 
 class TestLandoWorker(TestCase):
