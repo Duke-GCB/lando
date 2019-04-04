@@ -46,6 +46,18 @@ SAMPLE_CWL_MAIN_DATA = {
     ],
 }
 
+SAMPLE_CWL_UNPACKED_WORKFLOW = {
+    'cwlVersion': 'v1.0',
+    'class': 'Workflow',
+    'inputs': {
+        'input1': 'File',
+        'input2': 'int'
+    },
+    'outputs': {
+        'output1': 'File'
+    }
+}
+
 SAMPLE_JOB_ORDER = {
     "gff_file": {
       "class": "File",
@@ -222,6 +234,14 @@ class TestCwlReportUtilities(TestCase):
         workflow = create_workflow_info('/tmp/fakepath.cwl')
         self.assertEqual(2, len(workflow.input_params))
         self.assertEqual(4, len(workflow.output_data))
+
+    @patch("lando.worker.cwlreport.parse_yaml_or_json")
+    def test_create_workflow_info_from_unpacked(self, mock_parse_yaml_or_json):
+        mock_parse_yaml_or_json.return_value = SAMPLE_CWL_UNPACKED_WORKFLOW
+        workflow = create_workflow_info('/tmp/fakepath.cwl')
+        self.assertEqual(2, len(workflow.input_params))
+        self.assertEqual(1, len(workflow.output_data))
+
 
 
 class UpconvertToListTestCase(TestCase):
