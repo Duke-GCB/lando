@@ -66,7 +66,7 @@ class JobManager(object):
         stage_data_config = StageDataConfig(self.job, self.config)
         self._create_stage_data_config_map(name=self.names.stage_data,
                                            filename=stage_data_config.filename,
-                                           workflow_url=self.job.workflow.url,
+                                           workflow_url=self.job.workflow.workflow_url,
                                            job_order=self.job.workflow.job_order,
                                            input_files=input_files)
         volumes = [
@@ -381,7 +381,7 @@ class Names(object):
         job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
         self.output_project_name = "Bespin {} v{} {} {}".format(
             job.workflow.name, job.workflow.version, job.name, job_created)
-        self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.url))
+        self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)

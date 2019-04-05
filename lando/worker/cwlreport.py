@@ -107,20 +107,41 @@ def get_documentation_str(node):
 
 def create_workflow_info(workflow_path):
     """
-    Create a workflow_info filling in data based on a packed cwl workflow.
+    Create a workflow_info filling in data based on a cwl workflow.
     :param workflow_path: str: packed cwl workflow
     :return: WorkflowInfo
     """
     doc = parse_yaml_or_json(workflow_path)
     cwl_version = doc.get('cwlVersion')
-    graph = doc.get("$graph")
-    if graph:
-        for node in graph:
-            if node.get("id") == "#main":
-                return WorkflowInfo(workflow_path, cwl_version, node)
-    if doc.get("id") == "#main":
+    if doc.get("class") == 'Workflow':
         return WorkflowInfo(workflow_path, cwl_version, doc)
-    raise ValueError("Unable to find #main in {}".format(workflow_path))
+    else:
+        graph = doc.get("$graph")
+        if graph:
+            for node in graph:
+                if node.get("id") == "#main":
+                    return WorkflowInfo(workflow_path, cwl_version, node)
+        if doc.get("id") == "#main":
+            return WorkflowInfo(workflow_path, cwl_version, doc)
+    raise ValueError("Unable to read {} as CWL".format(workflow_path))
+
+
+def upconvert_to_list(list_or_dict):
+    """
+    Packed CWL workflow inputs/outputs are structured as lists of dicts (e.g.
+    [{'id': 'input_file', 'type': 'File'},...]). Unpacked workflows may have
+    dicts (e.g. {'input_file': 'File'}. This function converts the dicts into
+    lists of dicts or returns the list
+
+    :param list_or_dict:
+    :return:
+    """
+    if isinstance(list_or_dict, list):
+        return list_or_dict
+    elif isinstance(list_or_dict, dict):
+        return [{'id': k, 'type': v} for k,v in list_or_dict.items()]
+    else:
+        raise ValueError('Only list or dict are supported, not {}', type(list_or_dict))
 
 
 class WorkflowInfo(object):
@@ -140,9 +161,9 @@ class WorkflowInfo(object):
         self.documentation = get_documentation_str(workflow_node)
         self.input_params = []
         self.output_data = []
-        for input_param in workflow_node.get("inputs"):
+        for input_param in upconvert_to_list(workflow_node.get('inputs')):
             self.input_params.append(InputParam(input_param))
-        for output_param in workflow_node.get("outputs"):
+        for output_param in upconvert_to_list(workflow_node.get("outputs")):
             self.output_data.append(OutputData(output_param))
 
     def update_with_job_order(self, job_order_path):

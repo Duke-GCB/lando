@@ -1,8 +1,9 @@
 
 import os
 import json
-from lando.worker.cwlworkflow import RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, WORKFLOW_DIRECTORY, LOGS_DIRECTORY, \
-    JOB_DATA_FILENAME
+from lando.worker.cwlworkflow import RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, \
+    WORKFLOW_DIRECTORY, LOGS_DIRECTORY, JOB_DATA_FILENAME
+from lando.worker.cwlworkflow import CwlWorkflowDownloader
 from ddsc.core.util import KindType
 
 
@@ -99,7 +100,11 @@ class WorkflowActivity(object):
         :param project: ddsc.core.localproject.LocalProject: contains ids of uploaded files
         """
         self.job_details = job_details
-        workflow_filename = os.path.basename(job_details.workflow.url)
+        workflow_filename = CwlWorkflowDownloader.get_workflow_activity_path(
+            job_details.workflow.workflow_type,
+            job_details.workflow.workflow_url,
+            job_details.workflow.workflow_path
+        )
         self.workflow_files = WorkflowFiles(working_directory, job_details.id, workflow_filename)
         self.duke_ds_project_info = DukeDSProjectInfo(project)
 

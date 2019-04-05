@@ -2,8 +2,8 @@
 
 
 from unittest import TestCase
-from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info
-from unittest.mock import patch, MagicMock, mock_open, call
+from lando.worker.cwlreport import CwlReport, get_documentation_str, create_workflow_info, upconvert_to_list
+from unittest.mock import patch, MagicMock, Mock
 
 SAMPLE_CWL_MAIN_DATA = {
     'cwlVersion': 'v1.0',
@@ -44,6 +44,18 @@ SAMPLE_CWL_MAIN_DATA = {
             "id": "#main/bams_markduplicates_dir"
         },
     ],
+}
+
+SAMPLE_CWL_UNPACKED_WORKFLOW = {
+    'cwlVersion': 'v1.0',
+    'class': 'Workflow',
+    'inputs': {
+        'input1': 'File',
+        'input2': 'int'
+    },
+    'outputs': {
+        'output1': 'File'
+    }
 }
 
 SAMPLE_JOB_ORDER = {
@@ -203,7 +215,7 @@ class TestCwlReportUtilities(TestCase):
         mock_parse_yaml_or_json.return_value = {}
         with self.assertRaises(ValueError) as err:
             create_workflow_info('/tmp/fakepath.cwl')
-        self.assertEqual("Unable to find #main in /tmp/fakepath.cwl", str(err.exception))
+        self.assertEqual("Unable to read /tmp/fakepath.cwl as CWL", str(err.exception))
 
     @patch("lando.worker.cwlreport.parse_yaml_or_json")
     def test_create_workflow_info_with_top_level_graph(self, mock_parse_yaml_or_json):
@@ -222,6 +234,32 @@ class TestCwlReportUtilities(TestCase):
         workflow = create_workflow_info('/tmp/fakepath.cwl')
         self.assertEqual(2, len(workflow.input_params))
         self.assertEqual(4, len(workflow.output_data))
+
+    @patch("lando.worker.cwlreport.parse_yaml_or_json")
+    def test_create_workflow_info_from_unpacked(self, mock_parse_yaml_or_json):
+        mock_parse_yaml_or_json.return_value = SAMPLE_CWL_UNPACKED_WORKFLOW
+        workflow = create_workflow_info('/tmp/fakepath.cwl')
+        self.assertEqual(2, len(workflow.input_params))
+        self.assertEqual(1, len(workflow.output_data))
+
+
+class UpconvertToListTestCase(TestCase):
+
+    def test_upconverts_dict(self):
+        inputs = {'input1': 'File'}
+        converted = upconvert_to_list(inputs)
+        self.assertEqual(converted, [{'id': 'input1', 'type': 'File'}])
+
+    def test_returns_list_unmodified(self):
+        inputs = [Mock(), Mock()]
+        converted = upconvert_to_list(inputs)
+        self.assertEqual(converted, inputs)
+
+    def test_raises_on_other(self):
+        inputs = {Mock}
+        with self.assertRaises(ValueError) as context:
+            upconvert_to_list(inputs)
+        self.assertIn('Only list or dict are supported', str(context.exception))
 
 
 class TestWorkflowInfo(TestCase):
