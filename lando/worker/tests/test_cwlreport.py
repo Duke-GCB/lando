@@ -243,7 +243,6 @@ class TestCwlReportUtilities(TestCase):
         self.assertEqual(1, len(workflow.output_data))
 
 
-
 class UpconvertToListTestCase(TestCase):
 
     def test_upconverts_dict(self):
