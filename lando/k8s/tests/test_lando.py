@@ -24,7 +24,7 @@ class TestK8sJobActions(TestCase):
         self.mock_config = Mock(base_stage_data_volume_size_in_g=1)
         self.mock_settings = Mock(job_id='49', config=self.mock_config)
         self.mock_job = Mock(state=JobStates.AUTHORIZED, step=JobSteps.NONE, created='2019-03-11T12:30',
-                             workflow=Mock(url='someurl.cwl', version=2))
+                             workflow=Mock(workflow_url='someurl.cwl', version='2'))
         self.mock_job.name = 'myjob'
         self.mock_job.workflow.name = 'myworkflow'
         self.mock_job.id = '49'

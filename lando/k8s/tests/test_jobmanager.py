@@ -13,7 +13,7 @@ class TestJobManager(TestCase):
         self.mock_job = Mock(
             username='jpb',
             created='2019-03-11T12:30',
-            workflow=Mock(url='someurl', job_order=mock_job_order, version=1),
+            workflow=Mock(workflow_url='someurl', job_order=mock_job_order, version=1),
             volume_size=3,
             job_flavor_cpus=2,
             job_flavor_memory='1G',
@@ -530,7 +530,7 @@ class TestJobManager(TestCase):
 class TestNames(TestCase):
     def test_constructor(self):
         mock_job = Mock(username='jpb', created='2019-03-11T12:30',
-                        workflow=Mock(url='https://somewhere.com/someworkflow.cwl', version=1))
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
@@ -558,7 +558,7 @@ class TestNames(TestCase):
 
     def test_strips_username_after_at_sign(self):
         mock_job = Mock(username='tom@tom.com', created='2019-03-11T12:30',
-                        workflow=Mock(url='https://somewhere.com/someworkflow.cwl', version=1))
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
