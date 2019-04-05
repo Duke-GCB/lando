@@ -209,7 +209,7 @@ class TestCwlDirectory(TestCase):
         mock_create_dir_if_necessary.assert_called_with('/tmp/fakedir/working')
 
 
-class CwlDownloaderTestCase(TestCase):
+class CwlWorkflowDownloaderTestCase(TestCase):
 
     def setUp(self):
         self.zip_url = 'https://server.com/workflow.zip'
@@ -252,9 +252,9 @@ class CwlDownloaderTestCase(TestCase):
     def test_downloads_then_raises_on_other_type(self, mock_zipfile, mock_urlretrieve):
         other_url = 'http://site.com/file.ext'
         expected_download_path = '/work/file.ext'
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(JobStepFailed) as context:
             CwlWorkflowDownloader(self.working_directory, 'other', other_url, '#')
-        self.assertIn('Unsupported workflow type: other', str(context.exception))
+        self.assertIn('Unsupported workflow type', str(context.exception))
         self.assertEqual(mock_urlretrieve.call_args, call(other_url, expected_download_path))
         self.assertFalse(mock_zipfile.called)
 
@@ -285,6 +285,26 @@ class CwlDownloaderTestCase(TestCase):
         self.assertFalse(mock_copy.called)
         self.assertEqual(mock_zipfile.call_args, call(downloader.download_path))
         self.assertEqual(mock_zipfile.return_value.__enter__.return_value.extractall.call_args, call(directory))
+
+
+class CwlWorkflowDownloaderActivityPathTestCase(TestCase):
+    """
+    Test for method that provides the path of the workflow file to use in a provenance activity
+    """
+    def test_get_workflow_activity_path_packed(self):
+        # def get_workflow_activity_path(workflow_type, workflow_url, workflow_path):
+
+        path = CwlWorkflowDownloader.get_workflow_activity_path('packed', 'http://example.com/workflow.cwl', '#main')
+        self.assertEqual(path, 'workflow.cwl')
+
+    def test_get_workflow_activity_path_zipped(self):
+        path = CwlWorkflowDownloader.get_workflow_activity_path('zipped', 'http://example.com/workflow.zip', 'path/workflow.cwl')
+        self.assertEqual(path, 'path/workflow.cwl')
+
+    def test_get_workflow_activity_path_raises_other(self):
+        with self.assertRaises(JobStepFailed) as context:
+            CwlWorkflowDownloader.get_workflow_activity_path('other', None, None)
+        self.assertIn('Unsupported workflow type', str(context.exception))
 
 
 class TestCwlWorkflowProcess(TestCase):

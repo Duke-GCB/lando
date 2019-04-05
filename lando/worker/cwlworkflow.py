@@ -83,6 +83,7 @@ def read_file(file_path):
 class CwlWorkflowDownloader(object):
     TYPE_PACKED = 'packed'
     TYPE_ZIPPED = 'zipped'
+    UNSUPPORTED_TYPE_MESSAGE = 'Unsupported workflow type'
 
     def __init__(self, working_directory, workflow_type, workflow_url, workflow_path):
         """
@@ -105,7 +106,7 @@ class CwlWorkflowDownloader(object):
         elif self.workflow_type == self.TYPE_ZIPPED:
             self._handle_zipped_download()
         else:
-            raise RuntimeError('Unsupported workflow type: {}'.format(self.workflow_type))
+            raise JobStepFailed(self.UNSUPPORTED_TYPE_MESSAGE, self.make_error_message(workflow_type, workflow_url))
 
     def _handle_packed_download(self):
         # After downloading packed workflow, just append the workflow path to the local file name
@@ -123,12 +124,36 @@ class CwlWorkflowDownloader(object):
         self.workflow_to_report = self.workflow_path
 
     def copy_to_directory(self, directory):
+        """
+        Used to place downloaded workflow files into a results directory for future re-use
+        :param directory: The directory to place the files
+        :return: None
+        """
         if self.workflow_type == self.TYPE_PACKED:
             shutil.copy(self.download_path, os.path.join(directory, self.workflow_basename))
         elif self.workflow_type == self.TYPE_ZIPPED:
             # rather than reading the zip entries and copying those files, just unzip it again
             self._unzip_to_directory(directory)
 
+    @staticmethod
+    def make_error_message(workflow_type, workflow_url):
+        return "CwlWorkflowDownloader cannot handle workflow type '{}' from url '{}'".format(workflow_type, workflow_url)
+
+    @staticmethod
+    def get_workflow_activity_path(workflow_type, workflow_url, workflow_path):
+        """
+        For packed workflows we use the base name but for zipped workflows we use the workflow path
+        :param workflow_type: Type of workflow
+        :param workflow_url: URL of workflow
+        :param workflow_path: path of object to run
+        :return:
+        """
+        if workflow_type == CwlWorkflowDownloader.TYPE_ZIPPED:
+            return workflow_path
+        elif workflow_type == CwlWorkflowDownloader.TYPE_PACKED:
+            return os.path.basename(workflow_url)
+        else:
+            raise JobStepFailed('Unsupported workflow type', CwlWorkflowDownloader.make_error_message(workflow_type, workflow_url))
 
 class CwlDirectory(object):
     """
