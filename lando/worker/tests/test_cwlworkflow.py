@@ -352,9 +352,10 @@ class TestResultsDirectory(TestCase):
                        mock_save_data_to_directory, mock_create_dir_if_necessary):
         job_id = 1
         workflow_downloader = create_autospec(CwlWorkflowDownloader,
-                                              workflow_to_run='/tmp/nosuchpath.cwl',
-                                              workflow_to_report='nosuch.cwl',
-                                              workflow_basename='nosuch.cwl')
+                                              workflow_to_run='/tmp/nosuch-run.cwl',
+                                              workflow_to_report='nosuch-report.cwl',
+                                              workflow_basename='nosuch-base.cwl',
+                                              workflow_to_read='nosuch-read.cwl')
         cwl_directory = create_autospec(CwlDirectory,
                                         result_directory='/tmp/fakedir',
                                         job_order_file_path='/tmp/alsonotreal.json',
@@ -400,7 +401,7 @@ class TestResultsDirectory(TestCase):
             call(documentation_directory + 'scripts')
         ])
         mock_create_workflow_info.assert_has_calls([
-            call(workflow_path=(documentation_directory + 'scripts/nosuch.cwl')),
+            call(workflow_path=(documentation_directory + 'scripts/nosuch-read.cwl')),
             call().update_with_job_order(job_order_path=(documentation_directory + 'scripts/alsonotreal.json')),
             call().update_with_job_output(job_output_path=(documentation_directory + 'logs/cwltool-output.json')),
             call().count_output_files(),
@@ -417,9 +418,10 @@ class TestResultsDirectory(TestCase):
                                              mock_shutil, mock_save_data_to_directory, mock_create_dir_if_necessary):
         job_id = 1
         workflow_downloader = create_autospec(CwlWorkflowDownloader,
-                                              workflow_to_run='/tmp/nosuchpath.cwl',
-                                              workflow_to_report='nosuch.cwl',
-                                              workflow_basename='nosuch.cwl')
+                                              workflow_to_run='/tmp/nosuch.cwl#main',
+                                              workflow_to_report='nosuch-report.cwl',
+                                              workflow_basename='nosuch-base.cwl',
+                                              workflow_to_read='nosuch-read.cwl')
         cwl_directory = create_autospec(CwlDirectory,
                                         result_directory='/tmp/fakedir',
                                         job_order_file_path='/tmp/alsonotreal.json',

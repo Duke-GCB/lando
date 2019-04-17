@@ -97,8 +97,10 @@ class CwlWorkflowDownloader(object):
         self.workflow_url = workflow_url
         self.workflow_path = workflow_path
         self.workflow_basename = os.path.basename(self.workflow_url)
-        self.workflow_to_run = None # set by handle_*_download
-        self.workflow_to_report = None
+        # below are set by handle_*_download
+        self.workflow_to_run = None # Absolute path of workflow in lando VM
+        self.workflow_to_report = None # Relative path to use in templated report (may include #main)
+        self.workflow_to_read = None # Relative path to use when parsing for workflow inputs
         self.download_path = os.path.join(self.working_directory, self.workflow_basename)
         urllib.request.urlretrieve(self.workflow_url, self.download_path)
         if self.workflow_type == self.TYPE_PACKED:
@@ -112,6 +114,7 @@ class CwlWorkflowDownloader(object):
         # After downloading packed workflow, just append the workflow path to the local file name
         self.workflow_to_run = self.download_path + self.workflow_path
         self.workflow_to_report = self.workflow_basename + self.workflow_path
+        self.workflow_to_read = self.workflow_basename
 
     def _unzip_to_directory(self, directory):
         with zipfile.ZipFile(self.download_path) as z:
@@ -122,6 +125,7 @@ class CwlWorkflowDownloader(object):
         self._unzip_to_directory(self.working_directory)
         self.workflow_to_run = os.path.join(self.working_directory, self.workflow_path)
         self.workflow_to_report = self.workflow_path
+        self.workflow_to_read = self.workflow_path
 
     def copy_to_directory(self, directory):
         """
@@ -389,7 +393,7 @@ class ResultsDirectory(object):
         """
         logs_directory = os.path.join(self.docs_directory, LOGS_DIRECTORY)
         workflow_directory = os.path.join(self.docs_directory, WORKFLOW_DIRECTORY)
-        workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, self.workflow_downloader.workflow_to_report))
+        workflow_info = create_workflow_info(workflow_path=os.path.join(workflow_directory, self.workflow_downloader.workflow_to_read))
         workflow_info.update_with_job_order(job_order_path=os.path.join(workflow_directory, self.job_order_filename))
         workflow_info.update_with_job_output(job_output_path=os.path.join(logs_directory, JOB_STDOUT_FILENAME))
         job_data = {
