@@ -146,7 +146,7 @@ class DownloadDukeDSFile(object):
         dds_file = dds_client.get_file_by_id(self.file_id)
         logging.info("Downloading file id:{} to {}".format(self.file_id, self.dest))
         dds_file.download_to_path(self.dest)
-        FileUrlDownloader.check_file_size(dds_file.current_version['size'], self.dest)
+        FileUrlDownloader.check_file_size(dds_file.current_version['upload']['size'], self.dest)
 
 
 class DownloadURLFile(object):
