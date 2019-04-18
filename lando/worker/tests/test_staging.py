@@ -125,4 +125,4 @@ class TestDownloadDukeDSFile(TestCase):
         mock_dds_file = mock_duke_ds_client.return_value.get_file_by_id.return_value
         mock_dds_file.download_to_path.assert_called_with('/bespin/data/input.txt')
         mock_file_url_downloader.check_file_size.assert_called_with(
-            mock_dds_file.current_version['size'], '/bespin/data/input.txt')
+            mock_dds_file.current_version['upload']['size'], '/bespin/data/input.txt')
