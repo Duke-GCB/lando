@@ -1,6 +1,6 @@
 
 from unittest import TestCase
-from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, \
+from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, DownloadDukeDSFile, \
     RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, README_MARKDOWN_FILENAME
 from ddsc.core.util import KindType
 from unittest.mock import patch, Mock, MagicMock, call
@@ -107,3 +107,22 @@ class TestProjectDetails(TestCase):
         project_details = ProjectDetails(project_tree)
         self.assertEqual(project_details.project_id, '112233')
         self.assertEqual(project_details.readme_file_id, '556677')
+
+
+class TestDownloadDukeDSFile(TestCase):
+    @patch('lando.worker.staging.create_parent_directory')
+    @patch('lando.worker.staging.DukeDSClient')
+    @patch('lando.worker.staging.FileUrlDownloader')
+    def test_run(self, mock_file_url_downloader, mock_duke_ds_client, mock_create_parent_directory):
+        mock_context = Mock()
+        download_file = DownloadDukeDSFile(file_id='111', dest='/bespin/data/input.txt', user_id='333')
+        download_file.run(mock_context)
+
+        mock_create_parent_directory.assert_called_with('/bespin/data/input.txt')
+        mock_context.get_duke_ds_config.assert_called_with('333')
+        mock_duke_ds_client.assert_called_with(mock_context.get_duke_ds_config.return_value)
+        mock_duke_ds_client.return_value.get_file_by_id.assert_called_with('111')
+        mock_dds_file = mock_duke_ds_client.return_value.get_file_by_id.return_value
+        mock_dds_file.download_to_path.assert_called_with('/bespin/data/input.txt')
+        mock_file_url_downloader.check_file_size.assert_called_with(
+            mock_dds_file.current_version['size'], '/bespin/data/input.txt')
