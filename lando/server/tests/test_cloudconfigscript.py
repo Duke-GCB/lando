@@ -2,6 +2,7 @@
 from unittest import TestCase
 from lando.server.cloudconfigscript import CloudConfigScript
 
+
 class TestCloudConfigScript(TestCase):
 
     def test_write_file(self):
@@ -11,7 +12,8 @@ class TestCloudConfigScript(TestCase):
         expected = """#cloud-config
 
 write_files:
-- {content: file-content, path: /etc/config.yml}
+- content: file-content
+  path: /etc/config.yml
 """
         c.add_write_file(file_content, path)
         self.assertMultiLineEqual(expected, c.content)
@@ -22,11 +24,15 @@ write_files:
         expected = """#cloud-config
 
 disk_setup:
-  /dev/vdg: {layout: true, table_type: gpt}
+  /dev/vdg:
+    layout: true
+    table_type: gpt
 fs_setup:
-- {device: /dev/vdg1, filesystem: ext3}
+- device: /dev/vdg1
+  filesystem: ext3
 mounts:
-- [/dev/vdg1, /mnt/data]
+- - /dev/vdg1
+  - /mnt/data
 """
         self.assertMultiLineEqual(expected, c.content)
 
@@ -35,6 +41,6 @@ mounts:
         c.add_manage_etc_hosts()
         expected = """#cloud-config
 
-{manage_etc_hosts: localhost}
+manage_etc_hosts: localhost
 """
         self.assertMultiLineEqual(expected, c.content)

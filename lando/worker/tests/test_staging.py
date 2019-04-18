@@ -1,6 +1,6 @@
 
 from unittest import TestCase
-from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, \
+from lando.worker.staging import SaveJobOutput, DukeDataService, ProjectDetails, DownloadDukeDSFile, \
     RESULTS_DIRECTORY, DOCUMENTATION_DIRECTORY, README_MARKDOWN_FILENAME
 from ddsc.core.util import KindType
 from unittest.mock import patch, Mock, MagicMock, call
@@ -74,19 +74,6 @@ class TestDukeDataService(TestCase):
                                                                 auth_role='project_admin', force_send=True,
                                                                 user_message='Bespin job results.')
 
-    @patch('lando.worker.staging.D4S2Project')
-    @patch('lando.worker.staging.RemoteStore')
-    @patch('lando.worker.staging.RemoteFile')
-    @patch('lando.worker.staging.FileDownloader')
-    @patch('lando.worker.staging.ProjectDownload')
-    def test_download_file(self, mock_project_download, mock_file_downloader, mock_remote_file, mock_remote_store,
-                           mock_d4s2_project):
-        remote_user = Mock(id='132')
-        mock_remote_store.return_value.fetch_user.return_value = remote_user
-        data_service = DukeDataService(MagicMock())
-        data_service.download_file('123', '/tmp/data.txt')
-        mock_file_downloader.return_value.run.assert_called()
-
 
 class TestProjectDetails(TestCase):
     def test_constructor(self):
@@ -120,3 +107,22 @@ class TestProjectDetails(TestCase):
         project_details = ProjectDetails(project_tree)
         self.assertEqual(project_details.project_id, '112233')
         self.assertEqual(project_details.readme_file_id, '556677')
+
+
+class TestDownloadDukeDSFile(TestCase):
+    @patch('lando.worker.staging.create_parent_directory')
+    @patch('lando.worker.staging.DukeDSClient')
+    @patch('lando.worker.staging.FileUrlDownloader')
+    def test_run(self, mock_file_url_downloader, mock_duke_ds_client, mock_create_parent_directory):
+        mock_context = Mock()
+        download_file = DownloadDukeDSFile(file_id='111', dest='/bespin/data/input.txt', user_id='333')
+        download_file.run(mock_context)
+
+        mock_create_parent_directory.assert_called_with('/bespin/data/input.txt')
+        mock_context.get_duke_ds_config.assert_called_with('333')
+        mock_duke_ds_client.assert_called_with(mock_context.get_duke_ds_config.return_value)
+        mock_duke_ds_client.return_value.get_file_by_id.assert_called_with('111')
+        mock_dds_file = mock_duke_ds_client.return_value.get_file_by_id.return_value
+        mock_dds_file.download_to_path.assert_called_with('/bespin/data/input.txt')
+        mock_file_url_downloader.check_file_size.assert_called_with(
+            mock_dds_file.current_version['size'], '/bespin/data/input.txt')

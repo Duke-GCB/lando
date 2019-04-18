@@ -8,9 +8,9 @@ import requests
 import dateutil.parser
 import logging
 import ddsc.config
-from ddsc.core.remotestore import RemoteStore, RemoteFile, ProjectNameOrId
-from ddsc.core.download import ProjectDownload
-from ddsc.core.filedownloader import FileDownloader
+from ddsc.core.remotestore import RemoteStore, ProjectNameOrId
+from ddsc.core.download import FileUrlDownloader
+from ddsc.sdk.client import Client as DukeDSClient
 from ddsc.core.util import KindType
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.d4s2 import D4S2Project
@@ -73,26 +73,6 @@ class DukeDataService(object):
         self.config = config
         self.remote_store = RemoteStore(self.config)
         self.data_service = self.remote_store.data_service
-
-    def download_file(self, file_id, destination_path):
-        """
-        Download file_id from DukeDS and store it at destination path
-        :param file_id: str: duke data service id for ths file
-        :param destination_path: str: path to where we will write out the file
-        """
-        file_data = self.data_service.get_file(file_id).json()
-        remote_file = RemoteFile(file_data, '')
-        downloader = FileDownloader(self.config, remote_file, destination_path, self)
-        downloader.run()
-        ProjectDownload.check_file_size(remote_file, destination_path)
-
-    def transferring_item(self, item, increment_amt=1):
-        """
-        Called to update progress as a file/folder is transferred.
-        :param item: RemoteFile/RemoteFolder: that is being transferrred.
-        :param increment_amt: int: allows for progress bar
-        """
-        logging.info('Transferring {} of {}'.format(increment_amt, item.name))
 
     def give_user_permissions(self, project_id, username, auth_role):
         logging.info("give user permissions. project:{} username{}: auth_role:{}".format(project_id, username, auth_role))
@@ -161,9 +141,12 @@ class DownloadDukeDSFile(object):
         :param context: Context
         """
         create_parent_directory(self.dest)
-        duke_data_service = context.get_duke_data_service(self.user_id)
+        config = context.get_duke_ds_config(self.user_id)
+        dds_client = DukeDSClient(config)
+        dds_file = dds_client.get_file_by_id(self.file_id)
         logging.info("Downloading file id:{} to {}".format(self.file_id, self.dest))
-        duke_data_service.download_file(self.file_id, self.dest)
+        dds_file.download_to_path(self.dest)
+        FileUrlDownloader.check_file_size(dds_file.current_version['size'], self.dest)
 
 
 class DownloadURLFile(object):

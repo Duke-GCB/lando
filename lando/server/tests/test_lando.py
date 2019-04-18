@@ -47,14 +47,18 @@ queue_name: task-queue
 CLOUD_CONFIG = """#cloud-config
 
 disk_setup:
-  /dev/vdb: {layout: true, table_type: gpt}
+  /dev/vdb:
+    layout: true
+    table_type: gpt
 fs_setup:
-- {device: /dev/vdb1, filesystem: ext3}
+- device: /dev/vdb1
+  filesystem: ext3
 manage_etc_hosts: localhost
 mounts:
-- [/dev/vdb1, /work]
+- - /dev/vdb1
+  - /work
 write_files:
-- {content: '
+- content: '
 
     host: 10.109.253.74
 
@@ -64,7 +68,8 @@ write_files:
 
     queue_name: task-queue
 
-    ', path: /etc/lando_worker_config.yml}
+    '
+  path: /etc/lando_worker_config.yml
 """
 
 
