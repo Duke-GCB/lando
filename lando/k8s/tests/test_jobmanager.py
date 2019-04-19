@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
 from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
-    OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig
+    OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes
 import json
 
 
@@ -13,7 +13,8 @@ class TestJobManager(TestCase):
         self.mock_job = Mock(
             username='jpb',
             created='2019-03-11T12:30',
-            workflow=Mock(workflow_url='someurl.cwl', job_order=mock_job_order, version=1, workflow_type='packed',
+            workflow=Mock(workflow_url='someurl.cwl', job_order=mock_job_order, version=1,
+                          workflow_type=WorkflowTypes.PACKED,
                           workflow_path='#main'),
             volume_size=3,
             job_flavor_cpus=2,
@@ -73,7 +74,7 @@ class TestJobManager(TestCase):
                  labels=self.expected_metadata_labels)
         ])
 
-    def test_create_stage_data_job(self):
+    def test_create_stage_data_job_packed_workflow(self):
         mock_cluster_api = Mock()
         mock_config = Mock()
         manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
@@ -90,6 +91,92 @@ class TestJobManager(TestCase):
                         "type": "url",
                         "source": "someurl.cwl",
                         "dest": "/bespin/job-data/workflow/someurl.cwl"
+                    },
+                    {
+                        "type": "write",
+                        "source": {"threads": 2},
+                        "dest": "/bespin/job-data/job-order.json"
+                    },
+                    {
+                        "type": "DukeDS",
+                        "source": "myid",
+                        "dest": "/bespin/job-data/file1.txt"
+                    }
+                ]
+            })
+        }
+        mock_cluster_api.create_config_map.assert_called_with(name='stage-data-51-jpb',
+                                                              data=config_map_payload,
+                                                              labels=self.expected_metadata_labels)
+
+        # it should have created a job
+        args, kwargs = mock_cluster_api.create_job.call_args
+        name, batch_spec = args
+        self.assertEqual(name, 'stage-data-51-jpb')  # job name
+        self.assertEqual(batch_spec.name, 'stage-data-51-jpb')  # job spec name
+        self.assertEqual(batch_spec.labels['bespin-job-id'], '51')  # Bespin job id stored in a label
+        self.assertEqual(batch_spec.labels['bespin-job-step'], 'stage_data')  # store the job step in a label
+        job_container = batch_spec.container
+        self.assertEqual(job_container.name, 'stage-data-51-jpb')  # container name
+        self.assertEqual(job_container.image_name, self.mock_job.k8s_settings.stage_data.image_name,
+                         'stage data image name is based on a job setting')
+        self.assertEqual(job_container.command, self.mock_job.k8s_settings.stage_data.base_command,
+                         'stage data command is based on a job setting')
+        self.assertEqual(job_container.args, ['/bespin/config/stagedata.json',
+                                              '/bespin/job-data/workflow-input-files-metadata.json'],
+                         'stage data command should receive config file as an argument')
+        self.assertEqual(job_container.env_dict, {'DDSCLIENT_CONF': '/etc/ddsclient/config'},
+                         'DukeDS environment variable should point to the config mapped config file')
+        self.assertEqual(job_container.requested_cpu, self.mock_job.k8s_settings.stage_data.cpus,
+                         'stage data requested cpu is based on a config setting')
+        self.assertEqual(job_container.requested_memory, self.mock_job.k8s_settings.stage_data.memory,
+                         'stage data requested memory is based on a config setting')
+        self.assertEqual(len(job_container.volumes), 3)
+
+        user_data_volume = job_container.volumes[0]
+        self.assertEqual(user_data_volume.name, 'job-data-51-jpb')
+        self.assertEqual(user_data_volume.mount_path, '/bespin/job-data')
+        self.assertEqual(user_data_volume.volume_claim_name, 'job-data-51-jpb')
+        self.assertEqual(user_data_volume.read_only, False)
+
+        config_map_volume = job_container.volumes[1]
+        self.assertEqual(config_map_volume.name, 'stage-data-51-jpb')
+        self.assertEqual(config_map_volume.mount_path, '/bespin/config')
+        self.assertEqual(config_map_volume.config_map_name, 'stage-data-51-jpb')
+        self.assertEqual(config_map_volume.source_key, 'stagedata.json')
+        self.assertEqual(config_map_volume.source_path, 'stagedata.json')
+
+        secret_volume = job_container.volumes[2]
+        self.assertEqual(secret_volume.name, 'data-store-51-jpb')
+        self.assertEqual(secret_volume.mount_path, '/etc/ddsclient')
+        self.assertEqual(secret_volume.secret_name, mock_config.data_store_settings.secret_name,
+                         'name of DukeDS secret is based on a config setting')
+
+    def test_create_stage_data_job_zipped_workflow(self):
+        mock_cluster_api = Mock()
+        mock_config = Mock()
+        self.mock_job.workflow.workflow_type = WorkflowTypes.ZIPPED
+        self.mock_job.workflow.workflow_url = 'someurl.zip'
+        self.mock_job.workflow.workflow_path = 'workflows/some.cwl'
+        manager = JobManager(cluster_api=mock_cluster_api, config=mock_config, job=self.mock_job)
+        mock_input_files = Mock(dds_files=[
+            Mock(destination_path='file1.txt', file_id='myid')
+        ])
+        manager.create_stage_data_job(input_files=mock_input_files)
+
+        # it should have created a config map of what needs to be staged
+        config_map_payload = {
+            'stagedata.json': json.dumps({
+                "items": [
+                    {
+                        "type": "url",
+                        "source": "someurl.zip",
+                        "dest": "/bespin/job-data/workflow/someurl.zip"
+                    },
+                    {
+                        "type": "unzip",
+                        "source": "/bespin/job-data/workflow/someurl.zip",
+                        "dest": "/bespin/job-data/workflow"
                     },
                     {
                         "type": "write",
@@ -534,7 +621,7 @@ class TestNames(TestCase):
     def test_constructor_packed(self):
         mock_job = Mock(username='jpb', created='2019-03-11T12:30',
                         workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1,
-                                      workflow_type='packed', workflow_path='#main'))
+                                      workflow_type=WorkflowTypes.PACKED, workflow_path='#main'))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
@@ -555,16 +642,59 @@ class TestNames(TestCase):
         self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
         self.assertEqual(names.workflow_download_dest, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.workflow_to_run, '/bespin/job-data/workflow/someworkflow.cwl#main')
+        self.assertEqual(names.workflow_to_read, '/bespin/job-data/workflow/someworkflow.cwl')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
         self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
         self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
         self.assertEqual(names.annotate_project_details_path, '/bespin/output-data/annotate_project_details.sh')
 
+    def test_constructor_zipped(self):
+        mock_job = Mock(username='jpb', created='2019-03-11T12:30',
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.zip', version=1,
+                                      workflow_type=WorkflowTypes.ZIPPED, workflow_path='dir/workflow.cwl'))
+        mock_job.name = 'myjob'
+        mock_job.workflow.name = 'myworkflow'
+        mock_job.id = '123'
+        names = Names(mock_job)
+        self.assertEqual(names.job_data, 'job-data-123-jpb')
+        self.assertEqual(names.output_data, 'output-data-123-jpb')
+        self.assertEqual(names.tmpout, 'tmpout-123-jpb')
+        self.assertEqual(names.tmp, 'tmp-123-jpb')
+
+        self.assertEqual(names.stage_data, 'stage-data-123-jpb')
+        self.assertEqual(names.run_workflow, 'run-workflow-123-jpb')
+        self.assertEqual(names.organize_output, 'organize-output-123-jpb')
+        self.assertEqual(names.save_output, 'save-output-123-jpb')
+        self.assertEqual(names.record_output_project, 'record-output-project-123-jpb')
+
+        self.assertEqual(names.user_data, 'user-data-123-jpb')
+        self.assertEqual(names.data_store_secret, 'data-store-123-jpb')
+        self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
+        self.assertEqual(names.workflow_download_dest, '/bespin/job-data/workflow/someworkflow.zip')
+        self.assertEqual(names.workflow_to_run, '/bespin/job-data/workflow/dir/workflow.cwl')
+        self.assertEqual(names.workflow_to_read, '/bespin/job-data/workflow/dir/workflow.cwl')
+        self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
+        self.assertEqual(names.system_data, 'system-data-123-jpb')
+        self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/bespin/output-data/bespin-workflow-output.log')
+        self.assertEqual(names.annotate_project_details_path, '/bespin/output-data/annotate_project_details.sh')
+
+    def test_constructor_unknown(self):
+        mock_job = Mock(username='jpb', created='2019-03-11T12:30',
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.zip', version=1,
+                                      workflow_type='faketype', workflow_path='dir/workflow.cwl'))
+        mock_job.name = 'myjob'
+        mock_job.workflow.name = 'myworkflow'
+        mock_job.id = '123'
+        with self.assertRaises(ValueError) as raised_exception:
+            Names(mock_job)
+        self.assertEqual(str(raised_exception.exception), 'Unknown workflow type faketype')
+
     def test_strips_username_after_at_sign(self):
         mock_job = Mock(username='tom@tom.com', created='2019-03-11T12:30',
                         workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1,
-                                      workflow_path='#main', workflow_type='packed'))
+                                      workflow_path='#main', workflow_type=WorkflowTypes.PACKED))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'

@@ -24,6 +24,11 @@ class JobStepTypes(object):
     RECORD_OUTPUT_PROJECT = "record_output_project"
 
 
+class WorkflowTypes(object):
+    ZIPPED = 'zipped'
+    PACKED = 'packed'
+
+
 class JobManager(object):
     def __init__(self, cluster_api, config, job):
         self.cluster_api = cluster_api
@@ -102,9 +107,9 @@ class JobManager(object):
         items = [
             self._stage_data_config_item("url", workflow.workflow_url, self.names.workflow_download_dest),
         ]
-        if workflow_type == 'zipped':
+        if workflow_type == WorkflowTypes.ZIPPED:
             items.append(self._stage_data_config_item("unzip", self.names.workflow_download_dest, Paths.WORKFLOW))
-        elif workflow_type != 'packed':
+        elif workflow_type != WorkflowTypes.PACKED:
             raise ValueError("Unknown workflow type {}".format(workflow_type))
         items.append(self._stage_data_config_item("write", workflow.job_order, self.names.job_order_path))
         for dds_file in input_files.dds_files:
@@ -388,11 +393,11 @@ class Names(object):
             job.workflow.name, job.workflow.version, job.name, job_created)
         self.workflow_download_dest = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
         workflow_type = job.workflow.workflow_type
-        if workflow_type == 'packed':
+        if workflow_type == WorkflowTypes.PACKED:
             # For packed workflow_type workflow_path contains object name. Typically '#main'.
             self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job.workflow.workflow_path)
             self.workflow_to_read = self.workflow_download_dest
-        elif workflow_type == 'zipped':
+        elif workflow_type == WorkflowTypes.ZIPPED:
             # for zipped workflow_type workflow_path contains relative path to workflow within zip file
             # this zip file will be extracted into WORKFLOW directory
             self.workflow_to_run = '{}/{}'.format(Paths.WORKFLOW, job.workflow.workflow_path)
