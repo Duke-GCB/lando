@@ -13,7 +13,8 @@ class TestJobManager(TestCase):
         self.mock_job = Mock(
             username='jpb',
             created='2019-03-11T12:30',
-            workflow=Mock(workflow_url='someurl', job_order=mock_job_order, version=1),
+            workflow=Mock(workflow_url='someurl.cwl', job_order=mock_job_order, version=1, workflow_type='packed',
+                          workflow_path='#main'),
             volume_size=3,
             job_flavor_cpus=2,
             job_flavor_memory='1G',
@@ -87,8 +88,8 @@ class TestJobManager(TestCase):
                 "items": [
                     {
                         "type": "url",
-                        "source": "someurl",
-                        "dest": "/bespin/job-data/workflow/someurl"
+                        "source": "someurl.cwl",
+                        "dest": "/bespin/job-data/workflow/someurl.cwl"
                     },
                     {
                         "type": "write",
@@ -194,7 +195,7 @@ class TestJobManager(TestCase):
                                 '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
                                 '--stdout /bespin/output-data/bespin-workflow-output.json ' \
                                 '--stderr /bespin/output-data/bespin-workflow-output.log ' \
-                                '/bespin/job-data/workflow/someurl ' \
+                                '/bespin/job-data/workflow/someurl.cwl#main ' \
                                 '/bespin/job-data/job-order.json'.split(' ')
         self.assertEqual(job_container.command, expected_bash_command,
                          'run workflow command combines job settings and staged files')
@@ -272,7 +273,8 @@ class TestJobManager(TestCase):
                     json.dumps({
                         "bespin_job_id": '51',
                         "destination_dir": "/bespin/output-data/results",
-                        "workflow_path": "/bespin/job-data/workflow/someurl",
+                        "workflow_path": "/bespin/job-data/workflow/someurl.cwl",
+                        "workflow_type": "packed",
                         "job_order_path": "/bespin/job-data/job-order.json",
                         "bespin_workflow_stdout_path": "/bespin/output-data/bespin-workflow-output.json",
                         "bespin_workflow_stderr_path": "/bespin/output-data/bespin-workflow-output.log",
@@ -528,9 +530,10 @@ class TestJobManager(TestCase):
 
 
 class TestNames(TestCase):
-    def test_constructor(self):
+    def test_constructor_packed(self):
         mock_job = Mock(username='jpb', created='2019-03-11T12:30',
-                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1))
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1,
+                                      workflow_type='packed', workflow_path='#main'))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
@@ -549,7 +552,8 @@ class TestNames(TestCase):
         self.assertEqual(names.user_data, 'user-data-123-jpb')
         self.assertEqual(names.data_store_secret, 'data-store-123-jpb')
         self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
-        self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.workflow_download_dest, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.workflow_to_run, '/bespin/job-data/workflow/someworkflow.cwl#main')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-jpb')
         self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')
@@ -558,7 +562,8 @@ class TestNames(TestCase):
 
     def test_strips_username_after_at_sign(self):
         mock_job = Mock(username='tom@tom.com', created='2019-03-11T12:30',
-                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1))
+                        workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1,
+                                      workflow_path='#main', workflow_type='packed'))
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
@@ -576,7 +581,8 @@ class TestNames(TestCase):
         self.assertEqual(names.user_data, 'user-data-123-tom')
         self.assertEqual(names.data_store_secret, 'data-store-123-tom')
         self.assertEqual(names.output_project_name, 'Bespin myworkflow v1 myjob 2019-03-11')
-        self.assertEqual(names.workflow_path, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.workflow_download_dest, '/bespin/job-data/workflow/someworkflow.cwl')
+        self.assertEqual(names.workflow_to_run, '/bespin/job-data/workflow/someworkflow.cwl#main')
         self.assertEqual(names.job_order_path, '/bespin/job-data/job-order.json')
         self.assertEqual(names.system_data, 'system-data-123-tom')
         self.assertEqual(names.run_workflow_stdout_path, '/bespin/output-data/bespin-workflow-output.json')

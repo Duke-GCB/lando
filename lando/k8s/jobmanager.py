@@ -66,8 +66,7 @@ class JobManager(object):
         stage_data_config = StageDataConfig(self.job, self.config)
         self._create_stage_data_config_map(name=self.names.stage_data,
                                            filename=stage_data_config.filename,
-                                           workflow_url=self.job.workflow.workflow_url,
-                                           job_order=self.job.workflow.job_order,
+                                           workflow=self.job.workflow,
                                            input_files=input_files)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
@@ -98,11 +97,16 @@ class JobManager(object):
                                 labels=labels)
         return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=labels)
 
-    def _create_stage_data_config_map(self, name, filename, workflow_url, job_order, input_files):
+    def _create_stage_data_config_map(self, name, filename, workflow, input_files):
+        workflow_type = workflow.workflow_type
         items = [
-            self._stage_data_config_item("url", workflow_url, self.names.workflow_path),
-            self._stage_data_config_item("write", job_order, self.names.job_order_path),
+            self._stage_data_config_item("url", workflow.workflow_url, self.names.workflow_download_dest),
         ]
+        if workflow_type == 'zipped':
+            items.append("unzip", self.names.workflow_download_dest, Paths.WORKFLOW)
+        elif workflow_type != 'packed':
+            raise ValueError("Unknown workflow type {}".format(workflow_type))
+        items.append(self._stage_data_config_item("write", workflow.job_order, self.names.job_order_path))
         for dds_file in input_files.dds_files:
             dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
             items.append(self._stage_data_config_item("DukeDS", dds_file.file_id, dest))
@@ -150,7 +154,7 @@ class JobManager(object):
                         "--usage-report", self.names.usage_report_path,
                         "--stdout", self.names.run_workflow_stdout_path,
                         "--stderr", self.names.run_workflow_stderr_path,
-                        self.names.workflow_path,
+                        self.names.workflow_to_run,
                         self.names.job_order_path,
                         ])
         container = Container(
@@ -211,7 +215,8 @@ class JobManager(object):
         config_data = {
             "bespin_job_id": self.job.id,
             "destination_dir": Paths.OUTPUT_RESULTS_DIR,
-            "workflow_path": self.names.workflow_path,
+            "workflow_path": self.names.workflow_download_dest,
+            "workflow_type": self.job.workflow.workflow_type,
             "job_order_path": self.names.job_order_path,
             "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
             "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
@@ -360,7 +365,6 @@ class JobManager(object):
 
 class Names(object):
     def __init__(self, job):
-        job_id = job.id
         stripped_username = re.sub(r'@.*', '', job.username)
         suffix = '{}-{}'.format(job.id, stripped_username)
         # Volumes
@@ -381,7 +385,17 @@ class Names(object):
         job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
         self.output_project_name = "Bespin {} v{} {} {}".format(
             job.workflow.name, job.workflow.version, job.name, job_created)
-        self.workflow_path = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
+        self.workflow_download_dest = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
+        workflow_type = job.workflow.workflow_type
+        if workflow_type == 'packed':
+            # For packed workflow_type workflow_path contains object name. Typically '#main'.
+            self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job.workflow.workflow_path)
+        elif workflow_type == 'zipped':
+            # for zipped workflow_type workflow_path contains relative path to workflow within zip file
+            # this zip file will be extracted into WORKFLOW directory
+            self.workflow_to_run = '{}/{}'.format(Paths.WORKFLOW, job.workflow.workflow_path)
+        else:
+            raise ValueError("Unknown workflow type {}".format(workflow_type))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
         self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
         self.system_data = 'system-data-{}'.format(suffix)
