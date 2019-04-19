@@ -216,6 +216,7 @@ class JobManager(object):
             "bespin_job_id": self.job.id,
             "destination_dir": Paths.OUTPUT_RESULTS_DIR,
             "workflow_path": self.names.workflow_download_dest,
+            "workflow_to_read": self.names.workflow_to_read,
             "workflow_type": self.job.workflow.workflow_type,
             "job_order_path": self.names.job_order_path,
             "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
@@ -390,10 +391,12 @@ class Names(object):
         if workflow_type == 'packed':
             # For packed workflow_type workflow_path contains object name. Typically '#main'.
             self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job.workflow.workflow_path)
+            self.workflow_to_read = self.workflow_download_dest
         elif workflow_type == 'zipped':
             # for zipped workflow_type workflow_path contains relative path to workflow within zip file
             # this zip file will be extracted into WORKFLOW directory
             self.workflow_to_run = '{}/{}'.format(Paths.WORKFLOW, job.workflow.workflow_path)
+            self.workflow_to_read = self.workflow_to_run
         else:
             raise ValueError("Unknown workflow type {}".format(workflow_type))
         self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
