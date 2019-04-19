@@ -103,7 +103,7 @@ class JobManager(object):
             self._stage_data_config_item("url", workflow.workflow_url, self.names.workflow_download_dest),
         ]
         if workflow_type == 'zipped':
-            items.append("unzip", self.names.workflow_download_dest, Paths.WORKFLOW)
+            items.append(self._stage_data_config_item("unzip", self.names.workflow_download_dest, Paths.WORKFLOW))
         elif workflow_type != 'packed':
             raise ValueError("Unknown workflow type {}".format(workflow_type))
         items.append(self._stage_data_config_item("write", workflow.job_order, self.names.job_order_path))
