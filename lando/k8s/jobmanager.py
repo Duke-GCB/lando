@@ -129,8 +129,8 @@ class JobManager(object):
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
     @staticmethod
-    def _stage_data_config_item(type, source, dest, unzip_to=None):
-        item = {"type": type, "source": source, "dest": dest}
+    def _stage_data_config_item(workflow_type, source, dest, unzip_to=None):
+        item = {"type": workflow_type, "source": source, "dest": dest}
         if unzip_to:
             item["unzip_to"] = unzip_to
         return item
