@@ -1,6 +1,6 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
-from lando.k8s.jobmanager import JobManager, JobStepTypes, Names, StageDataConfig, RunWorkflowConfig, \
+from lando.k8s.jobmanager import JobManager, JobStepTypes, WorkflowTypeDetails, StageDataConfig, RunWorkflowConfig, \
     OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes
 import json
 
@@ -171,12 +171,8 @@ class TestJobManager(TestCase):
                     {
                         "type": "url",
                         "source": "someurl.zip",
-                        "dest": "/bespin/job-data/workflow/someurl.zip"
-                    },
-                    {
-                        "type": "unzip",
-                        "source": "/bespin/job-data/workflow/someurl.zip",
-                        "dest": "/bespin/job-data/workflow"
+                        "dest": "/bespin/job-data/workflow/someurl.zip",
+                        "unzip_to": "/bespin/job-data/workflow"
                     },
                     {
                         "type": "write",
@@ -617,7 +613,7 @@ class TestJobManager(TestCase):
             label_selector='bespin-job=true,bespin-job-id=1')
 
 
-class TestNames(TestCase):
+class TestWorkflowTypeDetails(TestCase):
     def test_constructor_packed(self):
         mock_job = Mock(username='jpb', created='2019-03-11T12:30',
                         workflow=Mock(workflow_url='https://somewhere.com/someworkflow.cwl', version=1,
@@ -625,7 +621,8 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        details = WorkflowTypeDetails(mock_job)
+        names = details.names
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -656,7 +653,8 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        details = WorkflowTypeDetails(mock_job)
+        names = details.names
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -688,7 +686,8 @@ class TestNames(TestCase):
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
         with self.assertRaises(ValueError) as raised_exception:
-            Names(mock_job)
+            details = WorkflowTypeDetails(mock_job)
+            names = details.names
         self.assertEqual(str(raised_exception.exception), 'Unknown workflow type faketype')
 
     def test_strips_username_after_at_sign(self):
@@ -698,7 +697,8 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        details = WorkflowTypeDetails(mock_job)
+        names = details.names
         self.assertEqual(names.job_data, 'job-data-123-tom')
         self.assertEqual(names.output_data, 'output-data-123-tom')
         self.assertEqual(names.tmpout, 'tmpout-123-tom')
