@@ -40,7 +40,7 @@ class JobManager(object):
         self.cluster_api = cluster_api
         self.config = config
         self.job = job
-        self.names = create_workflow_names(job)
+        self.names = create_names(job)
         self.storage_class_name = config.storage_class_name
         self.default_metadata_labels = {
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
@@ -426,7 +426,7 @@ class PackedWorkflowNames(Names):
         self.unzip_workflow_url_to_path = None
 
 
-def create_workflow_names(job):
+def create_names(job):
     workflow_type = job.workflow.workflow_type
     if workflow_type == WorkflowTypes.ZIPPED:
         return ZippedWorkflowNames(job)

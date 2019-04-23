@@ -1,6 +1,6 @@
 from unittest import TestCase
 from unittest.mock import Mock, call
-from lando.k8s.jobmanager import JobManager, JobStepTypes, create_workflow_names, StageDataConfig, RunWorkflowConfig, \
+from lando.k8s.jobmanager import JobManager, JobStepTypes, create_names, StageDataConfig, RunWorkflowConfig, \
     OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes
 import json
 
@@ -621,7 +621,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = create_workflow_names(mock_job)
+        names = create_names(mock_job)
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -652,7 +652,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = create_workflow_names(mock_job)
+        names = create_names(mock_job)
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -684,7 +684,7 @@ class TestNames(TestCase):
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
         with self.assertRaises(ValueError) as raised_exception:
-            create_workflow_names(mock_job)
+            create_names(mock_job)
         self.assertEqual(str(raised_exception.exception), 'Unknown workflow type faketype')
 
     def test_strips_username_after_at_sign(self):
@@ -694,7 +694,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = create_workflow_names(mock_job)
+        names = create_names(mock_job)
         self.assertEqual(names.job_data, 'job-data-123-tom')
         self.assertEqual(names.output_data, 'output-data-123-tom')
         self.assertEqual(names.tmpout, 'tmpout-123-tom')
