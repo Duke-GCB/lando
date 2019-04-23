@@ -109,7 +109,9 @@ class JobManager(object):
         ]
         if workflow_type == WorkflowTypes.ZIPPED:
             items.append(self._stage_data_config_item("unzip", self.names.workflow_download_dest, Paths.WORKFLOW))
-        elif workflow_type != WorkflowTypes.PACKED:
+        elif workflow_type == WorkflowTypes.PACKED:
+            pass
+        else:
             raise ValueError("Unknown workflow type {}".format(workflow_type))
         items.append(self._stage_data_config_item("write", workflow.job_order, self.names.job_order_path))
         for dds_file in input_files.dds_files:
