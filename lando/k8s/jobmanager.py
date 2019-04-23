@@ -40,8 +40,7 @@ class JobManager(object):
         self.cluster_api = cluster_api
         self.config = config
         self.job = job
-        self.workflow_type_details = WorkflowTypeDetails(job)
-        self.names = self.workflow_type_details.names
+        self.names = create_workflow_names(job)
         self.storage_class_name = config.storage_class_name
         self.default_metadata_labels = {
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
@@ -427,15 +426,14 @@ class PackedWorkflowNames(Names):
         self.unzip_workflow_url_to_path = None
 
 
-class WorkflowTypeDetails(object):
-    def __init__(self, job):
-        workflow_type = job.workflow.workflow_type
-        if job.workflow.workflow_type == WorkflowTypes.ZIPPED:
-            self.names = ZippedWorkflowNames(job)
-        elif job.workflow.workflow_type == WorkflowTypes.PACKED:
-            self.names = PackedWorkflowNames(job)
-        else:
-            raise ValueError("Unknown workflow type {}".format(workflow_type))
+def create_workflow_names(job):
+    workflow_type = job.workflow.workflow_type
+    if workflow_type == WorkflowTypes.ZIPPED:
+        return ZippedWorkflowNames(job)
+    elif workflow_type == WorkflowTypes.PACKED:
+        return PackedWorkflowNames(job)
+    else:
+        raise ValueError("Unknown workflow type {}".format(workflow_type))
 
 
 class Paths(object):
