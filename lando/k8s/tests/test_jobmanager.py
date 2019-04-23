@@ -1,5 +1,5 @@
 from unittest import TestCase
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 from lando.k8s.jobmanager import JobManager, JobStepTypes, create_names, StageDataConfig, RunWorkflowConfig, \
     OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes
 import json
@@ -801,3 +801,28 @@ class TestRecordOutputProjectConfig(TestCase):
         self.assertEqual(config.service_account_name, mock_config.record_output_project_settings.service_account_name)
         self.assertEqual(config.project_id_fieldname, 'project_id')
         self.assertEqual(config.readme_file_id_fieldname, 'readme_file_id')
+
+
+class TestCreateNames(TestCase):
+    @patch('lando.k8s.jobmanager.ZippedWorkflowNames')
+    def test_zipped_type(self, mock_zipped_workflow_names):
+        mock_job = Mock()
+        mock_job.workflow.workflow_type = WorkflowTypes.ZIPPED
+        names = create_names(mock_job)
+        self.assertEqual(names, mock_zipped_workflow_names.return_value)
+        mock_zipped_workflow_names.assert_called_with(mock_job)
+
+    @patch('lando.k8s.jobmanager.PackedWorkflowNames')
+    def test_packed_type(self, mock_packed_workflow_names):
+        mock_job = Mock()
+        mock_job.workflow.workflow_type = WorkflowTypes.PACKED
+        names = create_names(mock_job)
+        self.assertEqual(names, mock_packed_workflow_names.return_value)
+        mock_packed_workflow_names.assert_called_with(mock_job)
+
+    def test_invalid_type(self):
+        mock_job = Mock()
+        mock_job.workflow.workflow_type = 'badtype'
+        with self.assertRaises(ValueError) as raised_exception:
+            create_names(mock_job)
+        self.assertEqual(str(raised_exception.exception), 'Unknown workflow type badtype')
