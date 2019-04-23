@@ -229,7 +229,7 @@ class JobManager(object):
         config_data = {
             "bespin_job_id": self.job.id,
             "destination_dir": Paths.OUTPUT_RESULTS_DIR,
-            "workflow_path": self.names.workflow_download_dest,
+            "downloaded_workflow_path": self.names.workflow_download_dest,
             "workflow_to_read": self.names.workflow_to_read,
             "workflow_type": self.job.workflow.workflow_type,
             "job_order_path": self.names.job_order_path,

@@ -356,7 +356,7 @@ class TestJobManager(TestCase):
                     json.dumps({
                         "bespin_job_id": '51',
                         "destination_dir": "/bespin/output-data/results",
-                        "workflow_path": "/bespin/job-data/workflow/someurl.cwl",
+                        "downloaded_workflow_path": "/bespin/job-data/workflow/someurl.cwl",
                         "workflow_to_read": "/bespin/job-data/workflow/someurl.cwl",
                         "workflow_type": "packed",
                         "job_order_path": "/bespin/job-data/job-order.json",
