@@ -27,6 +27,7 @@ class TestK8sJobActions(TestCase):
                              workflow=Mock(workflow_url='someurl.cwl', version='2'))
         self.mock_job.name = 'myjob'
         self.mock_job.workflow.name = 'myworkflow'
+        self.mock_job.workflow.workflow_type = 'packed'
         self.mock_job.id = '49'
         self.mock_job.username = 'joe@joe.com'
         self.mock_job_api = self.mock_settings.get_job_api.return_value
