@@ -161,7 +161,7 @@ class JobManager(object):
                 volume_claim_name=system_data_volume.volume_claim_name,
                 read_only=True))
         command = run_workflow_config.command
-        command.extend(["--tmp-outdir-prefix", Paths.TMPOUT_DATA + "/",
+        command.extend(["--cachedir", Paths.TMPOUT_DATA + "/",
                         "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
                         "--max-ram", self.job.job_flavor_memory,
                         "--max-cores", str(self.job.job_flavor_cpus),
