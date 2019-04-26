@@ -272,7 +272,7 @@ class TestJobManager(TestCase):
         self.assertEqual(job_container.name, 'run-workflow-51-jpb')  # container name
         self.assertEqual(job_container.image_name, self.mock_job.k8s_settings.run_workflow.image_name,
                          'run workflow image name is based on job settings')
-        expected_bash_command = 'cwltool --tmp-outdir-prefix /bespin/output-data/tmpout/ ' \
+        expected_bash_command = 'cwltool --cachedir /bespin/output-data/tmpout/ ' \
                                 '--outdir /bespin/output-data/results/ ' \
                                 '--max-ram 1G --max-cores 2 ' \
                                 '--usage-report /bespin/output-data/job-51-jpb-resource-usage.json ' \
