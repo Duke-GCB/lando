@@ -1,226 +1,236 @@
-
 from unittest import TestCase
-import os
-import shutil
-from lando.testutil import write_temp_return_filename
-from lando.worker.config import WorkerConfig
-from lando.worker.worker import LandoWorker, LandoWorkerActions
-from lando.worker.staging import SaveJobOutput
-from lando_messaging.messaging import StageJobPayload, RunJobPayload, StoreJobOutputPayload
-from unittest.mock import patch, Mock, MagicMock, ANY
-
-LANDO_WORKER_CONFIG = """
-host: 10.109.253.74
-username: worker
-password: workerpass
-queue_name: task-queue
-"""
-
-class Report(object):
-    """
-    Builds a text document of steps executed by Lando.
-    This makes it easier to assert what operations happened.
-    """
-    def __init__(self):
-        self.text = ''
-
-    def add(self, line):
-        self.text += line + '\n'
-
-
-class FakeSettings(object):
-    def __init__(self, config):
-        self.config = config
-        self.report = Report()
-        self.raise_when_run_workflow = False
-
-    def make_lando_client(self, config, outgoing_queue_name):
-        return FakeObject("Lando Client", self.report)
-
-    def make_staging_context(self, credentials):
-        return FakeObject("Staging Context", self.report)
-
-    def make_download_duke_ds_file(self, file_id, destination_path, user_id):
-        return FakeObject("Download file {}.".format(file_id), self.report)
-
-    def make_download_url_file(self, url, destination_path):
-        return FakeObject("Download url {}.".format(url), self.report)
-
-    def make_cwl_workflow(self, job_id, working_directory,
-                          cwl_base_command, cwl_post_process_command,
-                          workflow_methods_markdown):
-        if self.raise_when_run_workflow:
-            raise ValueError("Something went wrong.")
-        obj = FakeObject("Run workflow for job {}.".format(job_id), self.report)
-        obj.run = obj.run_workflow
-        return obj
-
-    def make_save_job_output(self, payload):
-        return FakeObject("Upload/share project.", self.report)
-
-
-class FakeObject(object):
-    def __init__(self, run_message, report):
-        self.run_message = run_message
-        self.report = report
-
-    def job_step_complete(self, payload):
-        self.report.add("Send job step complete for job {}.".format(payload.job_id))
-
-    def job_step_store_output_complete(self, payload, output_project_info):
-        self.report.add("Send job step complete for job {} project:{}.".format(
-            payload.job_id, output_project_info.project_id))
-
-    def run(self, context):
-        self.report.add(self.run_message)
-        return Mock(remote_id='2348')
-
-    def run_workflow(self, workflow_type, workflow_url, workflow_path, job_order):
-        self.report.add(self.run_message)
-
-    def job_step_error(self, payload, message):
-        self.report.add("Send job step error for job {}: {}.".format(payload.job_id, message))
-
-    def worker_started(self, queue_name):
-        self.report.add("Send worker started message for {}.".format(queue_name))
-
-    def get_duke_ds_config(self, user_id):
-        return MagicMock()
-
-    def get_details(self):
-        return Mock(project_id='2348', readme_file_id='456')
-
-
-class FakeInputFile(object):
-    def __init__(self, file_type):
-        self.file_type = file_type
-        self.workflow_name = 'workflow'
-        self.dds_files = []
-        self.url_files = []
-        if file_type == 'dds_file':
-            self.dds_files.append(FakeFileData())
-        else:
-            self.url_files.append(FakeFileData())
-
-
-class FakeFileData(object):
-    def __init__(self):
-        self.file_id = 42
-        self.user_id = 2
-        self.url = 'http:stuff'
-        self.destination_path = 'data.txt'
-
-
-class FakeWorkflow(object):
-    def __init__(self):
-        self.workflow_url = "file:///tmp/test.cwl"
-        self.job_order = "{'id':1}"
-        self.output_directory = None
-        self.workflow_path = "#main"
-        self.workflow_type = 'packed'
-
-
-class TestLandoWorker(TestCase):
-    def _make_worker(self):
-        config_filename = write_temp_return_filename(LANDO_WORKER_CONFIG)
-        config = WorkerConfig(config_filename)
-        self.settings = FakeSettings(config)
-        worker = LandoWorker(self.settings, outgoing_queue_name="test")
-        return worker
-
-    def test_stage_job(self):
-        worker = self._make_worker()
-        input_files = [
-            FakeInputFile('dds_file'),
-            FakeInputFile('url_file')
-
-        ]
-        job_details = Mock(id=1)
-        worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
-                                         vm_instance_name='test1'))
-        report = """
-Download file 42.
-Download url http:stuff.
-Send job step complete for job 1.
-        """
-        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
-
-    def test_run_job(self):
-        worker = self._make_worker()
-        workflow = FakeWorkflow()
-        job_details = Mock(id=2)
-        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
-        report = """
-Run workflow for job 2.
-Send job step complete for job 2.
-        """
-        self.assertMultiLineEqual(report.strip(), self.settings.report.text.strip())
-
-    def test_run_job_raises(self):
-        worker = self._make_worker()
-        self.settings.raise_when_run_workflow = True
-        workflow = FakeWorkflow()
-        job_details = Mock(id=2)
-        worker.run_job(RunJobPayload(job_details, workflow=workflow, vm_instance_name='test2'))
-        result = self.settings.report.text.strip()
-        self.assertIn("Send job step error for job 2", result)
-        self.assertIn("ValueError: Something went wrong.", result)
-
-    @patch('lando.worker.worker.os')
-    def test_save_output(self, mock_os):
-        worker = self._make_worker()
-        job_details = MagicMock()
-        job_details.id = 3
-        job_details.workflow.name = 'SomeWorkflow'
-        job_details.workflow.version = 2
-        job_details.name = 'MyJob'
-        job_details.created = '2017-03-21T13:29:09.123603Z'
-        job_details.output_project.dds_user_credentials = '123'
-        job_details.username = 'jim@jim.com'
-        worker.store_job_output(StoreJobOutputPayload(credentials=MagicMock(), job_details=job_details,
-                                                      vm_instance_name='test3'))
-        report = """
-Upload/share project.
-Send job step complete for job 3 project:2348.
-        """
-        expected = report.strip()
-        actual = self.settings.report.text.strip()
-        self.assertMultiLineEqual(expected, actual)
-
-    def test_stage_job_creates_working_directory(self):
-        worker = self._make_worker()
-        input_files = [
-            FakeInputFile('dds_file'),
-            FakeInputFile('url_file')
-
-        ]
-        working_dir = "data_for_job_1"
-        if os.path.exists(working_dir):
-            shutil.rmtree(working_dir)
-        job_details = Mock(id=1)
-        worker.stage_job(StageJobPayload(credentials=None, job_details=job_details, input_files=input_files,
-                                         vm_instance_name='test1'))
-        self.assertEqual(True, os.path.exists(working_dir))
-
-    @patch('lando.worker.worker.MessageRouter')
-    def test_worker_sends_worker_started(self, MockMessageRouter):
-        settings = MagicMock()
-        worker = LandoWorker(settings, outgoing_queue_name='stuff')
-        worker.listen_for_messages()
-        settings.make_lando_client.return_value.worker_started.assert_called()
+from unittest.mock import Mock, patch, ANY, call
+from lando.worker.worker import LandoWorker, LandoWorkerActions, JobStep, Names
+from lando.commands import WorkflowTypes
 
 
 class LandoWorkerActionsTestCase(TestCase):
-    def test_run_workflow_with_methods_document(self):
-        mock_settings, mock_client, mock_payload = Mock(), Mock(), Mock()
-        mock_payload.job_details.workflow_methods_document = Mock(content="#Markdown")
-        actions = LandoWorkerActions(mock_settings, mock_client)
-        actions.run_workflow(working_directory='/tmp/fakedir', payload=mock_payload)
-        mock_settings.make_cwl_workflow.assert_called_with(ANY, '/tmp/fakedir', ANY, ANY, "#Markdown")
+    def setUp(self):
+        self.config = Mock()
+        self.client = Mock()
+        self.paths = Mock()
+        self.names = Mock()
+        self.payload = Mock()
+        self.payload.input_files.dds_files = []
+        self.payload.credentials.dds_user_credentials = {'123': 'credentials'}
+        self.payload.job_details.output_project.dds_user_credentials = "123"
 
-    def test_run_workflow_without_methods_document(self):
-        mock_settings, mock_client, mock_payload = Mock(), Mock(), Mock()
-        mock_payload.job_details.workflow_methods_document = None
-        actions = LandoWorkerActions(mock_settings, mock_client)
-        actions.run_workflow(working_directory='/tmp/fakedir', payload=mock_payload)
-        mock_settings.make_cwl_workflow.assert_called_with(ANY, '/tmp/fakedir', ANY, ANY, None)
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.StageDataCommand')
+    def test_stage_files_no_files(self, mock_stage_data_command, mock_os):
+        self.payload = Mock(input_files=Mock(dds_files=[]))
+        actions = LandoWorkerActions(self.config, self.client)
+        with self.assertRaises(ValueError) as raised_exception:
+            actions.stage_files(self.paths, self.names, self.payload)
+        self.assertEqual(str(raised_exception.exception), 'ERROR: No user_id found in input files.')
+
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.StageDataCommand')
+    def test_stage_files_with_files(self, mock_stage_data_command, mock_os):
+        self.mock_file = Mock(user_id="123")
+        self.payload.input_files.dds_files = [self.mock_file]
+        actions = LandoWorkerActions(self.config, self.client)
+        actions.stage_files(self.paths, self.names, self.payload)
+        mock_stage_data_command.assert_called_with(self.payload.job_details.workflow, self.names, self.paths)
+        mock_stage_data_command.return_value.run.assert_called_with(
+            self.config.commands.stage_data_command,
+            'credentials',
+            self.payload.input_files
+        )
+        self.client.job_step_complete.assert_called_with(self.payload)
+
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.StageDataCommand')
+    def test_stage_files_multiple_users_files(self, mock_stage_data_command, mock_os):
+        self.payload.input_files.dds_files = [Mock(user_id="1"), Mock(user_id="123")]
+        actions = LandoWorkerActions(self.config, self.client)
+        with self.assertRaises(ValueError) as raised_exception:
+            actions.stage_files(self.paths, self.names, self.payload)
+        self.assertEqual(str(raised_exception.exception), 'ERROR: Found multiple user ids 1,123.')
+
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.cwlworkflow')
+    def test_run_workflow(self, mock_cwlworkflow, mock_os):
+        actions = LandoWorkerActions(self.config, self.client)
+        actions.run_workflow(self.paths, self.names, self.payload)
+        mock_cwlworkflow.CwlWorkflow.assert_called_with(
+            self.config.cwl_base_command,
+            self.config.cwl_post_process_command,
+            self.paths.OUTPUT_RESULTS_DIR
+        )
+        mock_cwlworkflow.CwlWorkflow.return_value.run.assert_called_with(
+            self.names.workflow_to_run,
+            self.names.job_order_path,
+            self.names.run_workflow_stdout_path,
+            self.names.run_workflow_stderr_path
+        )
+        self.client.job_step_complete.assert_called_with(self.payload)
+
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.OrganizeOutputCommand')
+    def test_organize_output(self, mock_organize_output_command, mock_os):
+        actions = LandoWorkerActions(self.config, self.client)
+        actions.organize_output(self.paths, self.names, self.payload)
+        mock_organize_output_command.assert_called_with(self.payload.job_details, self.names, self.paths)
+        mock_organize_output_command.return_value.run.assert_called_with(
+            self.config.commands.organize_output_command,
+            self.payload.job_details.workflow.methods_document
+        )
+        self.client.job_step_complete.assert_called_with(self.payload)
+
+    @patch('lando.worker.worker.os')
+    @patch('lando.worker.worker.SaveOutputCommand')
+    @patch('lando.worker.worker.ProjectDetails')
+    def test_save_output(self, mock_project_details, mock_save_output_command, mock_os):
+        actions = LandoWorkerActions(self.config, self.client)
+        actions.save_output(self.paths, self.names, self.payload)
+        mock_save_output_command.assert_called_with(
+            self.names, self.paths, self.names.activity_name, self.names.activity_description
+        )
+        mock_save_output_command.return_value.run.assert_called_with(
+            self.config.commands.save_output_command,
+            'credentials',
+            self.payload.job_details.share_dds_ids
+        )
+        self.client.job_step_store_output_complete.assert_called_with(self.payload, mock_project_details.return_value)
+
+
+@patch('lando.worker.worker.os')
+@patch('lando.worker.worker.LandoClient')
+@patch('lando.worker.worker.LandoWorkerActions')
+@patch('lando.worker.worker.JobStep')
+class LandoWorkerTestCase(TestCase):
+    def setUp(self):
+        self.config = Mock()
+        self.outgoing_queue_name = 'somequeue'
+        self.payload = Mock(job_id=1)
+
+    def test_stage_job(self, mock_job_step, mock_lando_worker_actions, mock_lando_client, mock_os):
+        LandoWorker(self.config, self.outgoing_queue_name).stage_job(self.payload)
+
+        mock_job_step.assert_called_with(mock_lando_client.return_value, self.payload,
+                                         mock_lando_worker_actions.return_value.stage_files)
+        mock_job_step.return_value.run.assert_called_with('data_for_job_1')
+
+    def test_run_job(self, mock_job_step, mock_lando_worker_actions, mock_lando_client, mock_os):
+        LandoWorker(self.config, self.outgoing_queue_name).run_job(self.payload)
+
+        mock_job_step.assert_called_with(mock_lando_client.return_value, self.payload,
+                                         mock_lando_worker_actions.return_value.run_workflow)
+        mock_job_step.return_value.run.assert_called_with('data_for_job_1')
+
+    def test_store_job_output(self, mock_job_step, mock_lando_worker_actions, mock_lando_client, mock_os):
+        LandoWorker(self.config, self.outgoing_queue_name).organize_output(self.payload)
+
+        mock_job_step.assert_called_with(mock_lando_client.return_value, self.payload,
+                                         mock_lando_worker_actions.return_value.organize_output)
+        mock_job_step.return_value.run.assert_called_with('data_for_job_1')
+
+    def test_store_job_output(self, mock_job_step, mock_lando_worker_actions, mock_lando_client, mock_os):
+        LandoWorker(self.config, self.outgoing_queue_name).store_job_output(self.payload)
+
+        mock_job_step.assert_called_with(mock_lando_client.return_value, self.payload,
+                                         mock_lando_worker_actions.return_value.save_output)
+        mock_job_step.return_value.run.assert_called_with('data_for_job_1')
+
+
+class JobStepTestCase(TestCase):
+    def setUp(self):
+        self.client = Mock()
+        self.payload = Mock(job_id=1, job_description='myjob')
+
+    @patch('lando.worker.worker.Paths')
+    @patch('lando.worker.worker.Names')
+    @patch('lando.worker.worker.logging')
+    def test_run(self, mock_logging, mock_names, mock_paths):
+        self.func_params = ()
+
+        def myfunc(paths, names, payload):
+            self.func_params = (paths, names, payload)
+
+        job_step = JobStep(self.client, self.payload, myfunc)
+        job_step.run(working_directory='/work')
+
+        self.assertEqual(mock_paths.return_value, self.func_params[0])
+        self.assertEqual(mock_names.return_value, self.func_params[1])
+        self.assertEqual(self.payload, self.func_params[2])
+        mock_logging.info.assert_has_calls([
+            call('myjob started for job 1'),
+            call('myjob complete for job 1.')
+        ])
+        self.client.job_step_error.assert_not_called()
+
+    @patch('lando.worker.worker.Paths')
+    @patch('lando.worker.worker.Names')
+    @patch('lando.worker.worker.logging')
+    def test_run_raises(self, mock_logging, mock_names, mock_paths):
+        def myfunc(paths, names, payload):
+            raise ValueError("Nope")
+
+        job_step = JobStep(self.client, self.payload, myfunc)
+        job_step.run(working_directory='/work')
+
+        log_message = mock_logging.info.call_args[0][0]
+        self.assertTrue('Job failed' in log_message)
+        self.client.job_step_error.assert_called_with(self.payload, ANY)
+
+
+class NamesTestCase(TestCase):
+    @patch('lando.worker.worker.dateutil')
+    def test_packed_workflow(self, mock_dateutil):
+        mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
+        paths, job = Mock(), Mock()
+        paths.JOB_DATA = '/job-data'
+        paths.OUTPUT_DATA = '/output-data'
+        paths.CONFIG_DIR = '/config'
+        paths.WORKFLOW = '/workflowdir'
+        job.id = 49
+        job.name = 'myjob'
+        job.workflow.name = 'myworkflow'
+        job.workflow.version = 2
+        job.workflow.workflow_url = 'someurl'
+        job.workflow.workflow_type = WorkflowTypes.PACKED
+        job.workflow.workflow_path = 'workflow.cwl'
+        names = Names(paths, job)
+
+        self.assertEqual(names.job_order_path, '/job-data/job-order.json')
+        self.assertEqual(names.run_workflow_stdout_path, '/output-data/bespin-workflow-output.json')
+        self.assertEqual(names.run_workflow_stderr_path, '/output-data/bespin-workflow-output.log')
+        self.assertEqual(names.output_project_name, 'Bespin myworkflow v2 myjob somedate')
+        self.assertEqual(names.workflow_input_files_metadata_path, '/job-data/workflow-input-files-metadata.json')
+        self.assertEqual(names.usage_report_path, None)
+        self.assertEqual(names.activity_name, 'myjob - Bespin Job 49')
+        self.assertEqual(names.activity_description, 'Bespin Job 49 - Workflow myworkflow v2')
+
+        self.assertEqual(names.stage_data_command_filename, '/config/stage_data.json')
+        self.assertEqual(names.organize_output_command_filename, '/config/organize_output.json')
+        self.assertEqual(names.save_output_command_filename, '/config/save_output.json')
+        self.assertEqual(names.output_project_details_filename, '/config/output_project_details.json')
+        self.assertEqual(names.dds_config_filename, '/config/ddsclient.conf')
+
+        self.assertEqual(names.workflow_download_dest, '/workflowdir/someurl')
+        self.assertEqual(names.workflow_to_run, '/workflowdir/someurlworkflow.cwl')
+        self.assertEqual(names.workflow_to_read, '/workflowdir/someurl')
+        self.assertEqual(names.unzip_workflow_url_to_path, None)
+
+    @patch('lando.worker.worker.dateutil')
+    def test_zipped_workflow(self, mock_dateutil):
+        mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
+        paths, job = Mock(), Mock()
+        paths.JOB_DATA = '/job-data'
+        paths.OUTPUT_DATA = '/output-data'
+        paths.CONFIG_DIR = '/config'
+        paths.WORKFLOW = '/workflowdir'
+        job.id = 49
+        job.name = 'myjob'
+        job.workflow.name = 'myworkflow'
+        job.workflow.version = 2
+        job.workflow.workflow_url = 'someurl'
+        job.workflow.workflow_type = WorkflowTypes.ZIPPED
+        job.workflow.workflow_path = 'workflow.cwl'
+        names = Names(paths, job)
+
+        self.assertEqual(names.workflow_download_dest, '/workflowdir/someurl')
+        self.assertEqual(names.workflow_to_run, '/workflowdir/workflow.cwl')
+        self.assertEqual(names.workflow_to_read, '/workflowdir/workflow.cwl')
+        self.assertEqual(names.unzip_workflow_url_to_path, '/workflowdir')

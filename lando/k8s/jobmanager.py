@@ -1,5 +1,6 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, FieldRefEnvVar
+from lando.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, create_workflow_names
 import json
 import os
 import re
@@ -40,7 +41,8 @@ class JobManager(object):
         self.cluster_api = cluster_api
         self.config = config
         self.job = job
-        self.names = create_names(job)
+        names = Names(job)
+        self.names = names
         self.storage_class_name = config.storage_class_name
         self.default_metadata_labels = {
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
@@ -109,30 +111,32 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=labels)
 
     def _create_stage_data_config_map(self, name, filename, workflow, input_files):
-        items = [
-            self._stage_data_config_item(StageDataTypes.URL,
-                                         workflow.workflow_url,
-                                         self.names.workflow_download_dest,
-                                         self.names.unzip_workflow_url_to_path),
-            self._stage_data_config_item(StageDataTypes.WRITE,
-                                         workflow.job_order,
-                                         self.names.job_order_path)
-        ]
-        for dds_file in input_files.dds_files:
-            dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
-            items.append(self._stage_data_config_item(StageDataTypes.DUKEDS, dds_file.file_id, dest))
-        config_data = {"items": items}
+        stage_data_command = StageDataCommand(workflow, self.names, Paths)
+        config_data = stage_data_command.command_file_dict(input_files)
+        # items = [
+        #     self._stage_data_config_item(StageDataTypes.URL,
+        #                                  workflow.workflow_url,
+        #                                  self.names.workflow_download_dest,
+        #                                  self.names.unzip_workflow_url_to_path),
+        #     self._stage_data_config_item(StageDataTypes.WRITE,
+        #                                  workflow.job_order,
+        #                                  self.names.job_order_path)
+        # ]
+        # for dds_file in input_files.dds_files:
+        #     dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
+        #     items.append(self._stage_data_config_item(StageDataTypes.DUKEDS, dds_file.file_id, dest))
+        # config_data = {"items": items}
         payload = {
             filename: json.dumps(config_data)
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
 
-    @staticmethod
-    def _stage_data_config_item(workflow_type, source, dest, unzip_to=None):
-        item = {"type": workflow_type, "source": source, "dest": dest}
-        if unzip_to:
-            item["unzip_to"] = unzip_to
-        return item
+    # @staticmethod
+    # def _stage_data_config_item(workflow_type, source, dest, unzip_to=None):
+    #     item = {"type": workflow_type, "source": source, "dest": dest}
+    #     if unzip_to:
+    #         item["unzip_to"] = unzip_to
+    #     return item
 
     def cleanup_stage_data_job(self):
         self.cluster_api.delete_job(self.names.stage_data)
@@ -226,20 +230,22 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=labels)
 
     def _create_organize_output_config_map(self, name, filename, methods_document_content):
-        config_data = {
-            "bespin_job_id": self.job.id,
-            "destination_dir": Paths.OUTPUT_RESULTS_DIR,
-            "downloaded_workflow_path": self.names.workflow_download_dest,
-            "workflow_to_read": self.names.workflow_to_read,
-            "workflow_type": self.job.workflow.workflow_type,
-            "job_order_path": self.names.job_order_path,
-            "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
-            "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
-            "methods_template": methods_document_content,
-            "additional_log_files": [
-                self.names.usage_report_path
-            ]
-        }
+        organize_output_command = OrganizeOutputCommand(self.job, self.names, Paths)
+        config_data = organize_output_command.command_file_dict(methods_document_content)
+        # config_data = {
+        #     "bespin_job_id": self.job.id,
+        #     "destination_dir": Paths.OUTPUT_RESULTS_DIR,
+        #     "downloaded_workflow_path": self.names.workflow_download_dest,
+        #     "workflow_to_read": self.names.workflow_to_read,
+        #     "workflow_type": self.job.workflow.workflow_type,
+        #     "job_order_path": self.names.job_order_path,
+        #     "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
+        #     "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
+        #     "methods_template": methods_document_content,
+        #     "additional_log_files": [
+        #         self.names.usage_report_path
+        #     ]
+        # }
         payload = {
             filename: json.dumps(config_data)
         }
@@ -291,22 +297,24 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
 
     def _create_save_output_config_map(self, name, filename, share_dds_ids, activity_name, activity_description):
-        config_data = {
-            "destination": self.names.output_project_name,
-            "readme_file_path": Paths.REMOTE_README_FILE_PATH,
-            "paths": [Paths.OUTPUT_RESULTS_DIR],
-            "share": {
-                "dds_user_ids": share_dds_ids
-            },
-            "activity": {
-                "name": activity_name,
-                "description": activity_description,
-                "started_on": "",
-                "ended_on": "",
-                "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
-                "workflow_output_json_path": self.names.run_workflow_stdout_path
-            }
-        }
+        save_output_command = SaveOutputCommand(self.names, Paths, activity_name, activity_description)
+        config_data = save_output_command.command_file_dict(share_dds_ids)
+        # config_data = {
+        #     "destination": self.names.output_project_name,
+        #     "readme_file_path": Paths.REMOTE_README_FILE_PATH,
+        #     "paths": [Paths.OUTPUT_RESULTS_DIR],
+        #     "share": {
+        #         "dds_user_ids": share_dds_ids
+        #     },
+        #     "activity": {
+        #         "name": activity_name,
+        #         "description": activity_description,
+        #         "started_on": "",
+        #         "ended_on": "",
+        #         "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
+        #         "workflow_output_json_path": self.names.run_workflow_stdout_path
+        #     }
+        # }
         payload = {
             filename: json.dumps(config_data)
         }
@@ -409,31 +417,12 @@ class Names(object):
         self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
         self.usage_report_path = '{}/job-{}-resource-usage.json'.format(Paths.OUTPUT_DATA, suffix)
 
-
-class ZippedWorkflowNames(Names):
-    def __init__(self, job):
-        super(ZippedWorkflowNames, self).__init__(job)
-        self.workflow_to_run = '{}/{}'.format(Paths.WORKFLOW, job.workflow.workflow_path)
-        self.workflow_to_read = self.workflow_to_run
-        self.unzip_workflow_url_to_path = Paths.WORKFLOW
-
-
-class PackedWorkflowNames(Names):
-    def __init__(self, job):
-        super(PackedWorkflowNames, self).__init__(job)
-        self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job.workflow.workflow_path)
-        self.workflow_to_read = self.workflow_download_dest
-        self.unzip_workflow_url_to_path = None
-
-
-def create_names(job):
-    workflow_type = job.workflow.workflow_type
-    if workflow_type == WorkflowTypes.ZIPPED:
-        return ZippedWorkflowNames(job)
-    elif workflow_type == WorkflowTypes.PACKED:
-        return PackedWorkflowNames(job)
-    else:
-        raise ValueError("Unknown workflow type {}".format(workflow_type))
+        # workflow specific names
+        workflow_names = create_workflow_names(job, Paths)
+        self.workflow_download_dest = workflow_names.workflow_download_dest
+        self.workflow_to_run = workflow_names.workflow_to_run
+        self.workflow_to_read = workflow_names.workflow_to_read
+        self.unzip_workflow_url_to_path = workflow_names.unzip_workflow_url_to_path
 
 
 class Paths(object):

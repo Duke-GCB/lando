@@ -16,6 +16,10 @@ cwl_base_command:
 cwl_post_process_command: 
 - rm 
 - bad.data
+commands:
+  stage_data_command: ["python", "-m", "lando_util.stagedata"]
+  organize_output_command: ["python", "-m", "lando_util.organize_project"]
+  save_output_command: ["python", "-m", "lando_util.upload"]
 """
 
 # missing queuename field

@@ -3,6 +3,7 @@ Configuration for for use with lando_worker.
 """
 import yaml
 from lando.exceptions import InvalidConfigException, get_or_raise_config_exception
+from lando.server.config import CommandsConfig
 import logging
 
 
@@ -18,7 +19,7 @@ class WorkerConfig(object):
         """
         self.filename = filename
         with open(self.filename, 'r') as infile:
-            data = yaml.load(infile)
+            data = yaml.safe_load(infile)
             if not data:
                 raise InvalidConfigException("Empty config file {}.".format(self.filename))
             self.work_queue_config = WorkQueue(data)
@@ -26,6 +27,7 @@ class WorkerConfig(object):
             self.cwl_pre_process_command = data.get('cwl_pre_process_command', None)
             self.cwl_post_process_command = data.get('cwl_post_process_command', None)
             self.log_level = data.get('log_level', logging.WARNING)
+            self.commands = CommandsConfig(data)
 
 
 class WorkQueue(object):

@@ -40,7 +40,7 @@ class JobSettings(object):
         :return: CloudService
         """
         if self.config.fake_cloud_service:
-            return FakeCloudService(self.config)
+            return FakeCloudService(self.config, vm_settings)
         else:
             return CloudService(self.config, vm_settings)
 
@@ -192,6 +192,7 @@ class JobActions(BaseJobActions):
         job = self.job_api.get_job()
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name, job.vm_settings.cwl_commands)
         cloud_config_script = CloudConfigScript()
+        print(worker_config_yml)
         cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
         for partition, mount_point in job.volume_mounts.items():
             cloud_config_script.add_volume(partition, mount_point)
@@ -214,8 +215,8 @@ class JobActions(BaseJobActions):
         credentials = self.job_api.get_credentials()
         job = self.job_api.get_job()
         worker_client = self.make_worker_client(vm_instance_name)
-        input_files_ary = [self.job_api.get_input_files()]
-        worker_client.stage_job(credentials, job, input_files_ary, vm_instance_name)
+        input_files = self.job_api.get_input_files()
+        worker_client.stage_job(credentials, job, input_files, vm_instance_name)
 
     def stage_job_complete(self, payload):
         """
@@ -232,6 +233,21 @@ class JobActions(BaseJobActions):
     def run_job_complete(self, payload):
         """
         Message from worker that a the run job step is complete and successful.
+        Sets the job state to ORGANIZE_OUTPUT_PROJECT and puts the organize output project message into the queue for
+        the worker.
+        :param payload: JobStepCompletePayload: contains job id and vm_instance_name
+        """
+        self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
+        self._show_status("Organizing output project")
+        #credentials = self.job_api.get_credentials()
+        job_data = self.job_api.get_store_output_job_data()
+        worker_client = self.make_worker_client(payload.vm_instance_name)
+        worker_client.organize_output_project(job_data, payload.vm_instance_name)
+        #worker_client.store_job_output(credentials, job_data, payload.vm_instance_name)
+
+    def organize_output_complete(self, payload):
+        """
+        Message from worker that a the organize output project job step is complete and successful.
         Sets the job state to STORING_OUTPUT and puts the store output message into the queue for the worker.
         :param payload: JobStepCompletePayload: contains job id and vm_instance_name
         """
