@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
 from lando.k8s.jobmanager import JobManager, JobStepTypes, StageDataConfig, RunWorkflowConfig, \
-    OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes, Names
+    OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, WorkflowTypes, Names, Paths
 import json
 
 
@@ -621,7 +621,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        names = Names(mock_job, Paths(base_directory='/'))
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -652,7 +652,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        names = Names(mock_job, Paths(base_directory='/'))
         self.assertEqual(names.job_data, 'job-data-123-jpb')
         self.assertEqual(names.output_data, 'output-data-123-jpb')
         self.assertEqual(names.tmpout, 'tmpout-123-jpb')
@@ -684,7 +684,7 @@ class TestNames(TestCase):
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
         with self.assertRaises(ValueError) as raised_exception:
-            Names(mock_job)
+            Names(mock_job, Paths(base_directory='/'))
         self.assertEqual(str(raised_exception.exception), 'Unknown workflow type faketype')
 
     def test_strips_username_after_at_sign(self):
@@ -694,7 +694,7 @@ class TestNames(TestCase):
         mock_job.name = 'myjob'
         mock_job.workflow.name = 'myworkflow'
         mock_job.id = '123'
-        names = Names(mock_job)
+        names = Names(mock_job, Paths(base_directory='/'))
         self.assertEqual(names.job_data, 'job-data-123-tom')
         self.assertEqual(names.output_data, 'output-data-123-tom')
         self.assertEqual(names.tmpout, 'tmpout-123-tom')
@@ -724,7 +724,7 @@ class TestStageDataConfig(TestCase):
         mock_job.k8s_settings.stage_data.memory = '6Gi'
         mock_job.k8s_settings.stage_data.base_command = ['upload']
         mock_config = Mock()
-        config = StageDataConfig(job=mock_job, config=mock_config)
+        config = StageDataConfig(job=mock_job, config=mock_config, paths=Paths(base_directory='/'))
         self.assertEqual(config.path, '/bespin/config/stagedata.json')
         self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')
@@ -759,7 +759,7 @@ class TestOrganizeOutputConfig(TestCase):
         mock_job.k8s_settings.organize_output.cpus = 8
         mock_job.k8s_settings.organize_output.memory = '1Gi'
         mock_config = Mock()
-        config = OrganizeOutputConfig(job=mock_job, config=mock_config)
+        config = OrganizeOutputConfig(job=mock_job, config=mock_config, paths=Paths(base_directory='/'))
         self.assertEqual(config.filename, "organizeoutput.json")
         self.assertEqual(config.path, "/bespin/config/organizeoutput.json")
         self.assertEqual(config.image_name, 'someimage')
@@ -776,7 +776,7 @@ class TestSaveOutputConfig(TestCase):
         mock_job.k8s_settings.save_output.cpus = 4
         mock_job.k8s_settings.save_output.memory = '2Gi'
         mock_config = Mock()
-        config = SaveOutputConfig(job=mock_job, config=mock_config)
+        config = SaveOutputConfig(job=mock_job, config=mock_config, paths=Paths(base_directory='/'))
         self.assertEqual(config.path, '/bespin/config/saveoutput.json')
         self.assertEqual(config.data_store_secret_name, mock_config.data_store_settings.secret_name)
         self.assertEqual(config.data_store_secret_path, '/etc/ddsclient')

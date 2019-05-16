@@ -11,7 +11,7 @@ import dateutil
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
-from lando.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, create_workflow_names
+from lando.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
@@ -169,7 +169,7 @@ class JobStep(object):
         """
         self.show_start_message()
         try:
-            paths = Paths(working_directory)
+            paths = Paths(base_directory=working_directory)
             names = Names(paths, self.payload.job_details)
             self.func(paths, names, self.payload)
             self.show_complete_message()
@@ -197,42 +197,12 @@ class JobStep(object):
         self.client.job_step_error(self.payload, message)
 
 
-class Names(object):
+class Names(BaseNames):
     def __init__(self, paths, job):
-        self.job_order_path = '{}/job-order.json'.format(paths.JOB_DATA)
-        self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(paths.OUTPUT_DATA)
-        self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(paths.OUTPUT_DATA)
-        job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
-        self.output_project_name = "Bespin {} v{} {} {}".format(
-            job.workflow.name, job.workflow.version, job.name, job_created)
-
-        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(paths.JOB_DATA)
-        self.usage_report_path = None  # usage report only available for the calrissian non-VM workflow runner
-        self.activity_name = "{} - Bespin Job {}".format(job.name, job.id)
-        self.activity_description = "Bespin Job {} - Workflow {} v{}".format(
-            job.id, job.workflow.name, job.workflow.version)
-
+        super(Names, self).__init__(job, paths)
         self.stage_data_command_filename = "{}/stage_data.json".format(paths.CONFIG_DIR)
         self.organize_output_command_filename = "{}/organize_output.json".format(paths.CONFIG_DIR)
         self.save_output_command_filename = "{}/save_output.json".format(paths.CONFIG_DIR)
         self.output_project_details_filename = "{}/output_project_details.json".format(paths.CONFIG_DIR)
         self.dds_config_filename = "{}/ddsclient.conf".format(paths.CONFIG_DIR)
-
-        # workflow specific names
-        workflow_names = create_workflow_names(job, paths)
-        self.workflow_download_dest = workflow_names.workflow_download_dest
-        self.workflow_to_run = workflow_names.workflow_to_run
-        self.workflow_to_read = workflow_names.workflow_to_read
-        self.unzip_workflow_url_to_path = workflow_names.unzip_workflow_url_to_path
-
-
-class Paths(object):
-    def __init__(self, working_directory):
-        self.JOB_DATA = '{}/bespin/job-data'.format(working_directory)
-        self.WORKFLOW = '{}/bespin/job-data/workflow'.format(working_directory)
-        self.CONFIG_DIR = '{}/bespin/config'.format(working_directory)
-        self.STAGE_DATA_CONFIG_FILE = '{}/bespin/config/stagedata.json'.format(working_directory)
-        self.OUTPUT_DATA = '{}/bespin/output-data'.format(working_directory)
-        self.OUTPUT_RESULTS_DIR = '{}/bespin/output-data/results'.format(working_directory)
-        self.TMPOUT_DATA = '{}/bespin/output-data/tmpout'.format(working_directory)
-        self.REMOTE_README_FILE_PATH = 'results/docs/README.md'
+        self.usage_report_path = None  # usage report only available for the calrissian non-VM workflow runner
