@@ -215,8 +215,8 @@ class JobManager(object):
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename,
                                             share_dds_ids=share_dds_ids,
-                                            activity_name=save_output_config.activity_name,
-                                            activity_description=save_output_config.activity_description)
+                                            activity_name=self.names.activity_name,
+                                            activity_description=self.names.activity_description)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
                                   mount_path=self.paths.JOB_DATA,
@@ -404,10 +404,6 @@ class SaveOutputConfig(object):
         self.command = job_save_output_settings.base_command
         self.requested_cpu = job_save_output_settings.cpus
         self.requested_memory = job_save_output_settings.memory
-
-        self.activity_name = "{} - Bespin Job {}".format(job.name, job.id)
-        self.activity_description = "Bespin Job {} - Workflow {} v{}".format(
-            job.id, job.workflow.name, job.workflow.version)
 
 
 class RecordOutputProjectConfig(object):
