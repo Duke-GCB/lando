@@ -1,6 +1,6 @@
 import os
 import re
-import dateutil
+import dateutil.parser
 
 
 class WorkflowTypes(object):
