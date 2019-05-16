@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch, ANY, call
 from lando.worker.worker import LandoWorker, LandoWorkerActions, JobStep, Names
-from lando.common.commands import WorkflowTypes
+from lando.common.names import WorkflowTypes
 
 
 class LandoWorkerActionsTestCase(TestCase):
@@ -49,20 +49,14 @@ class LandoWorkerActionsTestCase(TestCase):
         self.assertEqual(str(raised_exception.exception), 'ERROR: Found multiple user ids 1,123.')
 
     @patch('lando.worker.worker.os')
-    @patch('lando.worker.worker.cwlworkflow')
-    def test_run_workflow(self, mock_cwlworkflow, mock_os):
+    @patch('lando.worker.worker.RunWorkflowCommand')
+    def test_run_workflow(self, mock_run_workflow_command, mock_os):
         actions = LandoWorkerActions(self.config, self.client)
         actions.run_workflow(self.paths, self.names, self.payload)
-        mock_cwlworkflow.CwlWorkflow.assert_called_with(
+        mock_run_workflow_command.assert_called_with(self.payload.job_details, self.names, self.paths)
+        mock_run_workflow_command.return_value.run.assert_called_with(
             self.config.cwl_base_command,
             self.config.cwl_post_process_command,
-            self.paths.OUTPUT_RESULTS_DIR
-        )
-        mock_cwlworkflow.CwlWorkflow.return_value.run.assert_called_with(
-            self.names.workflow_to_run,
-            self.names.job_order_path,
-            self.names.run_workflow_stdout_path,
-            self.names.run_workflow_stderr_path
         )
         self.client.job_step_complete.assert_called_with(self.payload)
 
@@ -90,7 +84,8 @@ class LandoWorkerActionsTestCase(TestCase):
         mock_save_output_command.return_value.run.assert_called_with(
             self.config.commands.save_output_command,
             'credentials',
-            self.payload.job_details.share_dds_ids
+            self.payload.job_details.share_dds_ids,
+            started_on="", ended_on=""
         )
         self.client.job_step_store_output_complete.assert_called_with(self.payload, mock_project_details.return_value)
 
@@ -176,7 +171,7 @@ class JobStepTestCase(TestCase):
 
 
 class NamesTestCase(TestCase):
-    @patch('lando.common.commands.dateutil')
+    @patch('lando.common.names.dateutil')
     def test_packed_workflow(self, mock_dateutil):
         mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
         paths, job = Mock(), Mock()
@@ -186,19 +181,20 @@ class NamesTestCase(TestCase):
         paths.WORKFLOW = '/workflowdir'
         job.id = 49
         job.name = 'myjob'
+        job.username = 'joe'
         job.workflow.name = 'myworkflow'
         job.workflow.version = 2
         job.workflow.workflow_url = 'someurl'
         job.workflow.workflow_type = WorkflowTypes.PACKED
         job.workflow.workflow_path = 'workflow.cwl'
-        names = Names(paths, job)
+        names = Names(job, paths)
 
         self.assertEqual(names.job_order_path, '/job-data/job-order.json')
         self.assertEqual(names.run_workflow_stdout_path, '/output-data/bespin-workflow-output.json')
         self.assertEqual(names.run_workflow_stderr_path, '/output-data/bespin-workflow-output.log')
         self.assertEqual(names.output_project_name, 'Bespin myworkflow v2 myjob somedate')
         self.assertEqual(names.workflow_input_files_metadata_path, '/job-data/workflow-input-files-metadata.json')
-        self.assertEqual(names.usage_report_path, None)
+        self.assertEqual(names.usage_report_path, '/output-data/job-49-joe-resource-usage.json')
         self.assertEqual(names.activity_name, 'myjob - Bespin Job 49')
         self.assertEqual(names.activity_description, 'Bespin Job 49 - Workflow myworkflow v2')
 
@@ -213,7 +209,7 @@ class NamesTestCase(TestCase):
         self.assertEqual(names.workflow_to_read, '/workflowdir/someurl')
         self.assertEqual(names.unzip_workflow_url_to_path, None)
 
-    @patch('lando.common.commands.dateutil')
+    @patch('lando.common.names.dateutil')
     def test_zipped_workflow(self, mock_dateutil):
         mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
         paths, job = Mock(), Mock()
@@ -223,12 +219,13 @@ class NamesTestCase(TestCase):
         paths.WORKFLOW = '/workflowdir'
         job.id = 49
         job.name = 'myjob'
+        job.username = 'joe'
         job.workflow.name = 'myworkflow'
         job.workflow.version = 2
         job.workflow.workflow_url = 'someurl'
         job.workflow.workflow_type = WorkflowTypes.ZIPPED
         job.workflow.workflow_path = 'workflow.cwl'
-        names = Names(paths, job)
+        names = Names(job, paths)
 
         self.assertEqual(names.workflow_download_dest, '/workflowdir/someurl')
         self.assertEqual(names.workflow_to_run, '/workflowdir/workflow.cwl')

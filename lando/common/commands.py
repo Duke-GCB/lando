@@ -1,8 +1,15 @@
 import os
 import json
 import subprocess
-import dateutil
+import datetime
+import logging
+import codecs
+from lando.exceptions import JobStepFailed
 from ddsc.config import LOCAL_CONFIG_ENV as DDSCLIENT_CONFIG_ENV, Config as DukeDSConfig
+
+RUN_CWL_COMMAND = "cwltool"
+RUN_CWL_OUTDIR_ARG = "--outdir"
+JOB_STDERR_OUTPUT_MAX_LINES = 100
 
 
 class StageDataTypes(object):
@@ -11,19 +18,99 @@ class StageDataTypes(object):
     DUKEDS = "DukeDS"
 
 
-class WorkflowTypes(object):
-    ZIPPED = 'zipped'
-    PACKED = 'packed'
+def read_file(file_path):
+    """
+    Read the contents of a file using utf-8 encoding, or return an empty string
+    if it does not exist
+    :param file_path: str: path to the file to read
+    :return: str: contents of file
+    """
+    try:
+        with codecs.open(file_path, 'r', encoding='utf-8', errors='xmlcharrefreplace') as infile:
+            return infile.read()
+    except OSError as e:
+        logging.exception('Error opening {}'.format(file_path))
+        return ''
+
+
+class StepProcess(object):
+    def __init__(self, command, env=None, stdout_path=None, stderr_path=None):
+        self.command = command
+        self.env = env
+        self.stdout_path = stdout_path
+        self.stderr_path = stderr_path
+        # properties filled in by run method
+        self.return_code = None
+        self.started = None
+        self.finished = None
+
+    def run(self):
+        self.started = datetime.datetime.now()
+        # Configure the subprocess to write stdout and stderr directly to files
+        logging.info('Running command: {}'.format(' '.join(self.command)))
+        logging.info('Redirecting stdout > {},  stderr > {}'.format(self.stdout_path, self.stderr_path))
+        stdout_file = self.open_optional_output_file(self.stdout_path)
+        stderr_file = self.open_optional_output_file(self.stderr_path)
+        try:
+            self.return_code = subprocess.call(self.command, stdout=stdout_file, stderr=stderr_file)
+        except OSError as e:
+            logging.error('Error running subprocess %s', e)
+            error_message = "Command failed: {}".format(' '.join(self.command))
+            raise JobStepFailed(error_message, e)
+        finally:
+            if stdout_file:
+                stdout_file.close()
+            if stderr_file:
+                stderr_file.close()
+            self.finished = datetime.datetime.now()
+
+    @staticmethod
+    def open_optional_output_file(file_path):
+        if file_path:
+            return open(file_path, 'w')
+        else:
+            return None
+
+    def total_runtime_str(self):
+        """
+        Returns a string describing how long the command took.
+        :return: str: "<number> minutes"
+        """
+        elapsed_seconds = (self.finished - self.started).total_seconds()
+        return "{} minutes".format(elapsed_seconds / 60)
 
 
 class BaseCommand(object):
-    def __init__(self):
-        pass
-
     @staticmethod
     def write_json_file(filename, data):
         with open(filename, 'w') as outfile:
             outfile.write(json.dumps(data))
+
+    def run_command(self, command, env=None, stdout_path=None, stderr_path=None):
+        process = StepProcess(command, env=env, stdout_path=stdout_path, stderr_path=stderr_path)
+        process.run()
+        if process.return_code != 0:
+            # TODO: THIS IS WRONG: What if no stderr and stdout specified
+            stderr_output = read_file(process.stderr_path)
+            tail_error_output = self._tail_stderr_output(stderr_output)
+            error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
+            stdout_output = read_file(process.stdout_path)
+            raise JobStepFailed(error_message, stdout_output)
+        return process
+
+    @staticmethod
+    def _tail_stderr_output(stderr_data):
+        """
+        Trim stderr data to the last JOB_STDERR_OUTPUT_MAX_LINES lines
+        :param stderr_data: str: stderr data to be trimmed
+        :return: str
+        """
+        lines = stderr_data.splitlines()
+        last_lines = lines[-JOB_STDERR_OUTPUT_MAX_LINES:]
+        return '\n'.join(last_lines)
+
+    def run_command_with_dds_env(self, command, dds_config_filename):
+        self.run_command(command, env={DDSCLIENT_CONFIG_ENV: dds_config_filename})
 
     @staticmethod
     def dds_config_dict(credentials):
@@ -35,21 +122,6 @@ class BaseCommand(object):
 
     def write_dds_config_file(self, dds_config_filename, dds_credentials):
         self.write_json_file(dds_config_filename, self.dds_config_dict(dds_credentials))
-
-    @staticmethod
-    def run_command(command, env={}):
-        print("Running", command)
-        try:
-            return subprocess.check_output(command, env=env)
-        except subprocess.CalledProcessError as ex:
-            if ex.stdout:
-                print(ex.stdout.decode("utf-8"))
-            if ex.stderr:
-                print(ex.stderr.decode("utf-8"))
-            raise
-
-    def run_command_with_dds_env(self, command, dds_config_filename):
-        self.run_command(command, env={DDSCLIENT_CONFIG_ENV: dds_config_filename})
 
 
 class StageDataCommand(BaseCommand):
@@ -93,6 +165,48 @@ class StageDataCommand(BaseCommand):
         return self.run_command_with_dds_env(command, dds_config_filename)
 
 
+class RunWorkflowCommand(BaseCommand):
+    def __init__(self, job, names, paths):
+        self.job = job
+        self.names = names
+        self.paths = paths
+        self.max_stderr_output_lines = JOB_STDERR_OUTPUT_MAX_LINES
+
+    def run(self, cwl_base_command, cwl_post_process_command):
+        command = self.make_command(cwl_base_command)
+        step_process = self.run_command(command,
+                                        stdout_path=self.names.run_workflow_stdout_path,
+                                        stderr_path=self.names.run_workflow_stderr_path)
+        self.write_usage_report(step_process.started, step_process.finished)
+        if cwl_post_process_command:
+            self.run_post_process_command(cwl_post_process_command)
+
+    def make_command(self, cwl_base_command):
+        base_command = cwl_base_command
+        if not base_command:
+            base_command = [RUN_CWL_COMMAND]
+        command = base_command.copy()
+        # cwltoil requires an absolute path for output directory
+        absolute_output_directory = os.path.abspath(self.paths.OUTPUT_RESULTS_DIR)
+        command.extend([RUN_CWL_OUTDIR_ARG, absolute_output_directory,
+                        self.names.workflow_to_run,
+                        self.names.job_order_path])
+        return command
+
+    def write_usage_report(self, started, finished):
+        data = {
+            "start_time": started.isoformat(),
+            "finish_time": finished.isoformat(),
+        }
+        self.write_json_file(self.names.usage_report_path, data)
+
+    def run_post_process_command(self, cwl_post_process_command):
+        original_directory = os.getcwd()
+        os.chdir(self.paths.OUTPUT_RESULTS_DIR)
+        subprocess.call(cwl_post_process_command)
+        os.chdir(original_directory)
+
+
 class OrganizeOutputCommand(BaseCommand):
     def __init__(self, job, names, paths):
         self.job = job
@@ -131,7 +245,7 @@ class SaveOutputCommand(BaseCommand):
         self.activity_name = activity_name
         self.activity_description = activity_description
 
-    def command_file_dict(self, share_dds_ids):
+    def command_file_dict(self, share_dds_ids, started_on, ended_on):
         return {
             "destination": self.names.output_project_name,
             "readme_file_path": self.paths.REMOTE_README_FILE_PATH,
@@ -142,16 +256,16 @@ class SaveOutputCommand(BaseCommand):
             "activity": {
                 "name": self.activity_name,
                 "description": self.activity_description,
-                "started_on": "",
-                "ended_on": "",
+                "started_on": started_on,
+                "ended_on": ended_on,
                 "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
                 "workflow_output_json_path": self.names.run_workflow_stdout_path
             }
         }
 
-    def run(self, base_command, dds_credentials, share_dds_ids):
+    def run(self, base_command, dds_credentials, share_dds_ids, started_on, ended_on):
         command_filename = self.names.save_output_command_filename
-        self.write_json_file(command_filename, self.command_file_dict(share_dds_ids))
+        self.write_json_file(command_filename, self.command_file_dict(share_dds_ids, started_on, ended_on))
 
         dds_config_filename = self.names.dds_config_filename
         self.write_dds_config_file(dds_config_filename, dds_credentials)
@@ -166,65 +280,3 @@ class SaveOutputCommand(BaseCommand):
     def get_project_details(self):
         with open(self.names.output_project_details_filename) as infile:
             return json.load(infile)
-
-
-class ZippedWorkflowNames(object):
-    def __init__(self, job_workflow, workflow_base_dir, workflow_download_dest):
-        self.workflow_download_dest = workflow_download_dest
-        self.workflow_to_run = '{}/{}'.format(workflow_base_dir, job_workflow.workflow_path)
-        self.workflow_to_read = self.workflow_to_run
-        self.unzip_workflow_url_to_path = workflow_base_dir
-
-
-class PackedWorkflowNames(object):
-    def __init__(self, job_workflow, workflow_download_dest):
-        self.workflow_download_dest = workflow_download_dest
-        self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job_workflow.workflow_path)
-        self.workflow_to_read = self.workflow_download_dest
-        self.unzip_workflow_url_to_path = None
-
-
-class WorkflowNames(object):
-    def __init__(self, job, paths):
-        job_workflow = job.workflow
-        workflow_type = job_workflow.workflow_type
-        workflow_download_dest = '{}/{}'.format(paths.WORKFLOW, os.path.basename(job_workflow.workflow_url))
-        if workflow_type == WorkflowTypes.ZIPPED:
-            self._names_target = ZippedWorkflowNames(job_workflow, paths.WORKFLOW, workflow_download_dest)
-        elif workflow_type == WorkflowTypes.PACKED:
-            self._names_target = PackedWorkflowNames(job_workflow, workflow_download_dest)
-        else:
-            raise ValueError("Unknown workflow type {}".format(workflow_type))
-
-    def __getattr__(self, name):
-        # Pass all properties to internal target *WorkflowNames object
-        return getattr(self._names_target, name)
-
-
-class BaseNames(WorkflowNames):
-    def __init__(self, job, paths):
-        super(BaseNames, self).__init__(job, paths)
-        self.job_order_path = '{}/job-order.json'.format(paths.JOB_DATA)
-        self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(paths.OUTPUT_DATA)
-        self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(paths.OUTPUT_DATA)
-        job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
-        self.output_project_name = "Bespin {} v{} {} {}".format(
-            job.workflow.name, job.workflow.version, job.name, job_created)
-
-        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(paths.JOB_DATA)
-
-        self.activity_name = "{} - Bespin Job {}".format(job.name, job.id)
-        self.activity_description = "Bespin Job {} - Workflow {} v{}".format(
-            job.id, job.workflow.name, job.workflow.version)
-
-
-class Paths(object):
-    def __init__(self, base_directory):
-        self.JOB_DATA = '{}bespin/job-data'.format(base_directory)
-        self.WORKFLOW = '{}bespin/job-data/workflow'.format(base_directory)
-        self.CONFIG_DIR = '{}bespin/config'.format(base_directory)
-        self.STAGE_DATA_CONFIG_FILE = '{}bespin/config/stagedata.json'.format(base_directory)
-        self.OUTPUT_DATA = '{}bespin/output-data'.format(base_directory)
-        self.OUTPUT_RESULTS_DIR = '{}bespin/output-data/results'.format(base_directory)
-        self.TMPOUT_DATA = '{}bespin/output-data/tmpout'.format(base_directory)
-        self.REMOTE_README_FILE_PATH = 'results/docs/README.md'

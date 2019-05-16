@@ -1,9 +1,9 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, FieldRefEnvVar
-from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
+from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand
+from lando.common.names import BaseNames, Paths
 import json
 import os
-import re
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -253,7 +253,7 @@ class JobManager(object):
 
     def _create_save_output_config_map(self, name, filename, share_dds_ids, activity_name, activity_description):
         save_output_command = SaveOutputCommand(self.names, self.paths, activity_name, activity_description)
-        config_data = save_output_command.command_file_dict(share_dds_ids)
+        config_data = save_output_command.command_file_dict(share_dds_ids, started_on="", ended_on="")
         payload = {
             filename: json.dumps(config_data)
         }
@@ -328,28 +328,26 @@ class JobManager(object):
 class Names(BaseNames):
     def __init__(self, job, paths):
         super(Names, self).__init__(job, paths)
-        stripped_username = re.sub(r'@.*', '', job.username)
-        suffix = '{}-{}'.format(job.id, stripped_username)
+
         # Volumes
-        self.job_data = 'job-data-{}'.format(suffix)
-        self.output_data = 'output-data-{}'.format(suffix)
-        self.tmpout = 'tmpout-{}'.format(suffix)
-        self.tmp = 'tmp-{}'.format(suffix)
+        self.job_data = 'job-data-{}'.format(self.suffix)
+        self.output_data = 'output-data-{}'.format(self.suffix)
+        self.tmpout = 'tmpout-{}'.format(self.suffix)
+        self.tmp = 'tmp-{}'.format(self.suffix)
 
         # Job Names
-        self.stage_data = 'stage-data-{}'.format(suffix)
-        self.run_workflow = 'run-workflow-{}'.format(suffix)
-        self.organize_output = 'organize-output-{}'.format(suffix)
-        self.save_output = 'save-output-{}'.format(suffix)
-        self.record_output_project = 'record-output-project-{}'.format(suffix)
+        self.stage_data = 'stage-data-{}'.format(self.suffix)
+        self.run_workflow = 'run-workflow-{}'.format(self.suffix)
+        self.organize_output = 'organize-output-{}'.format(self.suffix)
+        self.save_output = 'save-output-{}'.format(self.suffix)
+        self.record_output_project = 'record-output-project-{}'.format(self.suffix)
 
-        self.user_data = 'user-data-{}'.format(suffix)
-        self.data_store_secret = 'data-store-{}'.format(suffix)
+        self.user_data = 'user-data-{}'.format(self.suffix)
+        self.data_store_secret = 'data-store-{}'.format(self.suffix)
         self.workflow_download_dest = '{}/{}'.format(paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
-        self.system_data = 'system-data-{}'.format(suffix)
+        self.system_data = 'system-data-{}'.format(self.suffix)
 
         self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(paths.OUTPUT_DATA)
-        self.usage_report_path = '{}/job-{}-resource-usage.json'.format(paths.OUTPUT_DATA, suffix)
 
 
 class StageDataConfig(object):

@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock, call, patch
 from lando.k8s.jobmanager import JobManager, JobStepTypes, StageDataConfig, RunWorkflowConfig, \
     OrganizeOutputConfig, SaveOutputConfig, RecordOutputProjectConfig, Names, Paths
-from lando.common.commands import WorkflowTypes
+from lando.common.names import WorkflowTypes
 import json
 
 

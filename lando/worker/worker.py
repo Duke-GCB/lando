@@ -7,11 +7,10 @@ Run via script with no arguments: lando_worker
 import os
 import traceback
 import logging
-import dateutil
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
-from lando.worker import cwlworkflow
-from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
+from lando.common.commands import StageDataCommand, OrganizeOutputCommand, RunWorkflowCommand, SaveOutputCommand
+from lando.common.names import BaseNames, Paths
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
@@ -63,12 +62,8 @@ class LandoWorkerActions(object):
         :param payload: router.RunJobPayload: details about workflow to run
         """
         os.makedirs(paths.OUTPUT_RESULTS_DIR, exist_ok=True)
-        cwl_base_command = self.config.cwl_base_command
-        cwl_post_process_command = self.config.cwl_post_process_command
-        workflow = cwlworkflow.CwlWorkflow(cwl_base_command, cwl_post_process_command, paths.OUTPUT_RESULTS_DIR)
-
-        workflow.run(names.workflow_to_run, names.job_order_path,
-                     names.run_workflow_stdout_path, names.run_workflow_stderr_path)
+        command = RunWorkflowCommand(payload.job_details, names, paths)
+        command.run(self.config.cwl_base_command, self.config.cwl_post_process_command)
         self.client.job_step_complete(payload)
 
     def organize_output(self, paths, names, payload):
@@ -85,7 +80,8 @@ class LandoWorkerActions(object):
         user_credential_id = payload.job_details.output_project.dds_user_credentials
         credentials = payload.credentials.dds_user_credentials[user_credential_id]
         command = SaveOutputCommand(names, paths, names.activity_name, names.activity_description)
-        command.run(self.commands.save_output_command, credentials, payload.job_details.share_dds_ids)
+        command.run(self.commands.save_output_command, credentials, payload.job_details.share_dds_ids,
+                    started_on="", ended_on="")
         project_details = command.get_project_details()
         output_project_info = ProjectDetails(project_id=project_details["project_id"],
                                              readme_file_id=project_details["readme_file_id"])
@@ -170,7 +166,7 @@ class JobStep(object):
         self.show_start_message()
         try:
             paths = Paths(base_directory=working_directory)
-            names = Names(paths, self.payload.job_details)
+            names = Names(self.payload.job_details, paths)
             self.func(paths, names, self.payload)
             self.show_complete_message()
         except: # Trap all exceptions
@@ -198,11 +194,10 @@ class JobStep(object):
 
 
 class Names(BaseNames):
-    def __init__(self, paths, job):
+    def __init__(self, job, paths):
         super(Names, self).__init__(job, paths)
         self.stage_data_command_filename = "{}/stage_data.json".format(paths.CONFIG_DIR)
         self.organize_output_command_filename = "{}/organize_output.json".format(paths.CONFIG_DIR)
         self.save_output_command_filename = "{}/save_output.json".format(paths.CONFIG_DIR)
         self.output_project_details_filename = "{}/output_project_details.json".format(paths.CONFIG_DIR)
         self.dds_config_filename = "{}/ddsclient.conf".format(paths.CONFIG_DIR)
-        self.usage_report_path = None  # usage report only available for the calrissian non-VM workflow runner
