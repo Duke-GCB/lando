@@ -1,10 +1,9 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, FieldRefEnvVar
-from lando.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
+from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
 import json
 import os
 import re
-import dateutil
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -23,17 +22,6 @@ class JobStepTypes(object):
     ORGANIZE_OUTPUT = "organize_output"
     SAVE_OUTPUT = "save_output"
     RECORD_OUTPUT_PROJECT = "record_output_project"
-
-
-class StageDataTypes(object):
-    URL = "url"
-    WRITE = "write"
-    DUKEDS = "DukeDS"
-
-
-class WorkflowTypes(object):
-    ZIPPED = 'zipped'
-    PACKED = 'packed'
 
 
 class JobManager(object):

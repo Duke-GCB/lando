@@ -4,11 +4,6 @@ import subprocess
 import dateutil
 from ddsc.config import LOCAL_CONFIG_ENV as DDSCLIENT_CONFIG_ENV, Config as DukeDSConfig
 
-DDSCLIENT_CONFIG_ENV_NAME = "DDSCLIENT_CONF"
-DDSCLIENT_CONFIG_URL = 'url'
-DDSCLIENT_CONFIG_USER_KEY = 'user_key'
-DDSCLIENT_CONFIG_AGENT_KEY = 'agent_key'
-
 
 class StageDataTypes(object):
     URL = "url"

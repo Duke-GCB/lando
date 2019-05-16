@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch, ANY, call
 from lando.worker.worker import LandoWorker, LandoWorkerActions, JobStep, Names
-from lando.commands import WorkflowTypes
+from lando.common.commands import WorkflowTypes
 
 
 class LandoWorkerActionsTestCase(TestCase):
@@ -176,7 +176,7 @@ class JobStepTestCase(TestCase):
 
 
 class NamesTestCase(TestCase):
-    @patch('lando.commands.dateutil')
+    @patch('lando.common.commands.dateutil')
     def test_packed_workflow(self, mock_dateutil):
         mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
         paths, job = Mock(), Mock()
@@ -213,7 +213,7 @@ class NamesTestCase(TestCase):
         self.assertEqual(names.workflow_to_read, '/workflowdir/someurl')
         self.assertEqual(names.unzip_workflow_url_to_path, None)
 
-    @patch('lando.commands.dateutil')
+    @patch('lando.common.commands.dateutil')
     def test_zipped_workflow(self, mock_dateutil):
         mock_dateutil.parser.parse.return_value.strftime.return_value = 'somedate'
         paths, job = Mock(), Mock()

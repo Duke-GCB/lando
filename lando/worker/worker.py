@@ -11,7 +11,7 @@ import dateutil
 from lando_messaging.clients import LandoClient
 from lando_messaging.messaging import MessageRouter
 from lando.worker import cwlworkflow
-from lando.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
+from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand, BaseNames, Paths
 
 
 CONFIG_FILE_NAME = '/etc/lando_worker_config.yml'
