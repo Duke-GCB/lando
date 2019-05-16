@@ -239,11 +239,9 @@ class JobActions(BaseJobActions):
         """
         self._set_job_step(JobSteps.ORGANIZE_OUTPUT_PROJECT)
         self._show_status("Organizing output project")
-        #credentials = self.job_api.get_credentials()
         job_data = self.job_api.get_store_output_job_data()
         worker_client = self.make_worker_client(payload.vm_instance_name)
         worker_client.organize_output_project(job_data, payload.vm_instance_name)
-        #worker_client.store_job_output(credentials, job_data, payload.vm_instance_name)
 
     def organize_output_complete(self, payload):
         """

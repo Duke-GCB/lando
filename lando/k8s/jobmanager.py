@@ -113,30 +113,10 @@ class JobManager(object):
     def _create_stage_data_config_map(self, name, filename, workflow, input_files):
         stage_data_command = StageDataCommand(workflow, self.names, Paths)
         config_data = stage_data_command.command_file_dict(input_files)
-        # items = [
-        #     self._stage_data_config_item(StageDataTypes.URL,
-        #                                  workflow.workflow_url,
-        #                                  self.names.workflow_download_dest,
-        #                                  self.names.unzip_workflow_url_to_path),
-        #     self._stage_data_config_item(StageDataTypes.WRITE,
-        #                                  workflow.job_order,
-        #                                  self.names.job_order_path)
-        # ]
-        # for dds_file in input_files.dds_files:
-        #     dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
-        #     items.append(self._stage_data_config_item(StageDataTypes.DUKEDS, dds_file.file_id, dest))
-        # config_data = {"items": items}
         payload = {
             filename: json.dumps(config_data)
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
-
-    # @staticmethod
-    # def _stage_data_config_item(workflow_type, source, dest, unzip_to=None):
-    #     item = {"type": workflow_type, "source": source, "dest": dest}
-    #     if unzip_to:
-    #         item["unzip_to"] = unzip_to
-    #     return item
 
     def cleanup_stage_data_job(self):
         self.cluster_api.delete_job(self.names.stage_data)
@@ -232,20 +212,6 @@ class JobManager(object):
     def _create_organize_output_config_map(self, name, filename, methods_document_content):
         organize_output_command = OrganizeOutputCommand(self.job, self.names, Paths)
         config_data = organize_output_command.command_file_dict(methods_document_content)
-        # config_data = {
-        #     "bespin_job_id": self.job.id,
-        #     "destination_dir": Paths.OUTPUT_RESULTS_DIR,
-        #     "downloaded_workflow_path": self.names.workflow_download_dest,
-        #     "workflow_to_read": self.names.workflow_to_read,
-        #     "workflow_type": self.job.workflow.workflow_type,
-        #     "job_order_path": self.names.job_order_path,
-        #     "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
-        #     "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
-        #     "methods_template": methods_document_content,
-        #     "additional_log_files": [
-        #         self.names.usage_report_path
-        #     ]
-        # }
         payload = {
             filename: json.dumps(config_data)
         }
@@ -299,22 +265,6 @@ class JobManager(object):
     def _create_save_output_config_map(self, name, filename, share_dds_ids, activity_name, activity_description):
         save_output_command = SaveOutputCommand(self.names, Paths, activity_name, activity_description)
         config_data = save_output_command.command_file_dict(share_dds_ids)
-        # config_data = {
-        #     "destination": self.names.output_project_name,
-        #     "readme_file_path": Paths.REMOTE_README_FILE_PATH,
-        #     "paths": [Paths.OUTPUT_RESULTS_DIR],
-        #     "share": {
-        #         "dds_user_ids": share_dds_ids
-        #     },
-        #     "activity": {
-        #         "name": activity_name,
-        #         "description": activity_description,
-        #         "started_on": "",
-        #         "ended_on": "",
-        #         "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
-        #         "workflow_output_json_path": self.names.run_workflow_stdout_path
-        #     }
-        # }
         payload = {
             filename: json.dumps(config_data)
         }
