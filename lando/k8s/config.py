@@ -1,13 +1,12 @@
 import yaml
 import logging
-import os
 from lando.exceptions import get_or_raise_config_exception, InvalidConfigException
 from lando.server.config import WorkQueue, BespinApiSettings
 
 
 def create_server_config(filename):
     with open(filename, 'r') as infile:
-        data = yaml.load(infile)
+        data = yaml.safe_load(infile)
         if not data:
             raise InvalidConfigException("Empty config file {}.".format(filename))
         return ServerConfig(data)

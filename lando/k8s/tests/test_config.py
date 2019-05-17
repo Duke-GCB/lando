@@ -72,12 +72,12 @@ class TestServerConfig(TestCase):
     @patch('builtins.open')
     @patch('lando.k8s.config.yaml')
     def test_create_server_config(self, mock_yaml, mock_open, mock_server_config):
-        mock_yaml.load.return_value = {"logging": "INFO"}
+        mock_yaml.safe_load.return_value = {"logging": "INFO"}
         server_config = create_server_config('somefile')
         self.assertEqual(server_config, mock_server_config.return_value)
         mock_server_config.assert_called_with({"logging": "INFO"})
 
-        mock_yaml.load.return_value = {}
+        mock_yaml.safe_load.return_value = {}
         with self.assertRaises(InvalidConfigException):
             create_server_config('somefile')
 
