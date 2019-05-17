@@ -133,7 +133,9 @@ class BaseCommand(object):
         return '\n'.join(last_lines)
 
     def run_command_with_dds_env(self, command, dds_config_filename):
-        return self.run_command(command, env={DDSCLIENT_CONFIG_ENV: dds_config_filename})
+        env = os.environ.copy()
+        env[DDSCLIENT_CONFIG_ENV] = dds_config_filename
+        return self.run_command(command, env=env)
 
     @staticmethod
     def dds_config_dict(credentials):

@@ -157,7 +157,9 @@ class BaseCommandTestCase(TestCase):
                                              stdout_path='/tmp/tempfile.txt',
                                              stderr_path='/tmp/tempfile.txt')
 
-    def test_run_command_with_dds_env(self):
+    @patch('lando.common.commands.os')
+    def test_run_command_with_dds_env(self, mock_os):
+        mock_os.environ.copy.return_value = {}
         cmd = BaseCommand()
         cmd.run_command = Mock()
         cmd.run_command_with_dds_env(['ddsclient', 'upload'], dds_config_filename='/tmp/ddsclient.conf')
