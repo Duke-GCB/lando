@@ -147,6 +147,7 @@ class JobStepTestCase(TestCase):
         job_step.run(working_directory='/work')
 
         self.assertEqual(mock_paths.return_value, self.func_params[0])
+        mock_paths.assert_called_with(base_directory='/work/')
         self.assertEqual(mock_names.return_value, self.func_params[1])
         self.assertEqual(self.payload, self.func_params[2])
         mock_logging.info.assert_has_calls([

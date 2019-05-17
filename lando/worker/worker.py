@@ -165,7 +165,7 @@ class JobStep(object):
         """
         self.show_start_message()
         try:
-            paths = Paths(base_directory=working_directory)
+            paths = Paths(base_directory=os.path.join(working_directory, ''))
             names = Names(self.payload.job_details, paths)
             self.func(paths, names, self.payload)
             self.show_complete_message()
