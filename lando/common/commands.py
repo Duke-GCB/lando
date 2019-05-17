@@ -35,7 +35,7 @@ def read_file(file_path):
 
 
 class StepProcess(object):
-    def __init__(self, command, env=None, stdout_path=None, stderr_path=None):
+    def __init__(self, command, stdout_path, stderr_path, env=None):
         self.command = command
         self.env = env
         self.stdout_path = stdout_path
@@ -50,8 +50,8 @@ class StepProcess(object):
         # Configure the subprocess to write stdout and stderr directly to files
         logging.info('Running command: {}'.format(' '.join(self.command)))
         logging.info('Redirecting stdout > {},  stderr > {}'.format(self.stdout_path, self.stderr_path))
-        stdout_file = self.open_optional_output_file(self.stdout_path)
-        stderr_file = self.open_optional_output_file(self.stderr_path)
+        stdout_file = open(self.stdout_path, 'w')
+        stderr_file = open(self.stderr_path, 'w')
         try:
             self.return_code = subprocess.call(self.command, env=self.env, stdout=stdout_file, stderr=stderr_file)
         except OSError as e:
@@ -64,13 +64,6 @@ class StepProcess(object):
             if stderr_file:
                 stderr_file.close()
             self.finished = datetime.datetime.now()
-
-    @staticmethod
-    def open_optional_output_file(file_path):
-        if file_path:
-            return open(file_path, 'w')
-        else:
-            return None
 
     def total_runtime_str(self):
         """

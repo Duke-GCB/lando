@@ -23,7 +23,7 @@ class TestReadFile(TestCase):
 
 class StepProcessTestCase(TestCase):
     def test_total_runtime_str(self):
-        step_process = StepProcess(command=['ls', '-l'])
+        step_process = StepProcess(command=['ls', '-l'], stdout_path='/tmp/stdout.txt', stderr_path='/tmp/stderr.txt')
         step_process.started = parse("2012-01-19 17:21:00")
         step_process.finished = parse("2012-01-19 17:24:00")
         self.assertEqual(step_process.total_runtime_str(), '3.0 minutes')
@@ -37,16 +37,23 @@ class StepProcessTestCase(TestCase):
             parse("2012-01-19 17:24:00")
         ]
         mock_subprocess.call.return_value = 100
-        step_process = StepProcess(command=['ls', '-l'], env={"MYKEY": "SECRET"})
-        step_process.run()
+        step_process = StepProcess(command=['ls', '-l'], env={"MYKEY": "SECRET"},
+                                   stdout_path='/tmp/stdout.txt',
+                                   stderr_path='/tmp/stderr.txt')
+        with patch("builtins.open", mock_open()) as fake_open:
+            step_process.run()
 
-        mock_subprocess.call.assert_called_with(['ls', '-l'], env={"MYKEY": "SECRET"}, stderr=None, stdout=None)
+        mock_subprocess.call.assert_called_with(['ls', '-l'], env={"MYKEY": "SECRET"},
+                                                stderr=fake_open.return_value, stdout=fake_open.return_value)
+        fake_open.assert_has_calls([
+            call('/tmp/stdout.txt', 'w'), call('/tmp/stderr.txt', 'w')
+        ])
         self.assertEqual(step_process.return_code, 100)
         self.assertEqual(step_process.started, parse("2012-01-19 17:21:00"))
         self.assertEqual(step_process.finished, parse("2012-01-19 17:24:00"))
         mock_logging.info.assert_has_calls([
             call('Running command: ls -l'),
-            call('Redirecting stdout > None,  stderr > None')
+            call('Redirecting stdout > /tmp/stdout.txt,  stderr > /tmp/stderr.txt')
         ])
         mock_logging.error.assert_not_called()
 
@@ -54,15 +61,18 @@ class StepProcessTestCase(TestCase):
     @patch('lando.common.commands.subprocess')
     def test_run_failure(self, mock_subprocess, mock_logging):
         mock_subprocess.call.side_effect = OSError()
-        step_process = StepProcess(command=['ls', '-l'])
+        step_process = StepProcess(command=['ls', '-l'], stdout_path='/tmp/stdout.txt', stderr_path='/tmp/stderr.txt')
         with self.assertRaises(JobStepFailed) as raised_exception:
-            step_process.run()
+            with patch("builtins.open", mock_open()) as fake_open:
+                step_process.run()
         self.assertEqual(raised_exception.exception.value, 'Command failed: ls -l')
 
-        mock_subprocess.call.assert_called_with(['ls', '-l'], env=None, stderr=None, stdout=None)
+        mock_subprocess.call.assert_called_with(['ls', '-l'], env=None,
+                                                stdout=fake_open.return_value,
+                                                stderr=fake_open.return_value)
         mock_logging.info.assert_has_calls([
             call('Running command: ls -l'),
-            call('Redirecting stdout > None,  stderr > None')
+            call('Redirecting stdout > /tmp/stdout.txt,  stderr > /tmp/stderr.txt')
         ])
         mock_logging.error.assert_has_calls([
             call('Error running subprocess %s', ANY)
