@@ -9,7 +9,7 @@ TAG_ENV_VAR = 'CIRCLE_TAG'
 
 
 LANDO_REQUIREMENTS = [
-      "shade==1.29.0",
+      "shade==1.31.0",
       "DukeDSClient==2.1.4",
       "humanfriendly==2.4",
       "Jinja2==2.10.1",
