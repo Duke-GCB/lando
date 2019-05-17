@@ -104,16 +104,24 @@ class BaseCommandTestCase(TestCase):
         mock_json.dumps.assert_called_with({"A": "B"})
 
     @patch('lando.common.commands.StepProcess')
-    def test_run_command(self, mock_step_process):
+    @patch('lando.common.commands.tempfile')
+    @patch('lando.common.commands.os')
+    def test_run_command(self, mock_os, mock_tempfile, mock_step_process):
+        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value.name = '/tmp/tempfile.txt'
         mock_step_process.return_value.return_code = 0
         cmd = BaseCommand()
         result = cmd.run_command(command=['ls', '-l'])
         self.assertEqual(result, mock_step_process.return_value)
-        mock_step_process.assert_called_with(['ls', '-l'], env=None, stdout_path=None, stderr_path=None)
+        mock_step_process.assert_called_with(['ls', '-l'], env=None,
+                                             stdout_path='/tmp/tempfile.txt',
+                                             stderr_path='/tmp/tempfile.txt')
 
     @patch('lando.common.commands.StepProcess')
     @patch('lando.common.commands.read_file')
-    def test_run_command_bad_exit(self, mock_read_file, mock_step_process):
+    @patch('lando.common.commands.tempfile')
+    @patch('lando.common.commands.os')
+    def test_run_command_bad_exit(self, mock_os, mock_tempfile, mock_read_file, mock_step_process):
+        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value.name = '/tmp/tempfile.txt'
         mock_read_file.side_effect = [
             'StdErr Msg', 'StdOut Msg'
         ]
@@ -123,7 +131,9 @@ class BaseCommandTestCase(TestCase):
             cmd.run_command(command=['ls', '-l'])
         self.assertEqual(raised_exception.exception.value, 'CWL workflow failed with exit code: 1\nStdErr Msg')
         self.assertEqual(raised_exception.exception.details, 'StdOut Msg')
-        mock_step_process.assert_called_with(['ls', '-l'], env=None, stdout_path=None, stderr_path=None)
+        mock_step_process.assert_called_with(['ls', '-l'], env=None,
+                                             stdout_path='/tmp/tempfile.txt',
+                                             stderr_path='/tmp/tempfile.txt')
 
     def test_run_command_with_dds_env(self):
         cmd = BaseCommand()

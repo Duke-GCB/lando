@@ -4,6 +4,7 @@ import subprocess
 import datetime
 import logging
 import codecs
+import tempfile
 from lando.exceptions import JobStepFailed
 from ddsc.config import LOCAL_CONFIG_ENV as DDSCLIENT_CONFIG_ENV, Config as DukeDSConfig
 
@@ -87,16 +88,39 @@ class BaseCommand(object):
             outfile.write(json.dumps(data))
 
     def run_command(self, command, env=None, stdout_path=None, stderr_path=None):
-        process = StepProcess(command, env=env, stdout_path=stdout_path, stderr_path=stderr_path)
+        stdout_path, cleanup_stdout_path = self._create_temp_filename_if_none(stdout_path)
+        stderr_path, cleanup_stderr_path = self._create_temp_filename_if_none(stderr_path)
+        try:
+            return self._run_process(command, stdout_path, stderr_path, env)
+        finally:
+            if cleanup_stderr_path:
+                os.remove(stdout_path)
+            if cleanup_stderr_path:
+                os.remove(stderr_path)
+
+    def _run_process(self, command, stdout_path, stderr_path, env):
+        process = StepProcess(command, stdout_path=stdout_path, stderr_path=stderr_path, env=env)
         process.run()
         if process.return_code != 0:
-            # TODO: THIS IS WRONG: What if no stderr and stdout specified
-            stderr_output = read_file(process.stderr_path)
-            tail_error_output = self._tail_stderr_output(stderr_output)
-            error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
-            stdout_output = read_file(process.stdout_path)
-            raise JobStepFailed(error_message, stdout_output)
+            self._handle_failed_process(process)
         return process
+
+    def _handle_failed_process(self, process):
+        stderr_output = read_file(process.stderr_path)
+        tail_error_output = self._tail_stderr_output(stderr_output)
+        error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
+        stdout_output = read_file(process.stdout_path)
+        raise JobStepFailed(error_message, stdout_output)
+
+    @staticmethod
+    def _create_temp_filename_if_none(filename):
+        if filename:
+            created_temp_file = False
+        else:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                filename = tmp_file.name
+            created_temp_file = True
+        return filename, created_temp_file
 
     @staticmethod
     def _tail_stderr_output(stderr_data):
@@ -110,7 +134,7 @@ class BaseCommand(object):
         return '\n'.join(last_lines)
 
     def run_command_with_dds_env(self, command, dds_config_filename):
-        self.run_command(command, env={DDSCLIENT_CONFIG_ENV: dds_config_filename})
+        return self.run_command(command, env={DDSCLIENT_CONFIG_ENV: dds_config_filename})
 
     @staticmethod
     def dds_config_dict(credentials):
@@ -162,7 +186,7 @@ class StageDataCommand(BaseCommand):
         command = base_command.copy()
         command.append(command_filename)
         command.append(self.names.workflow_input_files_metadata_path)
-        return self.run_command_with_dds_env(command, dds_config_filename)
+        self.run_command_with_dds_env(command, dds_config_filename)
 
 
 class RunWorkflowCommand(BaseCommand):
@@ -235,7 +259,7 @@ class OrganizeOutputCommand(BaseCommand):
         self.write_json_file(command_filename, self.command_file_dict(methods_document_content))
         command = base_command.copy()
         command.append(self.names.organize_output_command_filename)
-        return self.run_command(command)
+        self.run_command(command)
 
 
 class SaveOutputCommand(BaseCommand):
@@ -275,7 +299,7 @@ class SaveOutputCommand(BaseCommand):
         command.append(self.names.output_project_details_filename)
         command.append("--outfile-format")
         command.append("json")
-        return self.run_command_with_dds_env(command, dds_config_filename)
+        self.run_command_with_dds_env(command, dds_config_filename)
 
     def get_project_details(self):
         with open(self.names.output_project_details_filename) as infile:
