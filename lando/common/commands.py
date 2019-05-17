@@ -114,9 +114,8 @@ class BaseCommand(object):
 
     @staticmethod
     def _create_temp_filename_if_none(filename):
-        if filename:
-            created_temp_file = False
-        else:
+        created_temp_file = False
+        if not filename:
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
                 filename = tmp_file.name
             created_temp_file = True

@@ -107,14 +107,35 @@ class BaseCommandTestCase(TestCase):
     @patch('lando.common.commands.tempfile')
     @patch('lando.common.commands.os')
     def test_run_command(self, mock_os, mock_tempfile, mock_step_process):
-        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value.name = '/tmp/tempfile.txt'
+        file1 = Mock()
+        file1.name = '/tmp/tempfile1.txt'
+        file2 = Mock()
+        file2.name = '/tmp/tempfile2.txt'
+        mock_tempfile.NamedTemporaryFile.return_value.__enter__.side_effect = [file1, file2]
         mock_step_process.return_value.return_code = 0
         cmd = BaseCommand()
         result = cmd.run_command(command=['ls', '-l'])
         self.assertEqual(result, mock_step_process.return_value)
         mock_step_process.assert_called_with(['ls', '-l'], env=None,
-                                             stdout_path='/tmp/tempfile.txt',
-                                             stderr_path='/tmp/tempfile.txt')
+                                             stdout_path='/tmp/tempfile1.txt',
+                                             stderr_path='/tmp/tempfile2.txt')
+        mock_os.remove.assert_has_calls([
+            call('/tmp/tempfile1.txt'), call('/tmp/tempfile2.txt')
+        ])
+
+    @patch('lando.common.commands.StepProcess')
+    @patch('lando.common.commands.tempfile')
+    @patch('lando.common.commands.os')
+    def test_run_command_with_stdout_stderr_filenames(self, mock_os, mock_tempfile, mock_step_process):
+        mock_step_process.return_value.return_code = 0
+        cmd = BaseCommand()
+        result = cmd.run_command(command=['ls', '-l'], stderr_path='/tmp/stderr.txt', stdout_path='/tmp/stdout.txt')
+        self.assertEqual(result, mock_step_process.return_value)
+        mock_step_process.assert_called_with(['ls', '-l'], env=None,
+                                             stdout_path='/tmp/stdout.txt',
+                                             stderr_path='/tmp/stderr.txt')
+        mock_os.remove.assert_not_called()
+        mock_tempfile.NamedTemporaryFile.assert_not_called()
 
     @patch('lando.common.commands.StepProcess')
     @patch('lando.common.commands.read_file')
