@@ -37,10 +37,10 @@ class StepProcessTestCase(TestCase):
             parse("2012-01-19 17:24:00")
         ]
         mock_subprocess.call.return_value = 100
-        step_process = StepProcess(command=['ls', '-l'])
+        step_process = StepProcess(command=['ls', '-l'], env={"MYKEY": "SECRET"})
         step_process.run()
 
-        mock_subprocess.call.assert_called_with(['ls', '-l'], stderr=None, stdout=None)
+        mock_subprocess.call.assert_called_with(['ls', '-l'], env={"MYKEY": "SECRET"}, stderr=None, stdout=None)
         self.assertEqual(step_process.return_code, 100)
         self.assertEqual(step_process.started, parse("2012-01-19 17:21:00"))
         self.assertEqual(step_process.finished, parse("2012-01-19 17:24:00"))
@@ -59,7 +59,7 @@ class StepProcessTestCase(TestCase):
             step_process.run()
         self.assertEqual(raised_exception.exception.value, 'Command failed: ls -l')
 
-        mock_subprocess.call.assert_called_with(['ls', '-l'], stderr=None, stdout=None)
+        mock_subprocess.call.assert_called_with(['ls', '-l'], env=None, stderr=None, stdout=None)
         mock_logging.info.assert_has_calls([
             call('Running command: ls -l'),
             call('Redirecting stdout > None,  stderr > None')
@@ -80,6 +80,7 @@ class StepProcessTestCase(TestCase):
             step_process.run()
 
         mock_subprocess.call.assert_called_with(['ls', '-l'],
+                                                env=None,
                                                 stderr=fake_open.return_value,
                                                 stdout=fake_open.return_value)
         self.assertEqual(step_process.return_code, 100)
