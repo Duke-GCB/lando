@@ -148,10 +148,14 @@ class StageDataCommand(BaseCommand):
 
     def command_file_dict(self, input_files):
         items = [
+            # Stages workflow that will be run. Downloads the file at the specified URL and
+            # optionally unzips downloaded file if unzip_workflow_url_to_path is not None
             self.create_stage_data_config_item(StageDataTypes.URL,
                                                self.workflow.workflow_url,
                                                self.names.workflow_download_dest,
                                                self.names.unzip_workflow_url_to_path),
+            # Create a job order file specifying inputs used when running the workflow.
+            # Writes job order data to the specified job_order_path
             self.create_stage_data_config_item(StageDataTypes.WRITE,
                                                self.workflow.job_order,
                                                self.names.job_order_path)
