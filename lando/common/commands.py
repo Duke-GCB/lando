@@ -59,10 +59,8 @@ class StepProcess(object):
             error_message = "Command failed: {}".format(' '.join(self.command))
             raise JobStepFailed(error_message, e)
         finally:
-            if stdout_file:
-                stdout_file.close()
-            if stderr_file:
-                stderr_file.close()
+            stdout_file.close()
+            stderr_file.close()
             self.finished = datetime.datetime.now()
 
     def total_runtime_str(self):
