@@ -161,7 +161,7 @@ class BaseCommandTestCase(TestCase):
         cmd = BaseCommand()
         with self.assertRaises(JobStepFailed) as raised_exception:
             cmd.run_command(command=['ls', '-l'])
-        self.assertEqual(raised_exception.exception.value, 'CWL workflow failed with exit code: 1\nStdErr Msg')
+        self.assertEqual(raised_exception.exception.value, 'Process failed with exit code: 1\nStdErr Msg')
         self.assertEqual(raised_exception.exception.details, 'StdOut Msg')
         mock_step_process.assert_called_with(['ls', '-l'], env=None,
                                              stdout_path='/tmp/tempfile.txt',
