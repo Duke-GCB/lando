@@ -45,9 +45,9 @@ class BaseNamesTestCase(TestCase):
         job.username = 'joe'
         job.workflow.name = 'myworkflow'
         job.workflow.version = 2
-        job.workflow.workflow_url = 'someurl'
+        job.workflow.workflow_url = 'someurl/workflow.cwl'
         job.workflow.workflow_type = WorkflowTypes.PACKED
-        job.workflow.workflow_path = 'workflow.cwl'
+        job.workflow.workflow_path = ''
         names = BaseNames(job, paths)
 
         self.assertEqual(names.job_order_path, '/job-data/job-order.json')
@@ -58,6 +58,10 @@ class BaseNamesTestCase(TestCase):
         self.assertEqual(names.usage_report_path, '/output-data/job-49-joe-resource-usage.json')
         self.assertEqual(names.activity_name, 'myjob - Bespin Job 49')
         self.assertEqual(names.activity_description, 'Bespin Job 49 - Workflow myworkflow v2')
+        self.assertEqual(names.workflow_download_dest, '/workflowdir/workflow.cwl')
+        self.assertEqual(names.workflow_to_run, '/workflowdir/workflow.cwl')
+        self.assertEqual(names.workflow_to_read, '/workflowdir/workflow.cwl')
+        self.assertEqual(names.unzip_workflow_url_to_path, None)
 
     @patch('lando.common.names.dateutil')
     def test_zipped_workflow(self, mock_dateutil):
