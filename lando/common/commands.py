@@ -1,3 +1,11 @@
+# Contains command classes that are used for various steps in running:
+# - StageDataCommand - downloads workflow, writes job order, downloads input files
+# - RunWorkflowCommand - runs workflow saving results
+# - OrganizeOutputCommand - creates output project folder structure and various files
+# - SaveOutputCommand - uploads output project folder to a remote store and shares project with a user
+# All these classes implement a `run` method that will write out a command file and run the appropriate command
+# in a separate process. Some command classes implement a `command_file_dict` method that returns a dictionary
+# with contents of a command file that can be used to run the commands via k8s.
 import os
 import json
 import subprocess
