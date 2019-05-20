@@ -192,7 +192,6 @@ class JobActions(BaseJobActions):
         job = self.job_api.get_job()
         worker_config_yml = self.config.make_worker_config_yml(vm_instance_name, job.vm_settings.cwl_commands)
         cloud_config_script = CloudConfigScript()
-        print(worker_config_yml)
         cloud_config_script.add_write_file(content=worker_config_yml, path=WORKER_CONFIG_FILE_NAME)
         for partition, mount_point in job.volume_mounts.items():
             cloud_config_script.add_volume(partition, mount_point)
