@@ -79,32 +79,36 @@ class BaseCommand(object):
             outfile.write(json.dumps(data))
 
     def run_command(self, command, env=None, stdout_path=None, stderr_path=None):
+        # Create temp files for saving stdout and stderr if the caller didn't specify them.
+        # When the process fails an exception will be raised with content from these two files
+        # so these temporary files must persist beyond when they are closed.
         stdout_path, cleanup_stdout_path = self._create_temp_filename_if_none(stdout_path)
         stderr_path, cleanup_stderr_path = self._create_temp_filename_if_none(stderr_path)
         try:
-            return self._run_process(command, stdout_path, stderr_path, env)
+            process = StepProcess(command, stdout_path=stdout_path, stderr_path=stderr_path, env=env)
+            if process.return_code != 0:
+                self._raise_exception_for_failed_process(process.return_code, stdout_path, stderr_path)
+            return process
         finally:
             if cleanup_stderr_path:
                 os.remove(stdout_path)
             if cleanup_stderr_path:
                 os.remove(stderr_path)
 
-    def _run_process(self, command, stdout_path, stderr_path, env):
-        process = StepProcess(command, stdout_path=stdout_path, stderr_path=stderr_path, env=env)
-        process.run()
-        if process.return_code != 0:
-            self._handle_failed_process(process)
-        return process
-
-    def _handle_failed_process(self, process):
-        stderr_output = read_file(process.stderr_path)
+    def _raise_exception_for_failed_process(self, return_code, stdout_path, stderr_path):
+        stderr_output = read_file(stderr_path)
         tail_error_output = self._tail_stderr_output(stderr_output)
-        error_message = "Process failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
-        stdout_output = read_file(process.stdout_path)
+        error_message = "Process failed with exit code: {}\n{}".format(return_code, tail_error_output)
+        stdout_output = read_file(stdout_path)
         raise JobStepFailed(error_message, stdout_output)
 
     @staticmethod
     def _create_temp_filename_if_none(filename):
+        """
+        Create a temporary filename that is not cleaned up after the file is closed if the passed filename is None.
+        :return (str, boolean): returns tuple of a filename and boolean saying we created a temp file that
+        will need to be manually deleted up.
+        """
         created_temp_file = False
         if not filename:
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
