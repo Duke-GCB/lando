@@ -99,7 +99,7 @@ class BaseCommand(object):
     def _handle_failed_process(self, process):
         stderr_output = read_file(process.stderr_path)
         tail_error_output = self._tail_stderr_output(stderr_output)
-        error_message = "CWL workflow failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
+        error_message = "Process failed with exit code: {}\n{}".format(process.return_code, tail_error_output)
         stdout_output = read_file(process.stdout_path)
         raise JobStepFailed(error_message, stdout_output)
 
