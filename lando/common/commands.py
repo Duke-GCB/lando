@@ -94,6 +94,7 @@ class BaseCommand(object):
         stderr_path, cleanup_stderr_path = self._create_temp_filename_if_none(stderr_path)
         try:
             process = StepProcess(command, stdout_path=stdout_path, stderr_path=stderr_path, env=env)
+            process.run()
             if process.return_code != 0:
                 self._raise_exception_for_failed_process(process.return_code, stdout_path, stderr_path)
             return process
