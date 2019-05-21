@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # version checking derived from https://github.com/levlaz/circleci.py/blob/master/setup.py
 from setuptools.command.install import install
 
-VERSION = '0.11.0'
+VERSION = '0.11.1'
 TAG_ENV_VAR = 'CIRCLE_TAG'
 
 
