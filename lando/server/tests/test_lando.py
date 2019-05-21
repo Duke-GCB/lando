@@ -154,6 +154,9 @@ class Report(object):
     def store_job_output(self, credentials, job_id, vm_instance_name):
         self.add("Put store_job_output message in queue for {}.".format(vm_instance_name))
 
+    def organize_output_project(self, job_id, vm_instance_name):
+        self.add("Put organize_output_project message in queue for {}.".format(vm_instance_name))
+
     def delete_queue(self):
         self.add("Delete my worker's queue.")
 
@@ -294,6 +297,10 @@ Set job step to O.
 Send progress notification. Job:1 State:N Step:O
 Put store_job_output message in queue for worker_x.
         """
+        expected_report = """
+Set job step to o.
+Send progress notification. Job:1 State:N Step:o
+"""
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobSettings')
@@ -421,10 +428,9 @@ Put run_job message in queue for some_vm.
         expected_report = """
 Set job state to R.
 Send progress notification. Job:1 State:R Step:O
-Set job step to O.
-Send progress notification. Job:1 State:R Step:O
-Put store_job_output message in queue for some_vm.
-        """
+Set job step to o.
+Send progress notification. Job:1 State:R Step:o
+"""
         self.assertMultiLineEqual(expected_report.strip(), report.text.strip())
 
     @patch('lando.server.lando.JobSettings')
@@ -679,7 +685,7 @@ class TestJobSettings(TestCase):
         self.assertFalse(mock_cloud_service.called)
         self.assertTrue(mock_fake_cloud_service.called)
         args, kwargs = mock_fake_cloud_service.call_args
-        self.assertEqual(args, (self.config,))
+        self.assertEqual(args, (self.config, vm_settings))
 
     @patch('lando.server.lando.JobApi')
     def test_get_job_api(self, mock_job_api):

@@ -9,13 +9,13 @@ TAG_ENV_VAR = 'CIRCLE_TAG'
 
 
 LANDO_REQUIREMENTS = [
-      "shade==1.29.0",
+      "shade==1.31.0",
       "DukeDSClient==2.1.4",
       "humanfriendly==2.4",
       "Jinja2==2.10.1",
       "kubernetes==8.0.1",
       "pyasn1<0.5.0,>=0.4.1",
-      "lando-messaging==1.0.0",
+      "lando-messaging==2.0.0",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
       "PyYAML==5.1",

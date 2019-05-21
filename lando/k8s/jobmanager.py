@@ -1,9 +1,9 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, FieldRefEnvVar
+from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand
+from lando.common.names import BaseNames, Paths
 import json
 import os
-import re
-import dateutil
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -24,23 +24,14 @@ class JobStepTypes(object):
     RECORD_OUTPUT_PROJECT = "record_output_project"
 
 
-class StageDataTypes(object):
-    URL = "url"
-    WRITE = "write"
-    DUKEDS = "DukeDS"
-
-
-class WorkflowTypes(object):
-    ZIPPED = 'zipped'
-    PACKED = 'packed'
-
-
 class JobManager(object):
     def __init__(self, cluster_api, config, job):
         self.cluster_api = cluster_api
         self.config = config
         self.job = job
-        self.names = create_names(job)
+        self.paths = Paths(base_directory="/")
+        names = Names(job, self.paths)
+        self.names = names
         self.storage_class_name = config.storage_class_name
         self.default_metadata_labels = {
             JobLabels.BESPIN_JOB: BESPIN_JOB_LABEL_VALUE,
@@ -74,18 +65,18 @@ class JobManager(object):
         self.create_job_data_persistent_volume(stage_data_size_in_g)
 
     def create_stage_data_job(self, input_files):
-        stage_data_config = StageDataConfig(self.job, self.config)
+        stage_data_config = StageDataConfig(self.job, self.config, self.paths)
         self._create_stage_data_config_map(name=self.names.stage_data,
                                            filename=stage_data_config.filename,
                                            workflow=self.job.workflow,
                                            input_files=input_files)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
+                                  mount_path=self.paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
                                   read_only=False),
             ConfigMapVolume(self.names.stage_data,
-                            mount_path=Paths.CONFIG_DIR,
+                            mount_path=self.paths.CONFIG_DIR,
                             config_map_name=self.names.stage_data,
                             source_key=stage_data_config.filename,
                             source_path=stage_data_config.filename),
@@ -109,30 +100,12 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.stage_data, job_spec, labels=labels)
 
     def _create_stage_data_config_map(self, name, filename, workflow, input_files):
-        items = [
-            self._stage_data_config_item(StageDataTypes.URL,
-                                         workflow.workflow_url,
-                                         self.names.workflow_download_dest,
-                                         self.names.unzip_workflow_url_to_path),
-            self._stage_data_config_item(StageDataTypes.WRITE,
-                                         workflow.job_order,
-                                         self.names.job_order_path)
-        ]
-        for dds_file in input_files.dds_files:
-            dest = '{}/{}'.format(Paths.JOB_DATA, dds_file.destination_path)
-            items.append(self._stage_data_config_item(StageDataTypes.DUKEDS, dds_file.file_id, dest))
-        config_data = {"items": items}
+        stage_data_command = StageDataCommand(workflow, self.names, self.paths)
+        config_data = stage_data_command.command_file_dict(input_files)
         payload = {
             filename: json.dumps(config_data)
         }
         self.cluster_api.create_config_map(name=name, data=payload, labels=self.default_metadata_labels)
-
-    @staticmethod
-    def _stage_data_config_item(workflow_type, source, dest, unzip_to=None):
-        item = {"type": workflow_type, "source": source, "dest": dest}
-        if unzip_to:
-            item["unzip_to"] = unzip_to
-        return item
 
     def cleanup_stage_data_job(self):
         self.cluster_api.delete_job(self.names.stage_data)
@@ -146,11 +119,11 @@ class JobManager(object):
         system_data_volume = run_workflow_config.system_data_volume
         volumes = [
             PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
+                                  mount_path=self.paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
                                   read_only=True),
             PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
+                                  mount_path=self.paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
                                   read_only=False),
         ]
@@ -161,8 +134,8 @@ class JobManager(object):
                 volume_claim_name=system_data_volume.volume_claim_name,
                 read_only=True))
         command = run_workflow_config.command
-        command.extend(["--cachedir", Paths.TMPOUT_DATA + "/",
-                        "--outdir", Paths.OUTPUT_RESULTS_DIR + "/",
+        command.extend(["--cachedir", self.paths.TMPOUT_DATA + "/",
+                        "--outdir", self.paths.OUTPUT_RESULTS_DIR + "/",
                         "--max-ram", self.job.job_flavor_memory,
                         "--max-cores", str(self.job.job_flavor_cpus),
                         "--usage-report", self.names.usage_report_path,
@@ -192,21 +165,21 @@ class JobManager(object):
         self.cluster_api.delete_job(self.names.run_workflow)
 
     def create_organize_output_project_job(self, methods_document_content):
-        organize_output_config = OrganizeOutputConfig(self.job, self.config)
+        organize_output_config = OrganizeOutputConfig(self.job, self.config, self.paths)
         self._create_organize_output_config_map(name=self.names.organize_output,
                                                 filename=organize_output_config.filename,
                                                 methods_document_content=methods_document_content)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
+                                  mount_path=self.paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
                                   read_only=True),
             PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
+                                  mount_path=self.paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
                                   read_only=False),
             ConfigMapVolume(self.names.organize_output,
-                            mount_path=Paths.CONFIG_DIR,
+                            mount_path=self.paths.CONFIG_DIR,
                             config_map_name=self.names.organize_output,
                             source_key=organize_output_config.filename,
                             source_path=organize_output_config.filename),
@@ -226,20 +199,8 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.organize_output, job_spec, labels=labels)
 
     def _create_organize_output_config_map(self, name, filename, methods_document_content):
-        config_data = {
-            "bespin_job_id": self.job.id,
-            "destination_dir": Paths.OUTPUT_RESULTS_DIR,
-            "downloaded_workflow_path": self.names.workflow_download_dest,
-            "workflow_to_read": self.names.workflow_to_read,
-            "workflow_type": self.job.workflow.workflow_type,
-            "job_order_path": self.names.job_order_path,
-            "bespin_workflow_stdout_path": self.names.run_workflow_stdout_path,
-            "bespin_workflow_stderr_path": self.names.run_workflow_stderr_path,
-            "methods_template": methods_document_content,
-            "additional_log_files": [
-                self.names.usage_report_path
-            ]
-        }
+        organize_output_command = OrganizeOutputCommand(self.job, self.names, self.paths)
+        config_data = organize_output_command.command_file_dict(methods_document_content)
         payload = {
             filename: json.dumps(config_data)
         }
@@ -250,23 +211,23 @@ class JobManager(object):
         self.cluster_api.delete_job(self.names.organize_output)
 
     def create_save_output_job(self, share_dds_ids):
-        save_output_config = SaveOutputConfig(self.job, self.config)
+        save_output_config = SaveOutputConfig(self.job, self.config, self.paths)
         self._create_save_output_config_map(name=self.names.save_output,
                                             filename=save_output_config.filename,
                                             share_dds_ids=share_dds_ids,
-                                            activity_name=save_output_config.activity_name,
-                                            activity_description=save_output_config.activity_description)
+                                            activity_name=self.names.activity_name,
+                                            activity_description=self.names.activity_description)
         volumes = [
             PersistentClaimVolume(self.names.job_data,
-                                  mount_path=Paths.JOB_DATA,
+                                  mount_path=self.paths.JOB_DATA,
                                   volume_claim_name=self.names.job_data,
                                   read_only=True),
             PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
+                                  mount_path=self.paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
                                   read_only=False),  # writable so we can write project_details file
             ConfigMapVolume(self.names.stage_data,
-                            mount_path=Paths.CONFIG_DIR,
+                            mount_path=self.paths.CONFIG_DIR,
                             config_map_name=self.names.save_output,
                             source_key=save_output_config.filename,
                             source_path=save_output_config.filename),
@@ -279,7 +240,7 @@ class JobManager(object):
             image_name=save_output_config.image_name,
             command=save_output_config.command,
             args=[save_output_config.path, self.names.annotate_project_details_path],
-            working_dir=Paths.OUTPUT_RESULTS_DIR,
+            working_dir=self.paths.OUTPUT_RESULTS_DIR,
             env_dict=save_output_config.env_dict,
             requested_cpu=save_output_config.requested_cpu,
             requested_memory=save_output_config.requested_memory,
@@ -291,22 +252,8 @@ class JobManager(object):
         return self.cluster_api.create_job(self.names.save_output, job_spec, labels=labels)
 
     def _create_save_output_config_map(self, name, filename, share_dds_ids, activity_name, activity_description):
-        config_data = {
-            "destination": self.names.output_project_name,
-            "readme_file_path": Paths.REMOTE_README_FILE_PATH,
-            "paths": [Paths.OUTPUT_RESULTS_DIR],
-            "share": {
-                "dds_user_ids": share_dds_ids
-            },
-            "activity": {
-                "name": activity_name,
-                "description": activity_description,
-                "started_on": "",
-                "ended_on": "",
-                "input_file_versions_json_path": self.names.workflow_input_files_metadata_path,
-                "workflow_output_json_path": self.names.run_workflow_stdout_path
-            }
-        }
+        save_output_command = SaveOutputCommand(self.names, self.paths, activity_name, activity_description)
+        config_data = save_output_command.command_file_dict(share_dds_ids, started_on="", ended_on="")
         payload = {
             filename: json.dumps(config_data)
         }
@@ -321,7 +268,7 @@ class JobManager(object):
         config = RecordOutputProjectConfig(self.job, self.config)
         volumes = [
             PersistentClaimVolume(self.names.output_data,
-                                  mount_path=Paths.OUTPUT_DATA,
+                                  mount_path=self.paths.OUTPUT_DATA,
                                   volume_claim_name=self.names.output_data,
                                   read_only=True),
         ]
@@ -330,7 +277,7 @@ class JobManager(object):
             image_name=config.image_name,
             command=["sh"],
             args=[self.names.annotate_project_details_path],
-            working_dir=Paths.OUTPUT_RESULTS_DIR,
+            working_dir=self.paths.OUTPUT_RESULTS_DIR,
             env_dict={"MY_POD_NAME": FieldRefEnvVar(field_path="metadata.name")},
             requested_cpu=config.requested_cpu,
             requested_memory=config.requested_memory,
@@ -378,79 +325,35 @@ class JobManager(object):
             self.cluster_api.delete_config_map(config_map.metadata.name)
 
 
-class Names(object):
-    def __init__(self, job):
-        stripped_username = re.sub(r'@.*', '', job.username)
-        suffix = '{}-{}'.format(job.id, stripped_username)
+class Names(BaseNames):
+    def __init__(self, job, paths):
+        super(Names, self).__init__(job, paths)
+
         # Volumes
-        self.job_data = 'job-data-{}'.format(suffix)
-        self.output_data = 'output-data-{}'.format(suffix)
-        self.tmpout = 'tmpout-{}'.format(suffix)
-        self.tmp = 'tmp-{}'.format(suffix)
+        self.job_data = 'job-data-{}'.format(self.suffix)
+        self.output_data = 'output-data-{}'.format(self.suffix)
+        self.tmpout = 'tmpout-{}'.format(self.suffix)
+        self.tmp = 'tmp-{}'.format(self.suffix)
 
         # Job Names
-        self.stage_data = 'stage-data-{}'.format(suffix)
-        self.run_workflow = 'run-workflow-{}'.format(suffix)
-        self.organize_output = 'organize-output-{}'.format(suffix)
-        self.save_output = 'save-output-{}'.format(suffix)
-        self.record_output_project = 'record-output-project-{}'.format(suffix)
+        self.stage_data = 'stage-data-{}'.format(self.suffix)
+        self.run_workflow = 'run-workflow-{}'.format(self.suffix)
+        self.organize_output = 'organize-output-{}'.format(self.suffix)
+        self.save_output = 'save-output-{}'.format(self.suffix)
+        self.record_output_project = 'record-output-project-{}'.format(self.suffix)
 
-        self.user_data = 'user-data-{}'.format(suffix)
-        self.data_store_secret = 'data-store-{}'.format(suffix)
-        job_created = dateutil.parser.parse(job.created).strftime("%Y-%m-%d")
-        self.output_project_name = "Bespin {} v{} {} {}".format(
-            job.workflow.name, job.workflow.version, job.name, job_created)
-        self.workflow_download_dest = '{}/{}'.format(Paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
-        self.job_order_path = '{}/job-order.json'.format(Paths.JOB_DATA)
-        self.workflow_input_files_metadata_path = '{}/workflow-input-files-metadata.json'.format(Paths.JOB_DATA)
-        self.system_data = 'system-data-{}'.format(suffix)
-        self.run_workflow_stdout_path = '{}/bespin-workflow-output.json'.format(Paths.OUTPUT_DATA)
-        self.run_workflow_stderr_path = '{}/bespin-workflow-output.log'.format(Paths.OUTPUT_DATA)
-        self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(Paths.OUTPUT_DATA)
-        self.usage_report_path = '{}/job-{}-resource-usage.json'.format(Paths.OUTPUT_DATA, suffix)
+        self.user_data = 'user-data-{}'.format(self.suffix)
+        self.data_store_secret = 'data-store-{}'.format(self.suffix)
+        self.workflow_download_dest = '{}/{}'.format(paths.WORKFLOW, os.path.basename(job.workflow.workflow_url))
+        self.system_data = 'system-data-{}'.format(self.suffix)
 
-
-class ZippedWorkflowNames(Names):
-    def __init__(self, job):
-        super(ZippedWorkflowNames, self).__init__(job)
-        self.workflow_to_run = '{}/{}'.format(Paths.WORKFLOW, job.workflow.workflow_path)
-        self.workflow_to_read = self.workflow_to_run
-        self.unzip_workflow_url_to_path = Paths.WORKFLOW
-
-
-class PackedWorkflowNames(Names):
-    def __init__(self, job):
-        super(PackedWorkflowNames, self).__init__(job)
-        self.workflow_to_run = '{}{}'.format(self.workflow_download_dest, job.workflow.workflow_path)
-        self.workflow_to_read = self.workflow_download_dest
-        self.unzip_workflow_url_to_path = None
-
-
-def create_names(job):
-    workflow_type = job.workflow.workflow_type
-    if workflow_type == WorkflowTypes.ZIPPED:
-        return ZippedWorkflowNames(job)
-    elif workflow_type == WorkflowTypes.PACKED:
-        return PackedWorkflowNames(job)
-    else:
-        raise ValueError("Unknown workflow type {}".format(workflow_type))
-
-
-class Paths(object):
-    JOB_DATA = '/bespin/job-data'
-    WORKFLOW = '/bespin/job-data/workflow'
-    CONFIG_DIR = '/bespin/config'
-    STAGE_DATA_CONFIG_FILE = '/bespin/config/stagedata.json'
-    OUTPUT_DATA = '/bespin/output-data'
-    OUTPUT_RESULTS_DIR = '/bespin/output-data/results'
-    TMPOUT_DATA = '/bespin/output-data/tmpout'
-    REMOTE_README_FILE_PATH = 'results/docs/README.md'
+        self.annotate_project_details_path = '{}/annotate_project_details.sh'.format(paths.OUTPUT_DATA)
 
 
 class StageDataConfig(object):
-    def __init__(self, job, config):
+    def __init__(self, job, config, paths):
         self.filename = "stagedata.json"
-        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}/{}'.format(paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
@@ -475,9 +378,9 @@ class RunWorkflowConfig(object):
 
 
 class OrganizeOutputConfig(object):
-    def __init__(self, job, config):
+    def __init__(self, job, config, paths):
         self.filename = "organizeoutput.json"
-        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}/{}'.format(paths.CONFIG_DIR, self.filename)
 
         job_organize_output_settings = job.k8s_settings.organize_output
         self.image_name = job_organize_output_settings.image_name
@@ -487,9 +390,9 @@ class OrganizeOutputConfig(object):
 
 
 class SaveOutputConfig(object):
-    def __init__(self, job, config):
+    def __init__(self, job, config, paths):
         self.filename = "saveoutput.json"
-        self.path = '{}/{}'.format(Paths.CONFIG_DIR, self.filename)
+        self.path = '{}/{}'.format(paths.CONFIG_DIR, self.filename)
         self.data_store_secret_name = config.data_store_settings.secret_name
         self.data_store_secret_path = DDSCLIENT_CONFIG_MOUNT_PATH
         self.env_dict = {"DDSCLIENT_CONF": "{}/config".format(DDSCLIENT_CONFIG_MOUNT_PATH)}
@@ -499,10 +402,6 @@ class SaveOutputConfig(object):
         self.command = job_save_output_settings.base_command
         self.requested_cpu = job_save_output_settings.cpus
         self.requested_memory = job_save_output_settings.memory
-
-        self.activity_name = "{} - Bespin Job {}".format(job.name, job.id)
-        self.activity_description = "Bespin Job {} - Workflow {} v{}".format(
-            job.id, job.workflow.name, job.workflow.version)
 
 
 class RecordOutputProjectConfig(object):

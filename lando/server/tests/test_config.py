@@ -28,6 +28,11 @@ cloud_settings:
 bespin_api:
   url: http://localhost:8000/api
   token: 10498124091240e
+  
+commands:
+  stage_data_command: ["python", "-m", "lando_util.stagedata"]
+  organize_output_command: ["python", "-m", "lando_util.organize_project"]
+  save_output_command: ["python", "-m", "lando_util.upload"]
 """
 
 
@@ -72,6 +77,19 @@ class TestServerConfig(TestCase):
         config = ServerConfig(filename)
         os.unlink(filename)
         expected = """
+commands:
+  organize_output_command:
+  - python
+  - -m
+  - lando_util.organize_project
+  save_output_command:
+  - python
+  - -m
+  - lando_util.upload
+  stage_data_command:
+  - python
+  - -m
+  - lando_util.stagedata
 cwl_base_command: null
 cwl_post_process_command: null
 cwl_pre_process_command: null
@@ -100,6 +118,19 @@ username: lobot
         config.log_level = 'DEBUG'
         os.unlink(filename)
         expected = """
+commands:
+  organize_output_command:
+  - python
+  - -m
+  - lando_util.organize_project
+  save_output_command:
+  - python
+  - -m
+  - lando_util.upload
+  stage_data_command:
+  - python
+  - -m
+  - lando_util.stagedata
 cwl_base_command:
 - cwltoil
 - --not-strict

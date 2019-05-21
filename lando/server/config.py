@@ -18,7 +18,7 @@ class ServerConfig(object):
         :param filename: str: path to a yaml config file
         """
         with open(filename, 'r') as infile:
-            data = yaml.load(infile)
+            data = yaml.safe_load(infile)
             if not data:
                 raise InvalidConfigException("Empty config file {}.".format(filename))
             self.fake_cloud_service = data.get('fake_cloud_service', False)
@@ -26,6 +26,7 @@ class ServerConfig(object):
             self.cloud_settings = self._optional_get(data, 'cloud_settings', CloudSettings)
             self.bespin_api_settings = self._optional_get(data, 'bespin_api', BespinApiSettings)
             self.log_level = data.get('log_level', logging.WARNING)
+            self.commands = CommandsConfig(data)
 
     @staticmethod
     def _optional_get(data, name, constructor):
@@ -47,7 +48,12 @@ class ServerConfig(object):
             'username': work_queue.worker_username,
             'password': work_queue.worker_password,
             'queue_name': queue_name,
-            'log_level': self.log_level
+            'log_level': self.log_level,
+            'commands': {
+                'stage_data_command': self.commands.stage_data_command,
+                'organize_output_command': self.commands.organize_output_command,
+                'save_output_command': self.commands.save_output_command,
+            },
         }
         if not self.fake_cloud_service:
             data['cwl_base_command'] = cwl_command.base_command
@@ -103,3 +109,11 @@ class BespinApiSettings(object):
     def __init__(self, data):
         self.url = get_or_raise_config_exception(data, 'url')
         self.token = get_or_raise_config_exception(data, 'token')
+
+
+class CommandsConfig(object):
+    def __init__(self, data):
+        commands = data['commands']
+        self.stage_data_command = commands['stage_data_command']
+        self.organize_output_command = commands['organize_output_command']
+        self.save_output_command = commands['save_output_command']
