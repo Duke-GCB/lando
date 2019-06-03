@@ -177,7 +177,8 @@ class K8sJobActions(BaseJobActions):
             self.manager.cleanup_jobs_and_config_maps()
             if self.bespin_job.step == JobSteps.STAGING:
                 self._set_job_state(JobStates.RUNNING)
-                self.perform_staging_step()
+                input_files = self.job_api.get_input_files()
+                self.perform_staging_step(input_files)
             elif self.bespin_job.step == JobSteps.RUNNING:
                 self._set_job_state(JobStates.RUNNING)
                 self.run_workflow_job()
