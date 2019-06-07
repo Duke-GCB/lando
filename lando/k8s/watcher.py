@@ -89,7 +89,7 @@ class JobWatcher(object):
     def on_job_failed(self, job_name, bespin_job_id, bespin_job_step):
         try:
             pod = self.get_most_recent_pod_for_job(job_name)
-            logs = self.cluster_api.read_pod_logs(pod.metdata.name)
+            logs = self.cluster_api.read_pod_logs(pod.metadata.name)
         except (ApiException, PodNotFoundException) as ex:
             logging.error("Unable to read logs {}".format(str(ex)))
             logs = "Unable to read logs."

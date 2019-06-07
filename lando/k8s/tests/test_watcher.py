@@ -174,7 +174,7 @@ class TestJobWatcher(TestCase):
         watcher = JobWatcher(config=Mock())
         watcher.get_most_recent_pod_for_job = Mock()
         mock_pod = Mock()
-        mock_pod.metdata.name = 'myjob-pod'
+        mock_pod.metadata.name = 'myjob-pod'
         watcher.get_most_recent_pod_for_job.return_value = mock_pod
         watcher.lando_client = Mock()
 
@@ -218,14 +218,16 @@ class TestJobWatcher(TestCase):
     def test_on_job_failed_record_output(self, mock_cluster_api):
         mock_cluster_api.return_value.read_pod_logs.return_value = "Error details"
         watcher = JobWatcher(config=Mock())
+        mock_pod = Mock()
         watcher.get_most_recent_pod_for_job = Mock()
-        watcher.get_most_recent_pod_for_job.return_value = Mock()
+        watcher.get_most_recent_pod_for_job.return_value = mock_pod
         watcher.lando_client = Mock()
 
         watcher.on_job_failed('myjob', '31', JobStepTypes.RECORD_OUTPUT_PROJECT)
 
         payload = watcher.lando_client.job_step_error.call_args[0][0]
         message = watcher.lando_client.job_step_error.call_args[0][1]
+        mock_cluster_api.return_value.read_pod_logs.assert_called_with(mock_pod.metadata.name)
         self.assertEqual(payload.job_id, '31')
         self.assertEqual(payload.error_command, JobCommands.RECORD_OUTPUT_PROJECT_ERROR)
         self.assertEqual(message, 'Error details')
