@@ -17,6 +17,10 @@ JOB_STEP_TO_COMMANDS = {
 }
 
 
+class PodNotFoundException(Exception):
+    pass
+
+
 def check_condition_status(job, condition_type):
     """
     Determines if a generic job has a condition type: Complete(Success) or Failure
@@ -84,11 +88,19 @@ class JobWatcher(object):
 
     def on_job_failed(self, job_name, bespin_job_id, bespin_job_step):
         try:
-            logs = self.cluster_api.read_pod_logs(job_name)
-        except ApiException as ex:
+            pod = self.get_most_recent_pod_for_job(job_name)
+            logs = self.cluster_api.read_pod_logs(pod.metdata.name)
+        except (ApiException, PodNotFoundException) as ex:
             logging.error("Unable to read logs {}".format(str(ex)))
             logs = "Unable to read logs."
         self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
+
+    def get_most_recent_pod_for_job(self, job_name):
+        pods = self.cluster_api.list_pods(label_selector="job-name={}".format(job_name))
+        if not pods:
+            raise PodNotFoundException("No pods found with job name {}.".format(job_name))
+        sorted_pods = sorted(pods, key=lambda pod: pod.metadata.creation_timestamp)
+        return sorted_pods[-1]
 
     def send_step_error_message(self, bespin_job_step, bespin_job_id, message):
         payload = JobStepPayload(bespin_job_id, bespin_job_step)
