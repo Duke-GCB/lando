@@ -138,7 +138,9 @@ class TestClusterApi(TestCase):
         # Added _preload_content argument to allow fetching actual text instead of parsed
         # based on https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
         resp = self.cluster_api.read_pod_logs('mypod')
-        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
+        log_stream = self.mock_core_api.read_namespaced_pod_log.return_value
+        self.assertEqual(resp, log_stream.read.return_value.decode.return_value)
+        log_stream.read.return_value.decode.assert_called_with('utf-8')
         self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
                                                                       _preload_content=False)
 

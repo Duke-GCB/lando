@@ -93,7 +93,8 @@ class ClusterApi(object):
         # So instead we are using the _preload_content flag and calling read() based on the following comment:
         # https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
         # This changes the returned value so we must add an additional call to read()
-        return self.core.read_namespaced_pod_log(name, self.namespace, _preload_content=False).read()
+        stream = self.core.read_namespaced_pod_log(name, self.namespace, _preload_content=False)
+        return stream.read().decode("utf-8")
 
     def list_pods(self, label_selector):
         return self.core.list_namespaced_pod(self.namespace, label_selector=label_selector).items
