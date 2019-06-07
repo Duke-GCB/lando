@@ -27,11 +27,6 @@ Create a service account that will be used by k8s.lando to create jobs.
 oc create sa lando
 ```
 
-Give this account admin priv. This just just gives admin access to this namespace and not the whole cluster.
-```
-oc create rolebinding lando-binding --clusterrole=admin --serviceaccount=lando-job-runner:lando
-```
-
 Find the name of a token for this service account
 ```
 oc describe sa lando
@@ -50,10 +45,28 @@ Use this file to populate the DukeDS secret for your agent.
 oc create secret generic ddsclient-agent --from-file=config=ddsclient.conf
 ```
 
-Setup required for the CWL workflow running image (calrissian)
+Setup roles for use by calrissian and lando service account
 ```
-oc create role pod-manager-role --verb=create,delete,list,watch --resource=pods
+oc create role pod-manager-role --verb=create,patch,delete,list,watch --resource=pods
+oc create role log-reader-role --verb=get,list --resource=pods/log
+oc create role pvc-manager-role --verb=create,delete,list,watch --resource=pvc
+oc create role configmaps-manager-role --verb=create,delete,list,watch --resource=configmaps
+oc create role job-manager-role --verb=create,delete,list,watch --resource=jobs.batch
+```
+
+Bind roles required for the CWL workflow running image (calrissian)
+```
 oc create rolebinding pod-manager-default-binding --role=pod-manager-role --serviceaccount=lando-job-runner:default
+oc create rolebinding log-reader-default-binding --role=log-reader-role --serviceaccount=lando-job-runner:default
+```
+
+Bind roles necessary to lando service account
+```
+oc create rolebinding lando-pvc-manager-role-binding --role=pvc-manager-role --serviceaccount=lando-job-runner:lando
+oc create rolebinding lando-configmaps-manager-role-binding --role=configmaps-manager-role --serviceaccount=lando-job-runner:lando
+oc create rolebinding lando-job-manager-role-binding --role=job-manager-role --serviceaccount=lando-job-runner:lando
+oc create rolebinding lando-pod-manager-role-binding --role=pod-manager-role --serviceaccount=lando-job-runner:lando
+oc create rolebinding lando-log-reader-role-binding --role=log-reader-role --serviceaccount=lando-job-runner:lando
 ```
 
 Build the lando-util image that will be used for the stage data, organize output, and upload results jobs.
