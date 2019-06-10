@@ -1,4 +1,4 @@
-from lando.k8s.cluster import ClusterApi, JobConditionType, EventTypes
+from lando.k8s.cluster import ClusterApi, JobConditionType, EventTypes, ItemNotFoundException
 from lando.k8s.config import create_server_config
 from lando.k8s.jobmanager import JobLabels, JobStepTypes
 from lando_messaging.clients import LandoClient
@@ -84,8 +84,8 @@ class JobWatcher(object):
 
     def on_job_failed(self, job_name, bespin_job_id, bespin_job_step):
         try:
-            logs = self.cluster_api.read_pod_logs(job_name)
-        except ApiException as ex:
+            logs = self.cluster_api.read_job_logs(job_name)
+        except (ApiException, ItemNotFoundException) as ex:
             logging.error("Unable to read logs {}".format(str(ex)))
             logs = "Unable to read logs."
         self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)

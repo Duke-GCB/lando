@@ -1,8 +1,10 @@
 from unittest import TestCase
 from unittest.mock import patch, Mock, call
 from lando.k8s.cluster import ClusterApi, AccessModes, Container, SecretVolume, SecretEnvVar, EnvVarSource, \
-    FieldRefEnvVar, VolumeBase, SecretVolume, PersistentClaimVolume, ConfigMapVolume, BatchJobSpec
+    FieldRefEnvVar, VolumeBase, SecretVolume, PersistentClaimVolume, ConfigMapVolume, BatchJobSpec, \
+    ItemNotFoundException
 from kubernetes import client
+from dateutil.parser import parse
 
 
 class TestClusterApi(TestCase):
@@ -138,7 +140,9 @@ class TestClusterApi(TestCase):
         # Added _preload_content argument to allow fetching actual text instead of parsed
         # based on https://github.com/kubernetes/kubernetes/issues/37881#issuecomment-264366664
         resp = self.cluster_api.read_pod_logs('mypod')
-        self.assertEqual(resp, self.mock_core_api.read_namespaced_pod_log.return_value.read.return_value)
+        log_stream = self.mock_core_api.read_namespaced_pod_log.return_value
+        self.assertEqual(resp, log_stream.read.return_value.decode.return_value)
+        log_stream.read.return_value.decode.assert_called_with('utf-8')
         self.mock_core_api.read_namespaced_pod_log.assert_called_with('mypod', 'lando-job-runner',
                                                                       _preload_content=False)
 
@@ -174,6 +178,37 @@ class TestClusterApi(TestCase):
         mock_config_map_list = self.mock_core_api.list_namespaced_config_map.return_value
         self.assertEqual(resp, mock_config_map_list.items)
 
+    def test_read_job_logs(self):
+        mock_pod = Mock()
+        mock_pod.metadata.name = 'myjob-abcd'
+        self.cluster_api.get_most_recent_pod_for_job = Mock()
+        self.cluster_api.get_most_recent_pod_for_job.return_value = mock_pod
+        self.cluster_api.read_pod_logs = Mock()
+        logs = self.cluster_api.read_job_logs('myjob')
+        self.assertEqual(logs, self.cluster_api.read_pod_logs.return_value)
+        self.cluster_api.get_most_recent_pod_for_job.assert_called_with('myjob')
+        self.cluster_api.read_pod_logs.assert_called_with('myjob-abcd')
+
+    def test_get_most_recent_pod_for_job_name__no_pods_found(self):
+        self.cluster_api.list_pods = Mock()
+        self.cluster_api.list_pods.return_value = []
+        with self.assertRaises(ItemNotFoundException) as raised_exception:
+            self.cluster_api.get_most_recent_pod_for_job('myjob')
+        self.assertEqual(str(raised_exception.exception), 'No pods found with job name myjob.')
+
+    def test_get_most_recent_pod_for_job_name__finds_pod(self):
+        pod1 = Mock()
+        pod1.metadata.creation_timestamp = parse("2012-01-01 12:30:00")
+        pod2 = Mock()
+        pod2.metadata.creation_timestamp = parse("2012-01-01 12:50:00")
+        pod3 = Mock()
+        pod3.metadata.creation_timestamp = parse("2012-01-01 12:40:00")
+        self.cluster_api.list_pods = Mock()
+        self.cluster_api.list_pods.return_value = [
+            pod1, pod2, pod3
+        ]
+        pod = self.cluster_api.get_most_recent_pod_for_job('myjob')
+        self.assertEqual(pod, pod2)
 
 class TestContainer(TestCase):
     def test_minimal_create(self):
