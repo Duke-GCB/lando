@@ -1,4 +1,4 @@
-from lando.k8s.cluster import ClusterApi, JobConditionType, EventTypes
+from lando.k8s.cluster import ClusterApi, JobConditionType, EventTypes, ItemNotFoundException
 from lando.k8s.config import create_server_config
 from lando.k8s.jobmanager import JobLabels, JobStepTypes
 from lando_messaging.clients import LandoClient
@@ -15,10 +15,6 @@ JOB_STEP_TO_COMMANDS = {
     JobStepTypes.RECORD_OUTPUT_PROJECT:
         (JobCommands.RECORD_OUTPUT_PROJECT_COMPLETE, JobCommands.RECORD_OUTPUT_PROJECT_ERROR),
 }
-
-
-class PodNotFoundException(Exception):
-    pass
 
 
 def check_condition_status(job, condition_type):
@@ -88,19 +84,11 @@ class JobWatcher(object):
 
     def on_job_failed(self, job_name, bespin_job_id, bespin_job_step):
         try:
-            pod = self.get_most_recent_pod_for_job(job_name)
-            logs = self.cluster_api.read_pod_logs(pod.metadata.name)
-        except (ApiException, PodNotFoundException) as ex:
+            logs = self.cluster_api.read_job_logs(job_name)
+        except (ApiException, ItemNotFoundException) as ex:
             logging.error("Unable to read logs {}".format(str(ex)))
             logs = "Unable to read logs."
         self.send_step_error_message(bespin_job_step, bespin_job_id, message=logs)
-
-    def get_most_recent_pod_for_job(self, job_name):
-        pods = self.cluster_api.list_pods(label_selector="job-name={}".format(job_name))
-        if not pods:
-            raise PodNotFoundException("No pods found with job name {}.".format(job_name))
-        sorted_pods = sorted(pods, key=lambda pod: pod.metadata.creation_timestamp)
-        return sorted_pods[-1]
 
     def send_step_error_message(self, bespin_job_step, bespin_job_id, message):
         payload = JobStepPayload(bespin_job_id, bespin_job_step)

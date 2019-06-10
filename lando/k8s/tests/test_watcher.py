@@ -1,8 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from lando.k8s.watcher import JobWatcher, JobLabels, JobStepTypes, JobCommands, JobConditionType, ApiException, \
-    EventTypes, PodNotFoundException
-from dateutil.parser import parse
+    EventTypes
 
 
 class TestJobWatcher(TestCase):
@@ -170,17 +169,12 @@ class TestJobWatcher(TestCase):
 
     @patch('lando.k8s.watcher.ClusterApi')
     def test_on_job_failed(self, mock_cluster_api):
-        mock_cluster_api.return_value.read_pod_logs.return_value = "Error details"
+        mock_cluster_api.return_value.read_job_logs.return_value = "Error details"
         watcher = JobWatcher(config=Mock())
-        watcher.get_most_recent_pod_for_job = Mock()
-        mock_pod = Mock()
-        mock_pod.metadata.name = 'myjob-pod'
-        watcher.get_most_recent_pod_for_job.return_value = mock_pod
         watcher.lando_client = Mock()
 
         watcher.on_job_failed('myjob', '31', JobStepTypes.STAGE_DATA)
-        watcher.get_most_recent_pod_for_job.assert_called_with('myjob')
-        mock_cluster_api.return_value.read_pod_logs.assert_called_with('myjob-pod')
+        mock_cluster_api.return_value.read_job_logs.assert_called_with('myjob')
         payload = watcher.lando_client.job_step_error.call_args[0][0]
         message = watcher.lando_client.job_step_error.call_args[0][1]
         self.assertEqual(payload.job_id, '31')
@@ -215,27 +209,9 @@ class TestJobWatcher(TestCase):
         self.assertEqual(message, 'Error details')
 
     @patch('lando.k8s.watcher.ClusterApi')
-    def test_on_job_failed_record_output(self, mock_cluster_api):
-        mock_cluster_api.return_value.read_pod_logs.return_value = "Error details"
-        watcher = JobWatcher(config=Mock())
-        mock_pod = Mock()
-        watcher.get_most_recent_pod_for_job = Mock()
-        watcher.get_most_recent_pod_for_job.return_value = mock_pod
-        watcher.lando_client = Mock()
-
-        watcher.on_job_failed('myjob', '31', JobStepTypes.RECORD_OUTPUT_PROJECT)
-
-        payload = watcher.lando_client.job_step_error.call_args[0][0]
-        message = watcher.lando_client.job_step_error.call_args[0][1]
-        mock_cluster_api.return_value.read_pod_logs.assert_called_with(mock_pod.metadata.name)
-        self.assertEqual(payload.job_id, '31')
-        self.assertEqual(payload.error_command, JobCommands.RECORD_OUTPUT_PROJECT_ERROR)
-        self.assertEqual(message, 'Error details')
-
-    @patch('lando.k8s.watcher.ClusterApi')
     @patch('lando.k8s.watcher.logging')
     def test_on_job_failed_reading_logs_failed(self, mock_logging, mock_cluster_api):
-            mock_cluster_api.return_value.read_pod_logs.side_effect = ApiException(status=404, reason='Logs not found')
+            mock_cluster_api.return_value.read_job_logs.side_effect = ApiException(status=404, reason='Logs not found')
             watcher = JobWatcher(config=Mock())
             watcher.get_most_recent_pod_for_job = Mock()
             watcher.get_most_recent_pod_for_job.return_value = Mock()
@@ -249,25 +225,4 @@ class TestJobWatcher(TestCase):
             self.assertEqual(message, 'Unable to read logs.')
             mock_logging.error.assert_called_with('Unable to read logs (404)\nReason: Logs not found\n')
 
-    @patch('lando.k8s.watcher.ClusterApi')
-    def test_get_most_recent_pod_for_job_name__no_pods_found(self, mock_cluster_api):
-        mock_cluster_api.return_value.list_pods.return_value = []
-        watcher = JobWatcher(config=Mock())
-        with self.assertRaises(PodNotFoundException) as raised_exception:
-            watcher.get_most_recent_pod_for_job('myjob')
-        self.assertEqual(str(raised_exception.exception), 'No pods found with job name myjob.')
 
-    @patch('lando.k8s.watcher.ClusterApi')
-    def test_get_most_recent_pod_for_job_name__finds_pod(self, mock_cluster_api):
-        pod1 = Mock()
-        pod1.metadata.creation_timestamp = parse("2012-01-01 12:30:00")
-        pod2 = Mock()
-        pod2.metadata.creation_timestamp = parse("2012-01-01 12:50:00")
-        pod3 = Mock()
-        pod3.metadata.creation_timestamp = parse("2012-01-01 12:40:00")
-        mock_cluster_api.return_value.list_pods.return_value = [
-            pod1, pod2, pod3
-        ]
-        watcher = JobWatcher(config=Mock())
-        pod = watcher.get_most_recent_pod_for_job('myjob')
-        self.assertEqual(pod, pod2)

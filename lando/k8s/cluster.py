@@ -22,6 +22,10 @@ class EventTypes(object):
     ERROR = "ERROR"
 
 
+class ItemNotFoundException(Exception):
+    pass
+
+
 class ClusterApi(object):
     def __init__(self, host, token, namespace, verify_ssl=True):
         configuration = client.Configuration()
@@ -107,6 +111,28 @@ class ClusterApi(object):
 
     def list_config_maps(self, label_selector):
         return self.core.list_namespaced_config_map(self.namespace, label_selector=label_selector).items
+
+    def read_job_logs(self, job_name):
+        """
+        Reads logs from the most recent pod created by the specified job.
+        Raises ItemNotFoundException when no pod is found with the job-name label selector.
+        :param job_name: str: name of the job we want to read logs for
+        :return: str: logs
+        """
+        pod = self.get_most_recent_pod_for_job(job_name)
+        return self.read_pod_logs(pod.metadata.name)
+
+    def get_most_recent_pod_for_job(self, job_name):
+        """
+        Find the most recent pod created by a job
+        :param job_name: name of the job
+        :return: V1Pod
+        """
+        pods = self.list_pods(label_selector="job-name={}".format(job_name))
+        if not pods:
+            raise ItemNotFoundException("No pods found with job name {}.".format(job_name))
+        sorted_pods = sorted(pods, key=lambda pod: pod.metadata.creation_timestamp)
+        return sorted_pods[-1]
 
 
 class Container(object):
