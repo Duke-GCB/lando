@@ -224,5 +224,3 @@ class TestJobWatcher(TestCase):
             self.assertEqual(payload.error_command, JobCommands.STAGE_JOB_ERROR)
             self.assertEqual(message, 'Unable to read logs.')
             mock_logging.error.assert_called_with('Unable to read logs (404)\nReason: Logs not found\n')
-
-
