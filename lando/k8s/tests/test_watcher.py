@@ -224,3 +224,13 @@ class TestJobWatcher(TestCase):
             self.assertEqual(payload.error_command, JobCommands.STAGE_JOB_ERROR)
             self.assertEqual(message, 'Unable to read logs.')
             mock_logging.error.assert_called_with('Unable to read logs (404)\nReason: Logs not found\n')
+
+    def test_get_cluster_api(self):
+        mock_config = Mock()
+        mock_config.cluster_api_settings.token = 'Secret123'
+        cluster_api = JobWatcher.get_cluster_api(mock_config)
+        configuration = cluster_api.api_client.configuration
+        self.assertEqual(configuration.host, mock_config.cluster_api_settings.host)
+        self.assertEqual(configuration.api_key, {"authorization": "Bearer Secret123"})
+        self.assertEqual(configuration.verify_ssl, mock_config.cluster_api_settings.verify_ssl)
+        self.assertEqual(configuration.ssl_ca_cert, mock_config.cluster_api_settings.ssl_ca_cert)

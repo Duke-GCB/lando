@@ -45,6 +45,7 @@ FULL_CONFIG = {
         'token': 'myToken1',
         'namespace': 'lando-job-runner',
         'verify_ssl': False,
+        'ssl_ca_cert': '/tmp/mycert.crt',
     },
     'bespin_api': {
         'url': 'someurl',
@@ -90,6 +91,7 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.cluster_api_settings.token, 'myToken1')
         self.assertEqual(config.cluster_api_settings.namespace, 'lando-job-runner')
         self.assertEqual(config.cluster_api_settings.verify_ssl, True)
+        self.assertEqual(config.cluster_api_settings.ssl_ca_cert, None)
 
         self.assertIsNotNone(config.bespin_api_settings)
         self.assertEqual(config.data_store_settings.secret_name, 'ddsclient-secret')
@@ -106,3 +108,4 @@ class TestServerConfig(TestCase):
         self.assertEqual(config.run_workflow_settings.system_data_volume.volume_claim_name, 'system-data')
         self.assertEqual(config.cluster_api_settings.verify_ssl, False)
         self.assertEqual(config.base_stage_data_volume_size_in_g, 3)
+        self.assertEqual(config.cluster_api_settings.ssl_ca_cert, '/tmp/mycert.crt')

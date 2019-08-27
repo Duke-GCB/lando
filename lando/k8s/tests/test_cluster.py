@@ -21,6 +21,13 @@ class TestClusterApi(TestCase):
         self.assertEqual(configuration.api_key, {"authorization": "Bearer myToken"})
         self.assertEqual(configuration.verify_ssl, False)
 
+    def test_constructor_verify_with_ca(self):
+        cluster_api = ClusterApi(host='somehost', token='myToken', namespace='lando-job-runner',
+                                 verify_ssl=True, ssl_ca_cert='/tmp/myfile.crt')
+        configuration = cluster_api.api_client.configuration
+        self.assertEqual(configuration.verify_ssl, True)
+        self.assertEqual(configuration.ssl_ca_cert, '/tmp/myfile.crt')
+
     def test_create_persistent_volume_claim(self):
         resp = self.cluster_api.create_persistent_volume_claim(name='myvolume', storage_size_in_g=2,
                                                                storage_class_name='gluster',

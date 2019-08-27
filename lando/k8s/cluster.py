@@ -27,11 +27,13 @@ class ItemNotFoundException(Exception):
 
 
 class ClusterApi(object):
-    def __init__(self, host, token, namespace, verify_ssl=True):
+    def __init__(self, host, token, namespace, verify_ssl=True, ssl_ca_cert=None):
         configuration = client.Configuration()
         configuration.host = host
         configuration.api_key = {"authorization": "Bearer " + token}
         configuration.verify_ssl = verify_ssl
+        if ssl_ca_cert:
+            configuration.ssl_ca_cert = ssl_ca_cert
         self.api_client = client.ApiClient(configuration)
         self.core = client.CoreV1Api(self.api_client)
         self.batch = client.BatchV1Api(self.api_client)

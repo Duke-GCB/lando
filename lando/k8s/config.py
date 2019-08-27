@@ -47,6 +47,7 @@ class ClusterApiSettings(object):
         self.token = get_or_raise_config_exception(data, 'token')
         self.namespace = get_or_raise_config_exception(data, 'namespace')
         self.verify_ssl = data.get('verify_ssl', True)
+        self.ssl_ca_cert = data.get('ssl_ca_cert', None)
 
 
 class RecordOutputProjectSettings(object):

@@ -15,7 +15,7 @@ LANDO_REQUIREMENTS = [
       "Jinja2==2.10.1",
       "kubernetes==8.0.1",
       "pyasn1<0.5.0,>=0.4.1",
-      "lando-messaging==2.0.0",
+      "lando-messaging==2.0.1",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
       "PyYAML==5.1",
