@@ -11,7 +11,8 @@ from lando_messaging.messaging import MessageRouter
 class K8sJobSettings(JobSettings):
     def get_cluster_api(self):
         settings = self.config.cluster_api_settings
-        return ClusterApi(settings.host, settings.token, settings.namespace, verify_ssl=settings.verify_ssl)
+        return ClusterApi(settings.host, settings.token, settings.namespace, verify_ssl=settings.verify_ssl,
+                          ssl_ca_cert=settings.ssl_ca_cert)
 
 
 class K8sJobActions(BaseJobActions):

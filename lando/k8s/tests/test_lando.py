@@ -16,6 +16,7 @@ class TestK8sJobSettings(TestCase):
             mock_config.cluster_api_settings.token,
             mock_config.cluster_api_settings.namespace,
             verify_ssl=mock_config.cluster_api_settings.verify_ssl,
+            ssl_ca_cert=mock_config.cluster_api_settings.ssl_ca_cert
         )
 
 
