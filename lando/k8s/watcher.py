@@ -47,7 +47,8 @@ class JobWatcher(object):
     @staticmethod
     def get_cluster_api(config):
         settings = config.cluster_api_settings
-        return ClusterApi(settings.host, settings.token, settings.namespace, verify_ssl=settings.verify_ssl)
+        return ClusterApi(settings.host, settings.token, settings.namespace, verify_ssl=settings.verify_ssl,
+                          ssl_ca_cert=settings.ssl_ca_cert)
 
     def run(self):
         # run on_job_change for jobs that have the bespin job label
