@@ -6,7 +6,11 @@ template_filename: debug_job_jupyter.yaml.j2
 
 job_id: "TODO"
 job_username: "TODO"
-notebook_image: "jupyter/minimal-notebook:latest"
-notebook_password: "TODO"
+
+# options specific to debug_job_ssh
 public_key: "TODO"
 ingres_host_suffix: "TODO"
+
+# options specific to debug_job_jupyter
+notebook_image: "jupyter/minimal-notebook:latest"
+notebook_password: "TODO"
