@@ -1,5 +1,6 @@
 from kubernetes import client, config, watch
 import logging
+import yaml
 
 RESTART_POLICY = "Never"
 
@@ -31,6 +32,7 @@ class ClusterApi(object):
         configuration = client.Configuration()
         configuration.host = host
         configuration.api_key = {"authorization": "Bearer " + token}
+        self.token = token
         configuration.verify_ssl = verify_ssl
         if ssl_ca_cert:
             configuration.ssl_ca_cert = ssl_ca_cert
@@ -135,6 +137,41 @@ class ClusterApi(object):
             raise ItemNotFoundException("No pods found with job name {}.".format(job_name))
         sorted_pods = sorted(pods, key=lambda pod: pod.metadata.creation_timestamp)
         return sorted_pods[-1]
+
+    def get_kube_config(self):
+        configuration = self.api_client.configuration
+        user = {
+            "name": "lando",
+            "user": {
+                "token": self.token
+            }
+        }
+        cluster = {
+            "name": "bespin-k8s",
+            "cluster": {
+                "server": configuration.host
+            }
+        }
+        if not configuration.verify_ssl:
+            cluster["cluster"]["insecure-skip-tls-verify"] = True
+        context = {
+            "name": "lando-debug",
+            "context": {
+                "cluster": cluster["name"],
+                "namespace": self.namespace,
+                "user": user["name"],
+            }
+        }
+        data = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [cluster],
+            "contexts": [context],
+            "users": [user],
+            "current-context": context["name"],
+            "preferences": {},
+        }
+        return yaml.dump(data)
 
 
 class Container(object):

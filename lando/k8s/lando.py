@@ -247,6 +247,12 @@ class K8sJobActions(BaseJobActions):
         self._show_status(message)
         self._log_error(message=payload.message)
 
+    def start_debug(self, payload):
+        self.manager.setup_debug_service()
+
+    def cancel_debug(self, payload):
+        self.manager.cleanup_debug_service()
+
 
 def create_job_actions(lando, job_id):
     return K8sJobActions(K8sJobSettings(job_id, lando.config))

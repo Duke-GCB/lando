@@ -1,9 +1,11 @@
 from lando.k8s.cluster import BatchJobSpec, SecretVolume, PersistentClaimVolume, \
     ConfigMapVolume, Container, FieldRefEnvVar
+from lando.k8s.helm import Helm
 from lando.common.commands import StageDataCommand, OrganizeOutputCommand, SaveOutputCommand
 from lando.common.names import BaseNames, Paths
 import json
 import os
+import uuid
 
 
 DDSCLIENT_CONFIG_MOUNT_PATH = "/etc/ddsclient"
@@ -324,6 +326,22 @@ class JobManager(object):
         for config_map in self.cluster_api.list_config_maps(label_selector=self.label_selector):
             self.cluster_api.delete_config_map(config_map.metadata.name)
 
+    def setup_debug_service(self):
+        config = DebugConfig(self.job, self.config, self.names)
+        helm = Helm(self.cluster_api, helm_path=config.helm_path)
+        values = {
+            "job_id": config.job_id,
+            "ingress.host": config.host,
+            "volumes.output_data_pvc_name": config.output_data_volume_claim_name,
+            "volumes.job_data_pvc_name": config.job_data_volume_claim_name,
+            "volumes.system_data_pvc_name": config.system_data_volume_claim_name,
+        }
+        helm.install(config.helm_release_name, config.helm_chart_path, values)
+
+    def cleanup_debug_service(self):
+        config = DebugConfig(self.job, self.config, self.names)
+        helm = Helm(self.cluster_api, helm_path=config.helm_path)
+        helm.uninstall(config.helm_release_name)
 
 class Names(BaseNames):
     def __init__(self, job, paths):
@@ -415,3 +433,15 @@ class RecordOutputProjectConfig(object):
         self.service_account_name = record_output_project_settings.service_account_name
         self.project_id_fieldname = 'project_id'
         self.readme_file_id_fieldname = 'readme_file_id'
+
+
+class DebugConfig(object):
+    def __init__(self, job, config, names):
+        self.helm_path = config.debug_config.helm_path
+        self.helm_release_name = "job-{}-debug".format(job.id)
+        self.helm_chart_path = config.debug_config.helm_chart_path
+        self.job_id = job.id
+        self.host = 'job-{}-{}{}'.format(job.id, uuid.uuid4(), config.debug_config.host_suffix)
+        self.output_data_volume_claim_name = names.output_data
+        self.job_data_volume_claim_name = names.job_data
+        self.system_data_volume_claim_name = config.run_workflow_settings.system_data_volume.volume_claim_name

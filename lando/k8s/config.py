@@ -36,6 +36,9 @@ class ServerConfig(object):
         self.record_output_project_settings = RecordOutputProjectSettings(
             get_or_raise_config_exception(data, 'record_output_project_settings')
         )
+        self.debug_config = DebugConfig(
+            get_or_raise_config_exception(data, 'debug_config')
+        )
         self.storage_class_name = data.get('storage_class_name', None)
         # Controls the amount of storage reserved for storing the workflow, job order, downloaded file metadata, etc.
         self.base_stage_data_volume_size_in_g = data.get('base_stage_data_volume_size_in_g', 1)
@@ -73,3 +76,10 @@ class SystemDataVolume(object):
 class DataStoreSettings(object):
     def __init__(self, data):
         self.secret_name = get_or_raise_config_exception(data, 'secret_name')
+
+
+class DebugConfig(object):
+    def __init__(self, data):
+        self.helm_path = get_or_raise_config_exception(data, "helm_path")
+        self.host_suffix = get_or_raise_config_exception(data, "host_suffix")
+        self.helm_chart_path = get_or_raise_config_exception(data, "helm_chart_path")
