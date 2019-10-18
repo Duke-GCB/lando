@@ -171,7 +171,7 @@ class ClusterApi(object):
             "current-context": context["name"],
             "preferences": {},
         }
-        return yaml.dump(data)
+        return yaml.safe_dump(data)
 
 
 class Container(object):
