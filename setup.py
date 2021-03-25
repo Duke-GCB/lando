@@ -18,7 +18,7 @@ LANDO_REQUIREMENTS = [
       "lando-messaging==2.0.1",
       "Markdown==2.6.9",
       "python-dateutil==2.6.0",
-      "PyYAML==5.1",
+      "PyYAML==5.4",
       "requests==2.20.1",
 ]
 
